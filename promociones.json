@@ -1,0 +1,10 @@
+[
+  {
+    "id": "promo_001",
+    "nombre": "2x1 en ramos",
+    "emoji": "🌹",
+    "descripcion": "Compra 2 ramos y el segundo tiene 20% de descuento",
+    "descuento": "20% en el segundo ramo",
+    "activa": false
+  }
+]
