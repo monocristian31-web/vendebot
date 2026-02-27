@@ -463,31 +463,21 @@ app.post('/webhook', async (req, res) => {
       await enviarMensaje(numero, bienvenida);
       conv.etapa = 'consultando';
       if (texto.toLowerCase() !== 'hola' && texto.toLowerCase() !== 'buenas' && texto.toLowerCase() !== 'hi' && texto.toLowerCase() !== 'buenos dias' && texto.toLowerCase() !== 'buenas tardes' && texto.toLowerCase() !== 'buenas noches' && texto.length > 6) {
-```
-
-Guarda con **Ctrl + S** pero no cierres el bloc de notas todavía. Vamos a arreglar el bug 2.
-
-**Bug 2 — Imágenes repetidas:**
-
-Busca con **Ctrl + F**:
-```
-ENVIAR_IMAGENES
         const { mensaje: r, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
         if (r) await enviarMensaje(numero, r);
-       if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
-```(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+        if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
       }
       return;
     }
 
     if (conv.esperando === 'boucher') {
-     await enviarMensaje(numero, 'Estoy esperando tu comprobante de pago. Envia una foto del comprobante del banco por el monto exacto.');
+      await enviarMensaje(numero, `💳 Estoy esperando tu *comprobante de pago*.\n\nEnvía una foto del comprobante del *${negocio.banco}* por *$${conv.pedido.total?.toFixed(2) || '0.00'}*`);
       return;
     }
 
     const { mensaje: respuesta, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviarMensaje(numero, respuesta);
-    if (imagenesIds?.length > 0) for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
 
     if (conv.etapa === 'pago' && conv.esperando !== 'boucher') {
       await new Promise(r => setTimeout(r, 500));
