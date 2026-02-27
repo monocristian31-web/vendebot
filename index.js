@@ -169,7 +169,7 @@ app.post('/webhook', async (req, res) => {
     let negocioId = clienteNegocioMap.get(numero);
     let negocio = negocios.find(n => n.id === negocioId && n.activo);
 
-    if (!negocio && negocios.length === 1 && negocios[0].activo) {
+    if (!negocio) {
       negocio = negocios[0];
       clienteNegocioMap.set(numero, negocio.id);
       guardarMapaClientes();
