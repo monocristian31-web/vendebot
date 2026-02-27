@@ -481,7 +481,7 @@ ENVIAR_IMAGENES
     }
 
     if (conv.esperando === 'boucher') {
-      await enviarMensaje(numero, `💳 Estoy esperando tu *comprobante de pago*.\n\nEnvía una foto del comprobante del *${negocio.banco}* por *$${conv.pedido.total?.toFixed(2) || '0.00'}*`);
+     await enviarMensaje(numero, 'Estoy esperando tu comprobante de pago. Envia una foto del comprobante del banco por el monto exacto.');
       return;
     }
 
