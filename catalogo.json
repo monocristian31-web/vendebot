@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "nombre": "Ramo Clásico",
+    "precio": 25.00,
+    "descripcion": "Hermoso ramo de 12 rosas rojas frescas, ideal para cualquier ocasión",
+    "categoria": "principal",
+    "emoji": "🌹"
+  },
+  {
+    "id": 2,
+    "nombre": "Ramo Premium",
+    "precio": 45.00,
+    "descripcion": "Arreglo grande con 24 rosas, flores variadas y decoración especial",
+    "categoria": "principal",
+    "emoji": "💐"
+  },
+  {
+    "id": 3,
+    "nombre": "Ramo Mini",
+    "precio": 15.00,
+    "descripcion": "Pequeño ramo perfecto para un detalle rápido y especial",
+    "categoria": "principal",
+    "emoji": "🌸"
+  },
+  {
+    "id": 4,
+    "nombre": "Peluche Amor",
+    "precio": 12.00,
+    "descripcion": "Peluche suave de osito de 30cm, perfecto para acompañar el ramo",
+    "categoria": "complemento",
+    "emoji": "🧸"
+  },
+  {
+    "id": 5,
+    "nombre": "Caja de Chocolates",
+    "precio": 18.00,
+    "descripcion": "Caja de 12 chocolates artesanales surtidos",
+    "categoria": "complemento",
+    "emoji": "🍫"
+  },
+  {
+    "id": 6,
+    "nombre": "Carta a Mano",
+    "precio": 5.00,
+    "descripcion": "Carta personalizada escrita a mano con tu mensaje especial",
+    "categoria": "complemento",
+    "emoji": "💌"
+  }
+]
