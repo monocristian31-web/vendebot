@@ -1,179 +1,111 @@
 require('dotenv').config();
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
-const twilio = require('twilio');
+const axios = require('axios');
 const fs = require('fs');
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-const NEGOCIO = {
-  nombre: process.env.NOMBRE_NEGOCIO || 'Mi Negocio',
-  tipo: process.env.TIPO_NEGOCIO || 'tienda',
-  whatsapp_bot: process.env.TWILIO_WHATSAPP_NUMBER,
-  whatsapp_dueno: process.env.WHATSAPP_DUENO,
-  whatsapp_delivery: process.env.WHATSAPP_DELIVERY,
-};
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'vendebot2024';
+
+function cargarNegocios() {
+  try { return JSON.parse(fs.readFileSync('./negocios.json', 'utf8')); } catch { return []; }
+}
 
 const conversaciones = new Map();
-const pedidos = [];
 
-let catalogo = [];
-try {
-  catalogo = JSON.parse(fs.readFileSync('./catalogo.json', 'utf8'));
-} catch {
-  catalogo = [
-    { id: 1, nombre: 'Producto Principal', precio: 25.00, descripcion: 'Producto estrella', emoji: '🌟' },
-  ];
-}
-
-const MENSAJES = {
-  bienvenida: `¡Hola! 👋 Bienvenido/a a *${NEGOCIO.nombre}*. Soy tu asistente virtual. ¿Qué estás buscando hoy? 😊`,
-  no_entendio: `Disculpa, no entendí bien 😅 ¿Puedes explicarme un poco más?`,
-  boucher_invalido: `😅 El comprobante no es válido o está vencido. Por favor envía un boucher reciente del Banco Pichincha con el monto correcto.`,
-  cotizando_delivery: `📍 Estoy coordinando el envío, en un momento te confirmo el costo. ¡Gracias por tu paciencia! ⏳`,
-};
-
-function formatCatalogo() {
-  return catalogo.map(p => `- ${p.emoji || '•'} *${p.nombre}*: $${p.precio.toFixed(2)} — ${p.descripcion}`).join('\n');
-}
-
-function getOrCreateConversacion(numero) {
-  if (!conversaciones.has(numero)) {
-    conversaciones.set(numero, {
-      numero,
-      historial: [],
-      etapa: 'inicio',
-      pedido: {},
-      esperando: null,
-      intentos_boucher: 0,
-      imagenes_enviadas: [],
+function getOrCreateConversacion(numero, negocio) {
+  const key = `${numero}:${negocio.id}`;
+  if (!conversaciones.has(key)) {
+    conversaciones.set(key, {
+      numero, negocio_id: negocio.id,
+      historial: [], etapa: 'inicio', pedido: {},
+      esperando: null, intentos_boucher: 0,
     });
   }
-  return conversaciones.get(numero);
+  return conversaciones.get(key);
+}
+
+const clienteNegocioMap = new Map();
+try {
+  const mapa = JSON.parse(fs.readFileSync('./cliente_negocio_map.json', 'utf8'));
+  for (const [k, v] of Object.entries(mapa)) clienteNegocioMap.set(k, v);
+} catch {}
+
+function guardarMapaClientes() {
+  try { fs.writeFileSync('./cliente_negocio_map.json', JSON.stringify(Object.fromEntries(clienteNegocioMap), null, 2)); } catch {}
 }
 
 async function enviarMensaje(numero, mensaje) {
   try {
-    await twilioClient.messages.create({
-      from: `whatsapp:${NEGOCIO.whatsapp_bot}`,
-      to: `whatsapp:${numero}`,
-      body: mensaje,
-    });
-    console.log(`📤 Enviado a ${numero}: ${mensaje.substring(0, 60)}...`);
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: mensaje } },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+    );
+    console.log(`📤 Enviado a ${numero}: ${mensaje.substring(0, 50)}...`);
   } catch (err) {
-    console.error('❌ Error enviando mensaje:', err.message);
+    console.error(`❌ Error enviando mensaje: ${err.response?.data?.error?.message || err.message}`);
   }
 }
 
 async function enviarImagen(numero, imagenUrl, caption) {
   try {
-    await twilioClient.messages.create({
-      from: `whatsapp:${NEGOCIO.whatsapp_bot}`,
-      to: `whatsapp:${numero}`,
-      body: caption || '',
-      mediaUrl: [imagenUrl],
-    });
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      { messaging_product: 'whatsapp', to: numero, type: 'image', image: { link: imagenUrl, caption } },
+      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
+    );
     console.log(`🖼️ Imagen enviada a ${numero}`);
   } catch (err) {
-    console.error('❌ Error enviando imagen:', err.message);
+    console.error(`❌ Error enviando imagen: ${err.response?.data?.error?.message || err.message}`);
   }
 }
 
 async function enviarProductosConImagenes(numero, productos) {
   for (const producto of productos) {
     if (producto.imagen) {
-      const caption = `${producto.emoji} *${producto.nombre}*\n💰 Precio: $${producto.precio.toFixed(2)}\n📝 ${producto.descripcion}`;
+      const caption = `${producto.emoji || '•'} *${producto.nombre}*\n💰 $${producto.precio.toFixed(2)}\n📝 ${producto.descripcion}`;
       await enviarImagen(numero, producto.imagen, caption);
       await new Promise(r => setTimeout(r, 1000));
     }
   }
 }
 
-async function notificarDueno(conv) {
+async function notificarDueno(conv, negocio) {
   const pedido = conv.pedido;
-  const msg = `
-🔔 *NUEVO PEDIDO CONFIRMADO — ${NEGOCIO.nombre}*
-
-👤 Cliente: ${pedido.nombre_cliente || conv.numero}
-📱 WhatsApp: ${conv.numero}
-📦 Pedido: ${pedido.descripcion || 'Ver conversación'}
-💰 Total: $${pedido.total || '0.00'}
-📅 Entrega: ${pedido.fecha_entrega || 'A coordinar'}
-🕐 Hora: ${pedido.hora_entrega || 'A coordinar'}
-${pedido.es_domicilio ? `📍 Domicilio: Sí\n🛵 Carrera: $${pedido.costo_delivery || '?'}` : '🏪 Retira en tienda'}
-
-✅ Boucher verificado
-  `.trim();
-  await enviarMensaje(NEGOCIO.whatsapp_dueno, msg);
+  const msg = `🔔 *NUEVO PEDIDO — ${negocio.nombre}*\n\n👤 Cliente: ${conv.numero}\n📦 ${pedido.descripcion || 'Ver conversación'}\n💰 Total: $${pedido.total || '0.00'}\n${pedido.es_domicilio ? `📍 Domicilio: ${pedido.direccion}\n🛵 Carrera: $${pedido.costo_delivery || '?'}` : '🏪 Retira en tienda'}\n✅ Boucher verificado`;
+  await enviarMensaje(negocio.whatsapp_dueno, msg);
 }
 
-async function validarBoucher(imagenBase64, mediaType, montoPedido) {
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 400,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: imagenBase64 },
-          },
-          {
-            type: 'text',
-            text: `Analiza este comprobante de pago del Banco Pichincha.
-Verifica:
-1. ¿Es un comprobante del Banco Pichincha?
-2. ¿La fecha es de hoy o de las últimas 24 horas? (fecha actual: ${new Date().toLocaleDateString('es-EC')})
-3. ¿El monto es de $${montoPedido}?
-4. ¿Parece un comprobante real?
+async function procesarConClaude(conv, negocio, mensajeUsuario) {
+  const catalogoTexto = negocio.catalogo.map(p => `- ${p.emoji || '•'} *${p.nombre}*: $${p.precio.toFixed(2)} — ${p.descripcion}`).join('\n');
 
-Responde SOLO con este JSON:
-{"valido": true/false, "motivo": "razón si es inválido", "monto_detectado": número, "fecha_detectada": "fecha"}`,
-          },
-        ],
-      }],
-    });
-    return JSON.parse(response.content[0].text.trim());
-  } catch (err) {
-    console.error('Error validando boucher:', err.message);
-    return { valido: false, motivo: 'No se pudo leer el comprobante' };
-  }
-}
+  const systemPrompt = `Eres el asistente virtual de *${negocio.nombre}*, una ${negocio.tipo}. Atiende clientes por WhatsApp de forma natural y amigable.
 
-async function procesarConClaude(conv, mensajeUsuario) {
-  const systemPrompt = `
-Eres el asistente virtual de *${NEGOCIO.nombre}*, una ${NEGOCIO.tipo}.
-Tu trabajo es atender clientes por WhatsApp de forma natural y amigable.
+CATÁLOGO:
+${catalogoTexto}
 
-CATÁLOGO DISPONIBLE:
-${formatCatalogo()}
+REGLAS:
+1. Habla siempre en español. Usa emojis moderadamente.
+2. Cuando el cliente quiera ver productos escribe al final: ENVIAR_IMAGENES: [id1,id2]
+3. Cuando confirme el pedido, pregunta si quiere domicilio o retiro en tienda.
+4. Cuando tengas el total, informa precio y datos de pago:
+   ${negocio.banco} | Cuenta: ${negocio.numero_cuenta} | Titular: ${negocio.titular_cuenta}
+5. Después del precio, pide el comprobante de pago.
+6. NUNCA inventes productos o precios fuera del catálogo.
 
-REGLAS IMPORTANTES:
-1. Habla siempre en español, de forma cálida. Usa emojis con moderación.
-2. Cuando el cliente pregunte por productos o quiera ver opciones, responde normalmente Y escribe al final: ENVIAR_IMAGENES: [id1,id2,id3] con los IDs de los productos relevantes.
-3. Ofrece siempre complementos de forma natural.
-4. Cuando el cliente confirme su pedido, pregunta si desea domicilio o retiro en tienda.
-5. Si quiere domicilio, pide su ubicación.
-6. Cuando tengas el total listo, informa el precio EXACTO y los datos de pago:
-   Banco Pichincha | Cuenta: ${process.env.NUMERO_CUENTA} | Titular: ${process.env.TITULAR_CUENTA}
-7. Después del precio, pide el boucher de pago.
-8. NUNCA inventes productos o precios que no estén en el catálogo.
+ESTADO: ${JSON.stringify(conv.pedido)} | ETAPA: ${conv.etapa}
 
-ESTADO ACTUAL:
-${JSON.stringify(conv.pedido, null, 2)}
-ETAPA: ${conv.etapa}
-
-Al final de tu respuesta escribe en líneas separadas:
+Al final escribe:
 ETAPA: [inicio|consultando|cotizando|delivery|pago|confirmado]
-PEDIDO_JSON: [JSON con: descripcion, total, subtotal, es_domicilio, fecha_entrega, hora_entrega]
-ENVIAR_IMAGENES: [array de IDs de productos a mostrar, ej: [1,2] o [] si ninguno]
-`.trim();
+PEDIDO_JSON: {"descripcion":"","total":0,"subtotal":0,"es_domicilio":false}
+ENVIAR_IMAGENES: []`;
 
   conv.historial.push({ role: 'user', content: mensajeUsuario });
 
@@ -186,159 +118,167 @@ ENVIAR_IMAGENES: [array de IDs de productos a mostrar, ej: [1,2] o [] si ninguno
 
   const respuestaCompleta = response.content[0].text;
   const lineas = respuestaCompleta.split('\n');
-  let mensajeCliente = [];
-  let nuevaEtapa = conv.etapa;
-  let nuevoPedidoJSON = null;
-  let imagenesIds = [];
+  let mensajeCliente = [], nuevaEtapa = conv.etapa, nuevoPedidoJSON = null, imagenesIds = [];
 
   for (const linea of lineas) {
-    if (linea.startsWith('ETAPA:')) {
-      nuevaEtapa = linea.replace('ETAPA:', '').trim();
-    } else if (linea.startsWith('PEDIDO_JSON:')) {
-      try { nuevoPedidoJSON = JSON.parse(linea.replace('PEDIDO_JSON:', '').trim()); } catch {}
-    } else if (linea.startsWith('ENVIAR_IMAGENES:')) {
-      try { imagenesIds = JSON.parse(linea.replace('ENVIAR_IMAGENES:', '').trim()); } catch {}
-    } else {
-      mensajeCliente.push(linea);
-    }
+    if (linea.startsWith('ETAPA:')) nuevaEtapa = linea.replace('ETAPA:', '').trim();
+    else if (linea.startsWith('PEDIDO_JSON:')) { try { nuevoPedidoJSON = JSON.parse(linea.replace('PEDIDO_JSON:', '').trim()); } catch {} }
+    else if (linea.startsWith('ENVIAR_IMAGENES:')) { try { imagenesIds = JSON.parse(linea.replace('ENVIAR_IMAGENES:', '').trim()); } catch {} }
+    else mensajeCliente.push(linea);
   }
 
   const mensajeFinal = mensajeCliente.join('\n').trim();
   conv.etapa = nuevaEtapa;
   if (nuevoPedidoJSON) conv.pedido = { ...conv.pedido, ...nuevoPedidoJSON };
   conv.historial.push({ role: 'assistant', content: mensajeFinal });
-
   if (conv.historial.length > 20) conv.historial = conv.historial.slice(-20);
 
   return { mensaje: mensajeFinal, imagenesIds };
 }
 
-// ─── WEBHOOK PRINCIPAL ───────────────────────────────────────────────────────
+// ─── VERIFICACIÓN WEBHOOK META ────────────────────────────────────────────────
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('✅ Webhook verificado por Meta');
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
+});
+
+// ─── WEBHOOK MENSAJES META ────────────────────────────────────────────────────
 app.post('/webhook', async (req, res) => {
-  res.status(200).send('<?xml version="1.0" encoding="UTF-8"?><Response></Response>');
-
-  const { From, Body, MediaUrl0, MediaContentType0, NumMedia, Latitude, Longitude } = req.body;
-  const numero = From.replace('whatsapp:', '');
-  const conv = getOrCreateConversacion(numero);
-
-  console.log(`📨 Mensaje de ${numero}: ${Body || '[multimedia]'}`);
+  res.sendStatus(200);
 
   try {
-    // ── BOUCHER (imagen) ──
-    if (NumMedia > 0 && MediaUrl0 && conv.esperando === 'boucher') {
-      await enviarMensaje(numero, '🔍 Revisando tu comprobante...');
-      const axios = require('axios');
-      const imgResponse = await axios.get(MediaUrl0, {
-        responseType: 'arraybuffer',
-        auth: { username: process.env.TWILIO_ACCOUNT_SID, password: process.env.TWILIO_AUTH_TOKEN },
-      });
-      const imagenBase64 = Buffer.from(imgResponse.data).toString('base64');
-      const resultado = await validarBoucher(imagenBase64, MediaContentType0 || 'image/jpeg', conv.pedido.total || 0);
+    const entry = req.body.entry?.[0];
+    const value = entry?.changes?.[0]?.value;
+    if (!value?.messages?.[0]) return;
 
-      if (resultado.valido) {
-        conv.etapa = 'confirmado';
-        conv.esperando = null;
-        await enviarMensaje(numero, `✅ ¡Comprobante verificado! Tu pedido está *confirmado*. 🎉\n\n¡Gracias por tu compra en ${NEGOCIO.nombre}! 💫`);
-        await notificarDueno(conv);
-      } else {
-        conv.intentos_boucher++;
-        if (conv.intentos_boucher >= 3) {
-          await enviarMensaje(numero, `😔 No pudimos verificar tu pago. Por favor contacta directamente al negocio.`);
+    const mensaje = value.messages[0];
+    const numero = mensaje.from;
+    const tipo = mensaje.type;
+
+    console.log(`📨 Mensaje de ${numero} (${tipo})`);
+
+    const negocios = cargarNegocios();
+    let negocioId = clienteNegocioMap.get(numero);
+    let negocio = negocios.find(n => n.id === negocioId && n.activo);
+
+    if (!negocio && negocios.length === 1 && negocios[0].activo) {
+      negocio = negocios[0];
+      clienteNegocioMap.set(numero, negocio.id);
+      guardarMapaClientes();
+    }
+
+    if (!negocio) {
+      await enviarMensaje(numero, `¡Hola! 👋 No encontré tu negocio asignado. Contacta al administrador.`);
+      return;
+    }
+
+    const conv = getOrCreateConversacion(numero, negocio);
+
+    // Boucher (imagen)
+    if (tipo === 'image' && conv.esperando === 'boucher') {
+      await enviarMensaje(numero, '🔍 Revisando tu comprobante...');
+      try {
+        const mediaRes = await axios.get(`https://graph.facebook.com/v18.0/${mensaje.image.id}`, {
+          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+        });
+        const imageRes = await axios.get(mediaRes.data.url, {
+          responseType: 'arraybuffer',
+          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+        });
+        const imagenBase64 = Buffer.from(imageRes.data).toString('base64');
+        const mediaType = mensaje.image.mime_type || 'image/jpeg';
+
+        const resultado = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 300,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: imagenBase64 } },
+              { type: 'text', text: `¿Es un comprobante bancario real y reciente (hoy ${new Date().toLocaleDateString('es-EC')}) por $${conv.pedido.total || 0}? Responde solo JSON: {"valido":true/false,"motivo":""}` }
+            ]
+          }]
+        });
+
+        let validacion = { valido: false, motivo: 'No se pudo leer' };
+        try { validacion = JSON.parse(resultado.content[0].text.trim()); } catch {}
+
+        if (validacion.valido) {
+          conv.etapa = 'confirmado';
+          conv.esperando = null;
+          await enviarMensaje(numero, `✅ ¡Comprobante verificado! Tu pedido en *${negocio.nombre}* está confirmado. 🎉\n\n¡Gracias por tu compra! 💫`);
+          await notificarDueno(conv, negocio);
         } else {
-          await enviarMensaje(numero, `${MENSAJES.boucher_invalido}\n\n_Motivo: ${resultado.motivo}_`);
+          conv.intentos_boucher++;
+          if (conv.intentos_boucher >= 3) {
+            await enviarMensaje(numero, `😔 No pudimos verificar tu pago. Contacta directamente a ${negocio.nombre}.`);
+          } else {
+            await enviarMensaje(numero, `😅 Comprobante inválido: ${validacion.motivo}\n\nPor favor envía un boucher reciente con el monto correcto.`);
+          }
         }
+      } catch (e) {
+        await enviarMensaje(numero, '😅 No pude leer el comprobante. Intenta enviarlo de nuevo.');
       }
       return;
     }
 
-    // ── UBICACIÓN ──
-    if (Latitude && Longitude && conv.esperando === 'ubicacion') {
-      conv.pedido.ubicacion = { lat: Latitude, lng: Longitude };
-      conv.esperando = 'delivery_respuesta';
-      await twilioClient.messages.create({
-        from: `whatsapp:${NEGOCIO.whatsapp_bot}`,
-        to: `whatsapp:${NEGOCIO.whatsapp_delivery}`,
-        body: `🛵 *Nueva solicitud de delivery*\nCliente: ${numero}\nUbicación: https://maps.google.com/?q=${Latitude},${Longitude}\n\n¿Cuánto cuesta la carrera? Responde solo con el monto (ej: 3.50)`,
-      });
-      await enviarMensaje(numero, MENSAJES.cotizando_delivery);
-      return;
-    }
+    if (tipo !== 'text') return;
+    const texto = mensaje.text.body;
 
-    if (!Body || Body.trim() === '') return;
-
-    // ── BIENVENIDA ──
     if (conv.etapa === 'inicio' && conv.historial.length === 0) {
-      await enviarMensaje(numero, MENSAJES.bienvenida);
+      await enviarMensaje(numero, negocio.mensajes?.bienvenida || `¡Hola! 👋 Bienvenido/a a *${negocio.nombre}*. ¿En qué puedo ayudarte?`);
       conv.etapa = 'consultando';
       return;
     }
 
-    // ── DETECTAR DOMICILIO ──
-    const mensajeLower = Body.toLowerCase();
-    if (conv.etapa === 'cotizando' && (mensajeLower.includes('domicilio') || mensajeLower.includes('delivery') || mensajeLower.includes('envío') || mensajeLower.includes('llevar'))) {
+    const textoLower = texto.toLowerCase();
+    if (conv.etapa === 'cotizando' && (textoLower.includes('domicilio') || textoLower.includes('delivery') || textoLower.includes('envío'))) {
       conv.pedido.es_domicilio = true;
       conv.esperando = 'ubicacion';
-      await enviarMensaje(numero, `🏠 ¡Con gusto! Por favor *comparte tu ubicación* desde WhatsApp.\n\n_(Toca el clip 📎 → Ubicación → Tu ubicación actual)_`);
+      await enviarMensaje(numero, `🏠 ¡Con gusto! Por favor envíame tu *dirección completa* para coordinar el envío.`);
       return;
     }
 
-    if (conv.etapa === 'pago' && conv.esperando !== 'boucher') conv.esperando = 'boucher';
+    if (conv.esperando === 'ubicacion') {
+      conv.pedido.direccion = texto;
+      conv.esperando = null;
+      conv.etapa = 'pago';
+      await enviarMensaje(numero, `✅ Dirección: ${texto}\n\n💰 *Total: $${conv.pedido.total || '0.00'}*\n\nRealiza el pago a:\n🏦 *${negocio.banco}*\n💳 Cuenta: ${negocio.numero_cuenta}\n👤 Titular: ${negocio.titular_cuenta}\n\nLuego envíame el comprobante 🧾`);
+      conv.esperando = 'boucher';
+      return;
+    }
 
-    // ── PROCESAR CON CLAUDE ──
-    const { mensaje, imagenesIds } = await procesarConClaude(conv, Body);
-    await enviarMensaje(numero, mensaje);
+    if (conv.etapa === 'pago') conv.esperando = 'boucher';
 
-    // ── ENVIAR IMÁGENES SI CLAUDE LO INDICA ──
-    if (imagenesIds && imagenesIds.length > 0) {
-      const productosAMostrar = catalogo.filter(p => imagenesIds.includes(p.id));
-      if (productosAMostrar.length > 0) {
-        await enviarProductosConImagenes(numero, productosAMostrar);
-      }
+    const { mensaje: respuesta, imagenesIds } = await procesarConClaude(conv, negocio, texto);
+    await enviarMensaje(numero, respuesta);
+
+    if (imagenesIds?.length > 0) {
+      const productosAMostrar = negocio.catalogo.filter(p => imagenesIds.includes(p.id));
+      if (productosAMostrar.length > 0) await enviarProductosConImagenes(numero, productosAMostrar);
     }
 
     if (conv.etapa === 'pago') conv.esperando = 'boucher';
 
   } catch (err) {
-    console.error('❌ Error en webhook:', err);
-    await enviarMensaje(numero, MENSAJES.no_entendio);
-  }
-});
-
-// ─── WEBHOOK DELIVERY ────────────────────────────────────────────────────────
-app.post('/webhook-delivery', async (req, res) => {
-  res.sendStatus(200);
-  const { Body } = req.body;
-  const costo = parseFloat(Body?.match(/[\d.]+/)?.[0]);
-  if (!costo) return;
-
-  for (const [numero, conv] of conversaciones) {
-    if (conv.esperando === 'delivery_respuesta') {
-      conv.pedido.costo_delivery = costo;
-      conv.pedido.total = (conv.pedido.subtotal || 0) + costo;
-      conv.esperando = null;
-      conv.etapa = 'pago';
-
-      const msg = `✅ ¡Listo! Te confirmo los costos:\n\n📦 Pedido: $${(conv.pedido.subtotal || 0).toFixed(2)}\n🛵 Carrera: $${costo.toFixed(2)}\n💰 *Total: $${conv.pedido.total.toFixed(2)}*\n\nPara confirmar realiza el pago a:\n🏦 *Banco Pichincha*\n💳 Cuenta: ${process.env.NUMERO_CUENTA}\n👤 Titular: ${process.env.TITULAR_CUENTA}\n\nLuego envíame el comprobante 🧾`;
-
-      await enviarMensaje(numero, msg);
-      conv.esperando = 'boucher';
-      break;
-    }
+    console.error('❌ Error en webhook:', err.message);
   }
 });
 
 app.get('/', (req, res) => {
-  res.json({
-    status: 'VendeBot activo ✅',
-    negocio: NEGOCIO.nombre,
-    conversaciones_activas: conversaciones.size,
-    pedidos_hoy: pedidos.length,
-  });
+  res.json({ status: 'VendeBot Meta activo ✅', conversaciones: conversaciones.size });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`\n🤖 VendeBot iniciado en puerto ${PORT}`);
-  console.log(`📱 Negocio: ${NEGOCIO.nombre}`);
+  console.log(`\n🤖 VendeBot Meta iniciado en puerto ${PORT}`);
   console.log(`🌐 Webhook: http://localhost:${PORT}/webhook\n`);
 });
