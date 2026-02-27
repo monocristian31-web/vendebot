@@ -1,0 +1,43 @@
+[
+  {
+    "id": "negocio_001",
+    "nombre": "Camiloshause",
+    "tipo": "floristería",
+    "whatsapp_dueno": "+593993397278",
+    "whatsapp_delivery": "+593993397278",
+    "banco": "Banco Pichincha",
+    "numero_cuenta": "2200123456789",
+    "titular_cuenta": "Camilo García",
+    "activo": true,
+    "catalogo": [
+      {
+        "id": 1,
+        "nombre": "Arreglo de Feliz Cumpleaños",
+        "precio": 20.00,
+        "descripcion": "Hermoso arreglo especial para celebrar cumpleaños",
+        "emoji": "🎂",
+        "imagen": "https://i.imgur.com/ELR283d.jpg"
+      },
+      {
+        "id": 2,
+        "nombre": "Flores Eternas con Peluche de Stitch",
+        "precio": 13.00,
+        "descripcion": "Flores eternas con tierno peluche de Stitch",
+        "emoji": "🌸",
+        "imagen": "https://i.imgur.com/mLBMkQw.jpg"
+      },
+      {
+        "id": 3,
+        "nombre": "Ramo del Cielo Azulado de Bangho",
+        "precio": 22.00,
+        "descripcion": "Elegante ramo en tonos azules",
+        "emoji": "💙",
+        "imagen": "https://i.imgur.com/3dHFMBH.jpg"
+      }
+    ],
+    "mensajes": {
+      "bienvenida": "¡Hola! 👋 Bienvenido/a a *Camiloshause* 🌸 Soy tu asistente virtual. ¿Qué estás buscando hoy?",
+      "tono": "amigable"
+    }
+  }
+]
