@@ -14,7 +14,7 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'vendebot2024';
 
 // ─── HORARIO ──────────────────────────────────────────────────────────────────
 const HORARIO = {
-  dias: [1, 2, 3, 4, 5, 6],
+  dias: [0, 1, 2, 3, 4, 5, 6],
   horaInicio: 8,
   horaFin: 18,
   zona: 'America/Guayaquil',
