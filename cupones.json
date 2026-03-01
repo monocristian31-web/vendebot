@@ -1,0 +1,13 @@
+[
+  {
+    "id": "cupon_001",
+    "codigo": "BIENVENIDO10",
+    "tipo": "porcentaje",
+    "valor": 10,
+    "descripcion": "10% de descuento para nuevos clientes",
+    "activo": true,
+    "usos_maximos": 1,
+    "usos_actuales": 0,
+    "monto_minimo": 0
+  }
+]
