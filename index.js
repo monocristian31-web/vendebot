@@ -14,7 +14,7 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'vendebot2024';
 
 // ─── HORARIO ──────────────────────────────────────────────────────────────────
 const HORARIO = {
-  dias: [1, 2, 3, 4, 5, 6], // 0=Dom, 1=Lun ... 6=Sab
+  dias: [1, 2, 3, 4, 5, 6],
   horaInicio: 8,
   horaFin: 18,
   zona: 'America/Guayaquil',
@@ -22,78 +22,72 @@ const HORARIO = {
 
 function estaEnHorario() {
   const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: HORARIO.zona }));
-  const dia = ahora.getDay();
-  const hora = ahora.getHours();
-  return HORARIO.dias.includes(dia) && hora >= HORARIO.horaInicio && hora < HORARIO.horaFin;
+  return HORARIO.dias.includes(ahora.getDay()) && ahora.getHours() >= HORARIO.horaInicio && ahora.getHours() < HORARIO.horaFin;
 }
 
-function mensajeFueraHorario(negocio) {
-  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const diasAtencion = HORARIO.dias.map(d => dias[d]).join(', ');
-  return `😴 Hola, en este momento *${negocio.nombre}* está fuera de horario.\n\n⏰ *Horario de atención:*\n📅 ${diasAtencion}\n🕐 ${HORARIO.horaInicio}:00 am - ${HORARIO.horaFin}:00 pm\n\nTu mensaje quedó guardado y te responderemos apenas abramos. ¡Gracias por escribirnos! 💙`;
+function horaActual() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: HORARIO.zona }));
 }
 
 // ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
-function cargarNegocios() {
-  try { return JSON.parse(fs.readFileSync('./negocios.json', 'utf8')); } catch { return []; }
+function cargarJSON(archivo, defecto) {
+  try { return JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch { return defecto; }
+}
+function guardarJSON(archivo, data) {
+  try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch (e) { console.error('Error guardando', archivo, e.message); }
 }
 
-function cargarClientes() {
-  try { return JSON.parse(fs.readFileSync('./clientes.json', 'utf8')); } catch { return {}; }
-}
-
-function guardarClientes(clientes) {
-  try { fs.writeFileSync('./clientes.json', JSON.stringify(clientes, null, 2)); } catch {}
-}
-
-function cargarPromociones() {
-  try { return JSON.parse(fs.readFileSync('./promociones.json', 'utf8')); } catch { return []; }
-}
+function cargarNegocios() { return cargarJSON('./negocios.json', []); }
+function cargarClientes() { return cargarJSON('./clientes.json', {}); }
+function cargarPromociones() { return cargarJSON('./promociones.json', []); }
+function cargarRepartidores() { return cargarJSON('./repartidores.json', []); }
+function cargarPedidosPendientes() { return cargarJSON('./pedidos_pendientes.json', []); }
+function guardarPedidosPendientes(p) { guardarJSON('./pedidos_pendientes.json', p); }
 
 function obtenerCliente(numero) {
   const clientes = cargarClientes();
   if (!clientes[numero]) {
-    clientes[numero] = {
-      numero,
-      nombre: '',
-      primera_visita: new Date().toISOString(),
-      ultima_visita: new Date().toISOString(),
-      total_pedidos: 0,
-      total_gastado: 0,
-      historial_pedidos: [],
-      es_frecuente: false,
-      notas: '',
-    };
-    guardarClientes(clientes);
+    clientes[numero] = { numero, nombre: '', primera_visita: new Date().toISOString(), ultima_visita: new Date().toISOString(), total_pedidos: 0, total_gastado: 0, historial_pedidos: [], es_frecuente: false };
+    guardarJSON('./clientes.json', clientes);
   }
   return clientes[numero];
 }
 
 function actualizarCliente(numero, datos) {
   const clientes = cargarClientes();
-  clientes[numero] = { ...clientes[numero], ...datos, ultima_visita: new Date().toISOString() };
+  clientes[numero] = { ...(clientes[numero] || {}), ...datos, ultima_visita: new Date().toISOString() };
   if (clientes[numero].total_pedidos >= 3) clientes[numero].es_frecuente = true;
-  guardarClientes(clientes);
+  guardarJSON('./clientes.json', clientes);
 }
 
-function registrarPedidoCliente(numero, pedido, negocioNombre) {
+function registrarPedido(numero, pedido, negocioNombre) {
   const clientes = cargarClientes();
-  const cliente = clientes[numero] || obtenerCliente(numero);
-  cliente.total_pedidos = (cliente.total_pedidos || 0) + 1;
-  cliente.total_gastado = (cliente.total_gastado || 0) + (pedido.total || 0);
-  cliente.ultima_visita = new Date().toISOString();
-  if (!cliente.historial_pedidos) cliente.historial_pedidos = [];
-  cliente.historial_pedidos.push({
+  const c = clientes[numero] || obtenerCliente(numero);
+  c.total_pedidos = (c.total_pedidos || 0) + 1;
+  c.total_gastado = (c.total_gastado || 0) + (pedido.total || 0);
+  c.ultima_visita = new Date().toISOString();
+  if (!c.historial_pedidos) c.historial_pedidos = [];
+  c.historial_pedidos.push({
+    id: `PED-${Date.now()}`,
     fecha: new Date().toISOString(),
     negocio: negocioNombre,
     items: pedido.items,
     total: pedido.total,
     descripcion: pedido.items?.map(i => `${i.nombre} x${i.cantidad}`).join(', '),
+    estado: 'confirmado',
+    es_domicilio: pedido.es_domicilio,
+    direccion: pedido.direccion,
+    seguimiento_enviado: false,
   });
-  if (cliente.historial_pedidos.length > 20) cliente.historial_pedidos = cliente.historial_pedidos.slice(-20);
-  if (cliente.total_pedidos >= 3) cliente.es_frecuente = true;
-  clientes[numero] = cliente;
-  guardarClientes(clientes);
+  if (c.historial_pedidos.length > 20) c.historial_pedidos = c.historial_pedidos.slice(-20);
+  if (c.total_pedidos >= 3) c.es_frecuente = true;
+  clientes[numero] = c;
+  guardarJSON('./clientes.json', clientes);
+
+  // Guardar en pedidos pendientes para seguimiento
+  const pendientes = cargarPedidosPendientes();
+  pendientes.push({ numero, negocio: negocioNombre, pedido, fecha: new Date().toISOString(), recordatorio_enviado: false, entrega_confirmada: false });
+  guardarPedidosPendientes(pendientes);
 }
 
 // ─── CONVERSACIONES ───────────────────────────────────────────────────────────
@@ -101,22 +95,21 @@ const conversaciones = new Map();
 const clienteNegocioMap = new Map();
 
 try {
-  const mapa = JSON.parse(fs.readFileSync('./cliente_negocio_map.json', 'utf8'));
+  const mapa = cargarJSON('./cliente_negocio_map.json', {});
   for (const [k, v] of Object.entries(mapa)) clienteNegocioMap.set(k, v);
 } catch {}
 
 function guardarMapaClientes() {
-  try { fs.writeFileSync('./cliente_negocio_map.json', JSON.stringify(Object.fromEntries(clienteNegocioMap), null, 2)); } catch {}
+  guardarJSON('./cliente_negocio_map.json', Object.fromEntries(clienteNegocioMap));
 }
 
 function getOrCreateConversacion(numero, negocio) {
   const key = `${numero}:${negocio.id}`;
   if (!conversaciones.has(key)) {
     conversaciones.set(key, {
-      numero, negocio_id: negocio.id,
-      historial: [], etapa: 'inicio',
-      pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', fecha_entrega: '', hora_entrega: '' },
-      esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(),
+      numero, negocio_id: negocio.id, historial: [], etapa: 'inicio',
+      pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '' },
+      esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(), cancelado: false,
     });
   }
   const conv = conversaciones.get(key);
@@ -132,23 +125,83 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
-// Seguimiento post-venta (24 horas después del pedido)
+// ─── TAREAS AUTOMÁTICAS ───────────────────────────────────────────────────────
+
+// Recordatorio de pago pendiente (cada 30 min)
 setInterval(async () => {
-  const clientes = cargarClientes();
+  if (!estaEnHorario()) return;
   const ahora = Date.now();
-  for (const [numero, cliente] of Object.entries(clientes)) {
-    if (!cliente.historial_pedidos?.length) continue;
-    const ultimoPedido = cliente.historial_pedidos[cliente.historial_pedidos.length - 1];
-    if (!ultimoPedido.seguimiento_enviado) {
-      const fechaPedido = new Date(ultimoPedido.fecha).getTime();
-      if (ahora - fechaPedido > 23 * 60 * 60 * 1000 && estaEnHorario()) {
-        await enviarMensaje(numero, `¡Hola ${cliente.nombre || ''}! 😊 Esperamos que hayas disfrutado tu pedido de *${ultimoPedido.negocio}*.\n\n⭐ ¿Cómo fue tu experiencia? Tu opinión nos ayuda a mejorar.\n\n¡Gracias por confiar en nosotros! 💙`);
-        ultimoPedido.seguimiento_enviado = true;
-        clientes[numero] = cliente;
-        guardarClientes(clientes);
+  for (const [key, conv] of conversaciones) {
+    if (conv.esperando === 'boucher' && conv.etapa === 'pago') {
+      const tiempoEspera = ahora - conv.ultimo_mensaje;
+      if (tiempoEspera > 30 * 60 * 1000 && !conv.recordatorio_pago_enviado) {
+        const negocios = cargarNegocios();
+        const negocio = negocios.find(n => n.id === conv.negocio_id);
+        if (negocio) {
+          await enviarMensaje(conv.numero, 'Hola! Te recuerdo que tu pedido esta pendiente de pago. Cuando puedas enviame el comprobante para confirmar tu pedido.');
+          conv.recordatorio_pago_enviado = true;
+        }
       }
     }
   }
+}, 30 * 60 * 1000);
+
+// Recordatorio dia de entrega (cada hora)
+setInterval(async () => {
+  if (!estaEnHorario()) return;
+  const pendientes = cargarPedidosPendientes();
+  const hoy = horaActual().toLocaleDateString('es-EC');
+  let cambios = false;
+  for (const p of pendientes) {
+    if (!p.recordatorio_enviado && !p.entrega_confirmada && p.pedido.fecha_entrega === hoy) {
+      await enviarMensaje(p.numero, `Hola! Te recuerdo que hoy es el dia de entrega de tu pedido en ${p.negocio}. Estaremos en contacto para coordinar.`);
+      p.recordatorio_enviado = true;
+      cambios = true;
+    }
+  }
+  if (cambios) guardarPedidosPendientes(pendientes);
+}, 60 * 60 * 1000);
+
+// Resumen diario al dueno (6pm)
+setInterval(async () => {
+  const ahora = horaActual();
+  if (ahora.getHours() === 18 && ahora.getMinutes() < 5) {
+    const negocios = cargarNegocios();
+    const clientes = cargarClientes();
+    const hoy = ahora.toLocaleDateString('es-EC');
+    for (const negocio of negocios.filter(n => n.activo)) {
+      const pedidosHoy = Object.values(clientes).reduce((acc, c) => {
+        return acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length || 0);
+      }, 0);
+      const ventasHoy = Object.values(clientes).reduce((acc, c) => {
+        return acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total || 0), 0) || 0);
+      }, 0);
+      if (pedidosHoy > 0) {
+        await enviarMensaje(negocio.whatsapp_dueno, `Resumen del dia ${hoy} - ${negocio.nombre}\n\nPedidos: ${pedidosHoy}\nVentas totales: $${ventasHoy.toFixed(2)}\n\nBuen trabajo hoy!`);
+      }
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Seguimiento post-venta (24 horas)
+setInterval(async () => {
+  if (!estaEnHorario()) return;
+  const clientes = cargarClientes();
+  const ahora = Date.now();
+  let cambios = false;
+  for (const [numero, cliente] of Object.entries(clientes)) {
+    if (!cliente.historial_pedidos?.length) continue;
+    const ultimo = cliente.historial_pedidos[cliente.historial_pedidos.length - 1];
+    if (!ultimo.seguimiento_enviado) {
+      const diff = ahora - new Date(ultimo.fecha).getTime();
+      if (diff > 23 * 60 * 60 * 1000 && diff < 25 * 60 * 60 * 1000) {
+        await enviarMensaje(numero, `Hola ${cliente.nombre || ''}! Esperamos que hayas disfrutado tu pedido. Como fue tu experiencia? Tu opinion nos ayuda a mejorar!`);
+        ultimo.seguimiento_enviado = true;
+        cambios = true;
+      }
+    }
+  }
+  if (cambios) guardarJSON('./clientes.json', clientes);
 }, 60 * 60 * 1000);
 
 // ─── ENVÍO MENSAJES ───────────────────────────────────────────────────────────
@@ -160,9 +213,9 @@ async function enviarMensaje(numero, mensaje) {
       { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: mensaje } },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
     );
-    console.log(`📤 [${numero}] ${mensaje.substring(0, 60)}`);
+    console.log(`Enviado [${numero}] ${mensaje.substring(0, 60)}`);
   } catch (err) {
-    console.error(`❌ Error: ${err.response?.data?.error?.message || err.message}`);
+    console.error(`Error enviando: ${err.response?.data?.error?.message || err.message}`);
   }
 }
 
@@ -174,12 +227,12 @@ async function enviarImagen(numero, url, caption) {
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error(`❌ Error imagen: ${err.response?.data?.error?.message || err.message}`);
+    console.error(`Error imagen: ${err.response?.data?.error?.message || err.message}`);
   }
 }
 
 async function enviarProducto(numero, producto) {
-  const caption = `${producto.emoji || '•'} *${producto.nombre}*\n💰 $${producto.precio.toFixed(2)}\n📝 ${producto.descripcion}`;
+  const caption = `${producto.emoji || ''} ${producto.nombre}\nPrecio: $${producto.precio.toFixed(2)}\n${producto.descripcion}${producto.stock !== undefined ? '\nStock disponible: ' + producto.stock : ''}`;
   if (producto.imagen) await enviarImagen(numero, producto.imagen, caption);
   else await enviarMensaje(numero, caption);
   await new Promise(r => setTimeout(r, 800));
@@ -188,23 +241,34 @@ async function enviarProducto(numero, producto) {
 async function enviarResumenPedido(numero, conv) {
   const p = conv.pedido;
   if (!p.items?.length) return;
-  let resumen = `🛒 *Tu pedido:*\n\n`;
-  for (const item of p.items) resumen += `${item.emoji || '•'} ${item.nombre} x${item.cantidad} — $${(item.precio * item.cantidad).toFixed(2)}\n`;
-  resumen += `\n💰 *Subtotal: $${p.subtotal.toFixed(2)}*`;
-  if (p.costo_delivery) resumen += `\n🛵 Delivery: $${p.costo_delivery.toFixed(2)}\n💳 *Total: $${p.total.toFixed(2)}*`;
-  if (p.fecha_entrega) resumen += `\n📅 Entrega: ${p.fecha_entrega} a las ${p.hora_entrega || 'Por coordinar'}`;
+  let resumen = 'Tu pedido:\n\n';
+  for (const item of p.items) resumen += `${item.emoji || ''} ${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+  resumen += `\nSubtotal: $${p.subtotal.toFixed(2)}`;
+  if (p.costo_delivery) resumen += `\nDelivery: $${p.costo_delivery.toFixed(2)}\nTotal: $${p.total.toFixed(2)}`;
+  if (p.fecha_entrega) resumen += `\nFecha entrega: ${p.fecha_entrega} ${p.hora_entrega || ''}`;
+  if (p.metodo_pago === 'efectivo') resumen += '\nMetodo de pago: Efectivo contra entrega';
   await enviarMensaje(numero, resumen);
 }
 
-function mensajePago(conv, negocio) {
-  return `💳 *Datos para el pago:*\n\n🏦 *${negocio.banco}*\n💳 Cuenta: ${negocio.numero_cuenta}\n👤 Titular: ${negocio.titular_cuenta}\n💰 Monto exacto: *$${conv.pedido.total?.toFixed(2) || conv.pedido.subtotal?.toFixed(2) || '0.00'}*\n\nEnvíame el *comprobante* (foto) para confirmar tu pedido. 🧾`;
+function generarMensajePago(conv, negocio) {
+  if (conv.pedido.metodo_pago === 'efectivo') {
+    return `Perfecto! Pagaras en efectivo al momento de la entrega.\nTotal a pagar: $${conv.pedido.total?.toFixed(2) || conv.pedido.subtotal?.toFixed(2) || '0.00'}\n\nTu pedido ha sido confirmado! Te avisaremos cuando el repartidor este en camino.`;
+  }
+  return `Datos para el pago:\n\nBanco: ${negocio.banco}\nCuenta: ${negocio.numero_cuenta}\nTitular: ${negocio.titular_cuenta}\nMonto exacto: $${conv.pedido.total?.toFixed(2) || conv.pedido.subtotal?.toFixed(2) || '0.00'}\n\nEnviame el comprobante (foto) para confirmar tu pedido.`;
 }
 
 async function notificarDueno(conv, negocio) {
   const p = conv.pedido;
-  const items = p.items?.map(i => `  • ${i.nombre} x${i.cantidad} = $${(i.precio * i.cantidad).toFixed(2)}`).join('\n') || 'Ver chat';
-  const msg = `🔔 *NUEVO PEDIDO — ${negocio.nombre}*\n\n👤 ${p.nombre_cliente || conv.numero}\n📱 ${conv.numero}\n\n📦 Detalle:\n${items}\n\n💳 *TOTAL: $${p.total?.toFixed(2) || '0.00'}*\n${p.es_domicilio ? `📍 ${p.direccion}` : '🏪 Retira en tienda'}${p.fecha_entrega ? `\n📅 Entrega: ${p.fecha_entrega} ${p.hora_entrega || ''}` : ''}${p.notas ? `\n📝 ${p.notas}` : ''}\n\n✅ Pago verificado`;
+  const items = p.items?.map(i => `  - ${i.nombre} x${i.cantidad} = $${(i.precio * i.cantidad).toFixed(2)}`).join('\n') || '';
+  const repartidor = p.repartidor ? `\nRepartidor asignado: ${p.repartidor}` : '';
+  const msg = `NUEVO PEDIDO - ${negocio.nombre}\n\nCliente: ${p.nombre_cliente || conv.numero}\nWhatsApp: ${conv.numero}\n\nDetalle:\n${items}\n\nTotal: $${p.total?.toFixed(2) || '0.00'}\n${p.es_domicilio ? `Direccion: ${p.direccion}` : 'Retira en tienda'}${p.fecha_entrega ? `\nEntrega: ${p.fecha_entrega} ${p.hora_entrega || ''}` : ''}${repartidor}${p.notas ? `\nNotas: ${p.notas}` : ''}\n\nPago: ${p.metodo_pago === 'efectivo' ? 'Efectivo contra entrega' : 'Transferencia verificada'}`;
   await enviarMensaje(negocio.whatsapp_dueno, msg);
+}
+
+function asignarRepartidor(negocio) {
+  const repartidores = cargarRepartidores().filter(r => r.negocio_id === negocio.id && r.activo && r.disponible);
+  if (!repartidores.length) return null;
+  return repartidores[Math.floor(Math.random() * repartidores.length)];
 }
 
 // ─── VALIDAR BOUCHER ──────────────────────────────────────────────────────────
@@ -214,75 +278,68 @@ async function validarBoucher(b64, mediaType, monto) {
       model: 'claude-sonnet-4-6', max_tokens: 300,
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-        { type: 'text', text: `¿Es comprobante bancario real y reciente (${new Date().toLocaleDateString('es-EC')}) por $${monto}? Solo JSON: {"valido":true/false,"motivo":""}` }
+        { type: 'text', text: `Es comprobante bancario real y reciente por $${monto}? Solo JSON: {"valido":true,"motivo":""}` }
       ]}]
     });
     return JSON.parse(r.content[0].text.trim().replace(/```json|```/g, ''));
   } catch { return { valido: false, motivo: 'No se pudo analizar' }; }
 }
 
-// ─── CLAUDE IA ────────────────────────────────────────────────────────────────
+// ─── CLAUDE ───────────────────────────────────────────────────────────────────
 async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
-  const catalogoTexto = negocio.catalogo.map(p =>
-    `  ID:${p.id} | ${p.emoji || '•'} ${p.nombre} | $${p.precio.toFixed(2)} | ${p.descripcion}`
-  ).join('\n');
+  const catalogoTexto = negocio.catalogo.map(p => {
+    const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
+    return `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo} | ${p.descripcion}`;
+  }).join('\n');
 
   const promociones = cargarPromociones().filter(p => p.activa);
-  const promocionesTexto = promociones.length > 0
-    ? '\nPROMOCIONES ACTIVAS:\n' + promociones.map(p => `  🏷️ ${p.nombre}: ${p.descripcion} — ${p.descuento}`).join('\n')
-    : '';
+  const promocionesTexto = promociones.length > 0 ? '\nPROMOCIONES:\n' + promociones.map(p => `  ${p.nombre}: ${p.descripcion} - ${p.descuento}`).join('\n') : '';
+  const pedidoActual = conv.pedido.items?.length > 0 ? conv.pedido.items.map(i => `${i.nombre} x${i.cantidad}`).join(', ') : 'vacio';
+  const negocioEnModoVacaciones = negocio.modo_vacaciones;
+  const metodoPagoActual = conv.pedido.metodo_pago || 'transferencia';
 
-  const historialCliente = cliente?.historial_pedidos?.slice(-3).map(p =>
-    `  • ${new Date(p.fecha).toLocaleDateString('es-EC')}: ${p.descripcion} ($${p.total})`
-  ).join('\n') || 'Sin pedidos previos';
+  const system = `Eres el asistente de ${negocio.nombre}, una ${negocio.tipo} en Ecuador. Atiende clientes por WhatsApp de forma calida y profesional.
 
-  const pedidoActual = conv.pedido.items?.length > 0
-    ? conv.pedido.items.map(i => `${i.nombre} x${i.cantidad}`).join(', ')
-    : 'vacío';
-
-  const esClienteFrecuente = cliente?.es_frecuente || cliente?.total_pedidos >= 3;
-
-  const system = `Eres el asistente virtual de *${negocio.nombre}*, una ${negocio.tipo} en Ecuador. Atiende clientes de forma cálida, natural y profesional.
-
-CATÁLOGO:
+CATALOGO:
 ${catalogoTexto}
 ${promocionesTexto}
+
+METODOS DE PAGO DISPONIBLES:
+- Transferencia bancaria (${negocio.banco})
+- Efectivo contra entrega (solo domicilio)
 
 CLIENTE:
 - Nombre: ${cliente?.nombre || 'Desconocido'}
 - Pedidos anteriores: ${cliente?.total_pedidos || 0}
-- Cliente frecuente: ${esClienteFrecuente ? 'SÍ ⭐' : 'No'}
-- Últimos pedidos:\n${historialCliente}
+- Cliente frecuente: ${cliente?.es_frecuente ? 'SI' : 'No'}
 
-ESTADO ACTUAL:
+ESTADO:
 - Etapa: ${conv.etapa}
 - Pedido: ${pedidoActual}
 - Subtotal: $${conv.pedido.subtotal?.toFixed(2) || '0.00'}
-- Domicilio: ${conv.pedido.es_domicilio ? 'Sí' : 'No definido'}
-- Fecha entrega: ${conv.pedido.fecha_entrega || 'No definida'}
+- Metodo pago: ${metodoPagoActual}
+- Domicilio: ${conv.pedido.es_domicilio ? 'Si' : 'No definido'}
 
 REGLAS:
-1. Habla SIEMPRE en español ecuatoriano, tono ${negocio.mensajes?.tono || 'amigable'} y cálido.
-2. Si el cliente es frecuente, salúdalo de forma especial y menciona que lo recuerdas.
-3. Si el cliente menciona un producto específico → ENVIAR_IMAGENES: [ese ID]
-4. Si quiere ver TODO → ENVIAR_IMAGENES: [todos los IDs]
-5. Cuando confirme pedido, pregunta nombre, fecha y hora de entrega, y si quiere domicilio o retiro.
-6. Si quiere domicilio, pide dirección completa.
-7. Si hay promociones activas, mencionarlas cuando sea relevante.
-8. Cuando tengas total, da datos de pago: ${negocio.banco} | ${negocio.numero_cuenta} | ${negocio.titular_cuenta}
-9. Pide comprobante después de dar datos de pago.
-10. Si el cliente quiere cambiar pedido, ayúdale amablemente.
-11. Si pide algo fuera del catálogo, dilo amablemente y sugiere alternativas.
-12. Si pide descuento, menciona las promociones activas pero los precios base son fijos.
-13. Horario: Lunes a Sábado 8am-6pm. Si pregunta por horario, infórmale.
-14. Mantén el hilo de la conversación siempre.
-15. Si el cliente menciona una mala experiencia anterior, discúlpate y ofrece ayuda.
+1. Habla en espanol, tono amigable.
+2. Si el cliente menciona un producto especifico responde ENVIAR_IMAGENES: [ese ID]
+3. Si quiere ver TODO el catalogo responde ENVIAR_IMAGENES: [todos los IDs]
+4. Cuando confirme pedido, pregunta: nombre, fecha/hora de entrega, domicilio o retiro, metodo de pago (transferencia o efectivo).
+5. Si elige efectivo, solo disponible para domicilio.
+6. Si quiere domicilio pide direccion.
+7. Si el cliente quiere MODIFICAR su pedido, ayudale amablemente.
+8. Si el cliente quiere CANCELAR antes de confirmar, confirma la cancelacion.
+9. Si el producto tiene stock 0, dile que no hay disponible y sugiere alternativas.
+10. Horario: Lunes a Sabado 8am-6pm.
+11. Cuando el pedido este listo para pagar, escribe MOSTRAR_PAGO: true
+12. NUNCA inventes precios o productos fuera del catalogo.
 
-Al FINAL escribe en líneas separadas:
-ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado]
-PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":""}
+Al FINAL escribe:
+ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
+PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia"}
 ENVIAR_IMAGENES: []
-NOMBRE_CLIENTE: [nombre si lo mencionó, si no vacío]`;
+MOSTRAR_PAGO: false
+NOMBRE_CLIENTE: `;
 
   conv.historial.push({ role: 'user', content: mensajeUsuario });
 
@@ -293,12 +350,13 @@ NOMBRE_CLIENTE: [nombre si lo mencionó, si no vacío]`;
 
   const full = response.content[0].text;
   const lineas = full.split('\n');
-  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], nombreCliente = '';
+  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], mostrarPago = false, nombreCliente = '';
 
   for (const l of lineas) {
     if (l.startsWith('ETAPA:')) etapa = l.replace('ETAPA:', '').trim();
     else if (l.startsWith('PEDIDO_JSON:')) { try { pedidoJSON = JSON.parse(l.replace('PEDIDO_JSON:', '').trim()); } catch {} }
     else if (l.startsWith('ENVIAR_IMAGENES:')) { try { imgs = JSON.parse(l.replace('ENVIAR_IMAGENES:', '').trim()); } catch {} }
+    else if (l.startsWith('MOSTRAR_PAGO:')) mostrarPago = l.includes('true');
     else if (l.startsWith('NOMBRE_CLIENTE:')) nombreCliente = l.replace('NOMBRE_CLIENTE:', '').trim();
     else msg.push(l);
   }
@@ -314,7 +372,7 @@ NOMBRE_CLIENTE: [nombre si lo mencionó, si no vacío]`;
     }
   }
 
-  if (nombreCliente && nombreCliente !== 'vacío') {
+  if (nombreCliente && nombreCliente.length > 1) {
     conv.pedido.nombre_cliente = nombreCliente;
     actualizarCliente(conv.numero, { nombre: nombreCliente });
   }
@@ -322,13 +380,13 @@ NOMBRE_CLIENTE: [nombre si lo mencionó, si no vacío]`;
   conv.historial.push({ role: 'assistant', content: mensajeFinal });
   if (conv.historial.length > 30) conv.historial = conv.historial.slice(-30);
 
-  return { mensaje: mensajeFinal, imagenesIds: imgs };
+  return { mensaje: mensajeFinal, imagenesIds: imgs, mostrarPago };
 }
 
 // ─── WEBHOOK ──────────────────────────────────────────────────────────────────
 app.get('/webhook', (req, res) => {
   if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado');
+    console.log('Webhook verificado');
     res.status(200).send(req.query['hub.challenge']);
   } else res.sendStatus(403);
 });
@@ -342,7 +400,7 @@ app.post('/webhook', async (req, res) => {
     const mensaje = value.messages[0];
     const numero = mensaje.from;
     const tipo = mensaje.type;
-    console.log(`📨 [${numero}] ${tipo}`);
+    console.log(`Mensaje de ${numero} (${tipo})`);
 
     const negocios = cargarNegocios();
     let negocioId = clienteNegocioMap.get(numero);
@@ -351,11 +409,19 @@ app.post('/webhook', async (req, res) => {
       negocio = negocios.find(n => n.activo);
       if (negocio) { clienteNegocioMap.set(numero, negocio.id); guardarMapaClientes(); }
     }
-    if (!negocio) { await enviarMensaje(numero, '¡Hola! 👋 No hay negocios disponibles ahora.'); return; }
+    if (!negocio) { await enviarMensaje(numero, 'Hola! No hay negocios disponibles ahora.'); return; }
+
+    // Modo vacaciones
+    if (negocio.modo_vacaciones) {
+      await enviarMensaje(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`);
+      return;
+    }
 
     // Verificar horario
     if (!estaEnHorario()) {
-      await enviarMensaje(numero, mensajeFueraHorario(negocio));
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+      const diasAtencion = HORARIO.dias.map(d => dias[d]).join(', ');
+      await enviarMensaje(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nHorario de atencion:\n${diasAtencion}\n8:00 am - 6:00 pm\n\nTe atenderemos en cuanto abramos!`);
       return;
     }
 
@@ -365,7 +431,7 @@ app.post('/webhook', async (req, res) => {
     // IMAGEN
     if (tipo === 'image') {
       if (conv.esperando === 'boucher') {
-        await enviarMensaje(numero, '🔍 Analizando tu comprobante...');
+        await enviarMensaje(numero, 'Analizando tu comprobante...');
         try {
           const mediaRes = await axios.get(`https://graph.facebook.com/v18.0/${mensaje.image.id}`, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
           const imgRes = await axios.get(mediaRes.data.url, { responseType: 'arraybuffer', headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
@@ -373,36 +439,58 @@ app.post('/webhook', async (req, res) => {
           const resultado = await validarBoucher(b64, mensaje.image.mime_type || 'image/jpeg', conv.pedido.total || 0);
           if (resultado.valido) {
             conv.etapa = 'confirmado'; conv.esperando = null;
-            registrarPedidoCliente(numero, conv.pedido, negocio.nombre);
-            const esFrec = cliente.total_pedidos >= 2;
-            await enviarMensaje(numero, `✅ *¡Pago verificado!*\n\nTu pedido en *${negocio.nombre}* está *confirmado* 🎉${esFrec ? '\n\n⭐ ¡Gracias por tu preferencia, cliente especial!' : ''}\n\n¡Gracias por tu compra! 💙`);
+            // Asignar repartidor si es domicilio
+            if (conv.pedido.es_domicilio) {
+              const repartidor = asignarRepartidor(negocio);
+              if (repartidor) {
+                conv.pedido.repartidor = repartidor.nombre;
+                await enviarMensaje(numero, `Pago verificado! Tu pedido en ${negocio.nombre} esta confirmado!\n\nTu repartidor es: ${repartidor.nombre}\nTiempo estimado de entrega: ${negocio.tiempo_entrega || '30-45 minutos'}\n\nGracias por tu compra!`);
+                await enviarMensaje(repartidor.whatsapp, `Nuevo pedido asignado!\n\nCliente: ${conv.pedido.nombre_cliente || numero}\nDireccion: ${conv.pedido.direccion}\nTotal: $${conv.pedido.total?.toFixed(2)}\nPedido: ${conv.pedido.items?.map(i => i.nombre).join(', ')}`);
+              } else {
+                await enviarMensaje(numero, `Pago verificado! Tu pedido en ${negocio.nombre} esta confirmado!\n\nTiempo estimado: ${negocio.tiempo_entrega || '30-45 minutos'}\n\nGracias por tu compra!`);
+              }
+            } else {
+              await enviarMensaje(numero, `Pago verificado! Tu pedido en ${negocio.nombre} esta confirmado!\n\nPuedes pasar a retirarlo cuando gustes.\n\nGracias por tu compra!`);
+            }
+            registrarPedido(numero, conv.pedido, negocio.nombre);
             await notificarDueno(conv, negocio);
           } else {
             conv.intentos_boucher++;
             if (conv.intentos_boucher >= 3) {
-              await enviarMensaje(numero, `😔 No pudimos verificar tu pago tras varios intentos. Contacta a *${negocio.nombre}* directamente.`);
+              await enviarMensaje(numero, `No pudimos verificar tu pago. Contacta directamente a ${negocio.nombre}.`);
             } else {
-              await enviarMensaje(numero, `😅 No pude verificar el comprobante.\n*Motivo:* ${resultado.motivo}\n\nEnvía el comprobante del *${negocio.banco}* por *$${conv.pedido.total?.toFixed(2)}* (intento ${conv.intentos_boucher}/3)`);
+              await enviarMensaje(numero, `No pude verificar el comprobante.\nMotivo: ${resultado.motivo}\n\nEnvia el comprobante del ${negocio.banco} por $${conv.pedido.total?.toFixed(2)} (intento ${conv.intentos_boucher}/3)`);
             }
           }
-        } catch (e) { await enviarMensaje(numero, '😅 No pude procesar la imagen. Intenta de nuevo.'); }
+        } catch (e) { await enviarMensaje(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
+      } else if (conv.esperando === 'foto_entrega') {
+        // Confirmar entrega con foto
+        conv.esperando = null;
+        await enviarMensaje(numero, 'Foto de entrega recibida! Gracias por confirmar.');
+        const pendientes = cargarPedidosPendientes();
+        const idx = pendientes.findIndex(p => p.numero === numero && !p.entrega_confirmada);
+        if (idx >= 0) { pendientes[idx].entrega_confirmada = true; guardarPedidosPendientes(pendientes); }
+        const negocios = cargarNegocios();
+        const neg = negocios.find(n => n.id === conv.negocio_id);
+        if (neg) await enviarMensaje(neg.whatsapp_dueno, `Entrega confirmada para cliente ${conv.pedido.nombre_cliente || numero}!`);
       } else {
-        await enviarMensaje(numero, '¡Gracias por la imagen! 😊 ¿En qué puedo ayudarte?');
+        await enviarMensaje(numero, 'Gracias por la imagen! En que puedo ayudarte?');
       }
       return;
     }
 
-    if (tipo === 'audio') { await enviarMensaje(numero, '😊 Solo puedo atenderte por texto. ¿Qué necesitas?'); return; }
+    if (tipo === 'audio') { await enviarMensaje(numero, 'Solo puedo atenderte por texto. Que necesitas?'); return; }
     if (tipo === 'document') {
-      if (conv.esperando === 'boucher') await enviarMensaje(numero, '📄 Necesito el comprobante como *imagen* (foto o captura de pantalla).');
-      else await enviarMensaje(numero, '¡Gracias! 😊 ¿En qué puedo ayudarte?');
+      if (conv.esperando === 'boucher') await enviarMensaje(numero, 'Necesito el comprobante como imagen (foto o captura de pantalla).');
+      else await enviarMensaje(numero, 'Gracias! En que puedo ayudarte?');
       return;
     }
     if (tipo === 'location') {
       conv.pedido.direccion = `https://maps.google.com/?q=${mensaje.location.latitude},${mensaje.location.longitude}`;
       conv.pedido.es_domicilio = true; conv.esperando = null; conv.etapa = 'pago';
-      await enviarMensaje(numero, `📍 ¡Ubicación recibida!\n\n${mensajePago(conv, negocio)}`);
-      conv.esperando = 'boucher'; return;
+      await enviarMensaje(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
+      if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
+      return;
     }
 
     if (tipo !== 'text') return;
@@ -410,93 +498,130 @@ app.post('/webhook', async (req, res) => {
     if (!texto) return;
 
     // Comandos especiales
-    if (['cancelar', 'cancel', 'reiniciar'].includes(texto.toLowerCase())) {
-      conversaciones.delete(`${numero}:${negocio.id}`);
-      await enviarMensaje(numero, `🔄 ¡Listo! Empecemos de nuevo. 👋 Bienvenido/a a *${negocio.nombre}*. ¿En qué puedo ayudarte?`);
+    const textoLower = texto.toLowerCase();
+
+    if (['cancelar', 'cancel'].includes(textoLower)) {
+      if (conv.etapa === 'confirmado') {
+        await enviarMensaje(numero, 'Tu pedido ya fue confirmado y no puede cancelarse. Contacta directamente al negocio si necesitas ayuda.');
+      } else {
+        conversaciones.delete(`${numero}:${negocio.id}`);
+        await enviarMensaje(numero, `Pedido cancelado. Si necesitas algo mas, escribe cuando quieras!`);
+      }
       return;
     }
-    if (['mi pedido', 'ver pedido', 'mi orden'].includes(texto.toLowerCase())) {
+
+    if (textoLower === 'mi pedido' || textoLower === 'ver pedido') {
       if (conv.pedido.items?.length > 0) await enviarResumenPedido(numero, conv);
-      else await enviarMensaje(numero, '📭 Aún no tienes productos en tu pedido. ¿Qué te gustaría ordenar?');
+      else await enviarMensaje(numero, 'No tienes productos en tu pedido aun. Que te gustaria ordenar?');
       return;
     }
-    if (['mis compras', 'historial', 'mis pedidos'].includes(texto.toLowerCase())) {
+
+    if (textoLower === 'mis compras' || textoLower === 'historial') {
       const c = cargarClientes()[numero];
       if (c?.historial_pedidos?.length > 0) {
-        let hist = `📋 *Tu historial de compras:*\n\n`;
-        c.historial_pedidos.slice(-5).forEach((p, i) => {
-          hist += `${i + 1}. ${new Date(p.fecha).toLocaleDateString('es-EC')} — ${p.descripcion} — $${p.total}\n`;
-        });
-        hist += `\n💰 Total gastado: $${c.total_gastado?.toFixed(2) || '0.00'}\n🛍️ Total pedidos: ${c.total_pedidos}`;
+        let hist = 'Tu historial de compras:\n\n';
+        c.historial_pedidos.slice(-5).forEach((p, i) => { hist += `${i + 1}. ${new Date(p.fecha).toLocaleDateString('es-EC')} - ${p.descripcion} ($${p.total})\n`; });
+        hist += `\nTotal gastado: $${c.total_gastado?.toFixed(2) || '0.00'}\nTotal pedidos: ${c.total_pedidos}`;
         await enviarMensaje(numero, hist);
       } else {
-        await enviarMensaje(numero, '📭 Aún no tienes pedidos registrados. ¡Anímate a hacer tu primer pedido! 😊');
+        await enviarMensaje(numero, 'Aun no tienes pedidos registrados. Animete a hacer tu primer pedido!');
       }
       return;
     }
-    if (['promociones', 'descuentos', 'ofertas'].includes(texto.toLowerCase())) {
+
+    if (textoLower === 'promociones' || textoLower === 'ofertas') {
       const promos = cargarPromociones().filter(p => p.activa);
       if (promos.length > 0) {
-        let msg = `🏷️ *Promociones disponibles:*\n\n`;
-        promos.forEach(p => { msg += `${p.emoji || '🎁'} *${p.nombre}*\n${p.descripcion}\n💰 ${p.descuento}\n\n`; });
+        let msg = 'Promociones disponibles:\n\n';
+        promos.forEach(p => { msg += `${p.emoji || ''} ${p.nombre}\n${p.descripcion}\n${p.descuento}\n\n`; });
         await enviarMensaje(numero, msg);
       } else {
-        await enviarMensaje(numero, '😊 En este momento no tenemos promociones activas, pero nuestros precios siempre son los mejores. ¿Te puedo ayudar con algo?');
+        await enviarMensaje(numero, 'No hay promociones activas en este momento.');
       }
       return;
     }
-    if (texto.toLowerCase() === 'horario') {
-      await enviarMensaje(numero, `⏰ *Horario de atención de ${negocio.nombre}:*\n\n📅 Lunes a Sábado\n🕐 8:00 am - 6:00 pm\n\n¡Estamos aquí para ayudarte! 😊`);
+
+    if (textoLower === 'horario') {
+      await enviarMensaje(numero, `Horario de atencion de ${negocio.nombre}:\n\nLunes a Sabado\n8:00 am - 6:00 pm`);
+      return;
+    }
+
+    if (textoLower === 'politica de devoluciones' || textoLower === 'devoluciones') {
+      await enviarMensaje(numero, negocio.politica_devoluciones || `Politica de devoluciones de ${negocio.nombre}:\n\n- Tienes 24 horas para reportar cualquier problema con tu pedido.\n- Los productos deben estar en su estado original.\n- Contactanos por este mismo WhatsApp para iniciar el proceso.`);
+      return;
+    }
+
+    if (textoLower === 'confirmar entrega' || textoLower === 'ya recibi') {
+      conv.esperando = 'foto_entrega';
+      await enviarMensaje(numero, 'Que bueno! Por favor envianos una foto del pedido recibido para confirmar la entrega.');
       return;
     }
 
     // Bienvenida
     if (conv.etapa === 'inicio' && conv.historial.length === 0) {
       let bienvenida = '';
-      if (cliente.es_frecuente || cliente.total_pedidos >= 3) {
-        bienvenida = `¡Hola de nuevo${cliente.nombre ? ', *' + cliente.nombre + '*' : ''}! 👋⭐ ¡Qué gusto verte por aquí otra vez en *${negocio.nombre}*! ¿Qué te gustaría hoy?`;
+      if (cliente.es_frecuente) {
+        bienvenida = `Hola de nuevo${cliente.nombre ? ', ' + cliente.nombre : ''}! Que gusto verte por aqui otra vez en ${negocio.nombre}! En que puedo ayudarte hoy?`;
       } else if (cliente.total_pedidos > 0) {
-        bienvenida = `¡Hola${cliente.nombre ? ', *' + cliente.nombre + '*' : ''}! 👋 Bienvenido/a de vuelta a *${negocio.nombre}*. ¿En qué puedo ayudarte hoy? 😊`;
+        bienvenida = `Hola${cliente.nombre ? ', ' + cliente.nombre : ''}! Bienvenido/a de vuelta a ${negocio.nombre}. En que puedo ayudarte?`;
       } else {
-        bienvenida = negocio.mensajes?.bienvenida || `¡Hola! 👋 Bienvenido/a a *${negocio.nombre}*. Soy tu asistente virtual. ¿En qué puedo ayudarte hoy? 😊`;
+        bienvenida = negocio.mensajes?.bienvenida || `Hola! Bienvenido/a a ${negocio.nombre}. Soy tu asistente virtual. En que puedo ayudarte hoy?`;
       }
       await enviarMensaje(numero, bienvenida);
       conv.etapa = 'consultando';
-      if (texto.toLowerCase() !== 'hola' && texto.toLowerCase() !== 'buenas' && texto.toLowerCase() !== 'hi' && texto.toLowerCase() !== 'buenos dias' && texto.toLowerCase() !== 'buenas tardes' && texto.toLowerCase() !== 'buenas noches' && texto.length > 6) {
-        const { mensaje: r, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
+      const saludos = ['hola', 'buenas', 'hi', 'buenos dias', 'buenas tardes', 'buenas noches', 'hey', 'ola'];
+      if (!saludos.includes(textoLower) && texto.length > 6) {
+        const { mensaje: r, imagenesIds, mostrarPago } = await procesarConClaude(conv, negocio, texto, cliente);
         if (r) await enviarMensaje(numero, r);
-        if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+        if (imagenesIds?.length > 0 && conv.etapa !== 'pago') {
+          for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+        }
       }
       return;
     }
 
     if (conv.esperando === 'boucher') {
-      await enviarMensaje(numero, `💳 Estoy esperando tu *comprobante de pago*.\n\nEnvía una foto del comprobante del *${negocio.banco}* por *$${conv.pedido.total?.toFixed(2) || '0.00'}*`);
+      await enviarMensaje(numero, `Estoy esperando tu comprobante de pago. Envia una foto del comprobante del ${negocio.banco} por $${conv.pedido.total?.toFixed(2) || '0.00'}`);
       return;
     }
 
-    const { mensaje: respuesta, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
+    const { mensaje: respuesta, imagenesIds, mostrarPago } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviarMensaje(numero, respuesta);
-    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
 
-    if (conv.etapa === 'pago' && conv.esperando !== 'boucher') {
+    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') {
+      for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+    }
+
+    if ((conv.etapa === 'pago' || mostrarPago) && conv.esperando !== 'boucher') {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
       await new Promise(r => setTimeout(r, 500));
-      await enviarMensaje(numero, mensajePago(conv, negocio));
-      conv.esperando = 'boucher';
+      await enviarMensaje(numero, generarMensajePago(conv, negocio));
+      if (conv.pedido.metodo_pago === 'efectivo') {
+        // Efectivo: confirmar directo sin boucher
+        conv.etapa = 'confirmado';
+        registrarPedido(numero, conv.pedido, negocio.nombre);
+        await notificarDueno(conv, negocio);
+      } else {
+        conv.esperando = 'boucher';
+      }
     }
 
-  } catch (err) { console.error('❌ Error:', err.message); }
+    if (conv.etapa === 'cancelado') {
+      conversaciones.delete(`${numero}:${negocio.id}`);
+    }
+
+  } catch (err) { console.error('Error en webhook:', err.message); }
 });
 
 // ─── API ADMIN ────────────────────────────────────────────────────────────────
 app.get('/admin/negocios', (req, res) => res.json(cargarNegocios()));
 app.post('/admin/negocios', (req, res) => {
   const negocios = cargarNegocios();
-  const nuevo = { id: `negocio_${Date.now()}`, activo: true, catalogo: [], mensajes: { bienvenida: `¡Hola! 👋 Bienvenido/a a *${req.body.nombre}*. ¿En qué puedo ayudarte?`, tono: 'amigable' }, ...req.body };
+  const id = 'negocio_' + Date.now();
+  const nuevo = { id, activo: true, catalogo: [], modo_vacaciones: false, tiempo_entrega: '30-45 minutos', politica_devoluciones: '', mensajes: { bienvenida: 'Hola! Bienvenido/a. En que puedo ayudarte?', tono: 'amigable' }, ...req.body };
   negocios.push(nuevo);
-  fs.writeFileSync('./negocios.json', JSON.stringify(negocios, null, 2));
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true, negocio: nuevo });
 });
 app.put('/admin/negocios/:id', (req, res) => {
@@ -504,39 +629,67 @@ app.put('/admin/negocios/:id', (req, res) => {
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  fs.writeFileSync('./negocios.json', JSON.stringify(negocios, null, 2));
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 app.delete('/admin/negocios/:id', (req, res) => {
-  fs.writeFileSync('./negocios.json', JSON.stringify(cargarNegocios().filter(n => n.id !== req.params.id), null, 2));
+  guardarJSON('./negocios.json', cargarNegocios().filter(n => n.id !== req.params.id));
+  res.json({ ok: true });
+});
+app.put('/admin/negocios/:id/vacaciones', (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => n.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].modo_vacaciones = req.body.activo;
+  negocios[idx].mensaje_vacaciones = req.body.mensaje || '';
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 app.get('/admin/clientes', (req, res) => res.json(cargarClientes()));
+app.get('/admin/repartidores', (req, res) => res.json(cargarRepartidores()));
+app.post('/admin/repartidores', (req, res) => {
+  const repartidores = cargarRepartidores();
+  const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
+  repartidores.push(nuevo);
+  guardarJSON('./repartidores.json', repartidores);
+  res.json({ ok: true, repartidor: nuevo });
+});
+app.put('/admin/repartidores/:id/disponible', (req, res) => {
+  const repartidores = cargarRepartidores();
+  const idx = repartidores.findIndex(r => r.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  repartidores[idx].disponible = req.body.disponible;
+  guardarJSON('./repartidores.json', repartidores);
+  res.json({ ok: true });
+});
 app.get('/admin/promociones', (req, res) => res.json(cargarPromociones()));
 app.post('/admin/promociones', (req, res) => {
   const promos = cargarPromociones();
-  const nueva = { id: `promo_${Date.now()}`, activa: true, ...req.body };
+  const nueva = { id: 'promo_' + Date.now(), activa: true, ...req.body };
   promos.push(nueva);
-  fs.writeFileSync('./promociones.json', JSON.stringify(promos, null, 2));
-  res.json({ ok: true, promocion: nueva });
-});
-app.delete('/admin/promociones/:id', (req, res) => {
-  fs.writeFileSync('./promociones.json', JSON.stringify(cargarPromociones().filter(p => p.id !== req.params.id), null, 2));
+  guardarJSON('./promociones.json', promos);
   res.json({ ok: true });
 });
+app.delete('/admin/promociones/:id', (req, res) => {
+  guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id));
+  res.json({ ok: true });
+});
+app.get('/admin/pedidos', (req, res) => res.json(cargarPedidosPendientes()));
 app.get('/admin/stats', (req, res) => {
   const n = cargarNegocios();
   const c = cargarClientes();
   const clientes = Object.values(c);
+  const hoy = horaActual().toLocaleDateString('es-EC');
   res.json({
     negocios_activos: n.filter(x => x.activo).length,
     conversaciones_activas: conversaciones.size,
     total_clientes: clientes.length,
     clientes_frecuentes: clientes.filter(c => c.es_frecuente).length,
-    pedidos_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toDateString() === new Date().toDateString()).length || 0), 0),
+    pedidos_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length || 0), 0),
+    ventas_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total || 0), 0) || 0), 0),
   });
 });
-app.get('/', (req, res) => res.json({ status: 'VendeBot v4.0 ✅', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
+app.get('/', (req, res) => res.json({ status: 'VendeBot v5.0 activo', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`\n🤖 VendeBot v4.0 iniciado en puerto ${PORT}\n`));
+app.listen(PORT, () => console.log(`VendeBot v5.0 iniciado en puerto ${PORT}`));

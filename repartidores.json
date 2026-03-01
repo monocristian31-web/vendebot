@@ -1,0 +1,10 @@
+[
+  {
+    "id": "rep_001",
+    "nombre": "Carlos Repartidor",
+    "whatsapp": "+593990000001",
+    "negocio_id": "negocio_001",
+    "activo": true,
+    "disponible": true
+  }
+]
