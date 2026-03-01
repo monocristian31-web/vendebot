@@ -1,7 +1,13 @@
 [
   {
     "id": "negocio_001",
-    "nombre": "Camiloshause",
+    "nombre": "Camiloshause",[{
+  "id": "negocio_001",
+  "nombre": "Camiloshause",
+  ...
+  "slug": "camiloshause",
+  "password": "clave123"
+}]
     "tipo": "floristería",
     "whatsapp_dueno": "+593993397278",
     "whatsapp_delivery": "+593993397278",

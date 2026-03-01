@@ -6,6 +6,7 @@ const fs = require('fs');
 
 const app = express();
 app.use(express.json());
+app.use(express.static('.'));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -807,6 +808,145 @@ app.get('/admin/stats', (req, res) => {
   });
 });
 app.get('/', (req, res) => res.json({ status: 'VendeBot v6.0 activo', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
+
+
+// ─── AUTENTICACIÓN ────────────────────────────────────────────────────────────
+const crypto = require('crypto');
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vendebot2024admin';
+const tokens = new Map();
+
+function generarToken() { return crypto.randomBytes(32).toString('hex'); }
+function verificarToken(token) { return tokens.has(token) && Date.now() - tokens.get(token).tiempo < 24 * 60 * 60 * 1000; }
+function verificarTokenPanel(token, slug) { const t = tokens.get(token); return t && t.slug === slug && Date.now() - t.tiempo < 24 * 60 * 60 * 1000; }
+
+app.post('/auth/admin', (req, res) => {
+  if (req.body.password === ADMIN_PASSWORD) {
+    const token = generarToken();
+    tokens.set(token, { tipo: 'admin', tiempo: Date.now() });
+    res.json({ ok: true, token });
+  } else res.json({ ok: false });
+});
+
+app.post('/auth/panel/:slug', (req, res) => {
+  const negocios = cargarNegocios();
+  const negocio = negocios.find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (negocio && req.body.password === negocio.password) {
+    const token = generarToken();
+    tokens.set(token, { tipo: 'panel', slug: req.params.slug, tiempo: Date.now() });
+    res.json({ ok: true, token });
+  } else res.json({ ok: false });
+});
+
+app.get('/auth/verify', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const t = tokens.get(token);
+  res.json({ ok: t?.tipo === 'admin' && verificarToken(token) });
+});
+
+app.get('/auth/verify-panel/:slug', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  res.json({ ok: verificarTokenPanel(token, req.params.slug) });
+});
+
+function authAdmin(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const t = tokens.get(token);
+  if (t?.tipo === 'admin' && verificarToken(token)) return next();
+  res.status(401).json({ error: 'No autorizado' });
+}
+
+function authPanel(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (verificarTokenPanel(token, req.params.slug)) return next();
+  res.status(401).json({ error: 'No autorizado' });
+}
+
+// ─── RUTAS DE PANELES ─────────────────────────────────────────────────────────
+app.get('/admin', (req, res) => res.sendFile('admin.html', { root: '.' }));
+app.get('/panel/:slug', (req, res) => res.sendFile('panel.html', { root: '.' }));
+
+// Panel routes
+app.get('/panel/:slug/negocio', authPanel, (req, res) => {
+  const n = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  res.json(n || {});
+});
+app.put('/panel/:slug/negocio', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx] = { ...negocios[idx], ...req.body };
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true });
+});
+app.get('/panel/:slug/stats', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json({});
+  const clientes = cargarClientes();
+  const todos = Object.values(clientes).filter(c => c.historial_pedidos?.some(p => p.negocio === negocio.nombre));
+  const hoy = horaActual().toLocaleDateString('es-EC');
+  res.json({
+    ventas_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total||0), 0)||0), 0),
+    pedidos_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length||0), 0),
+    total_clientes: todos.length,
+    clientes_frecuentes: todos.filter(c => c.es_frecuente).length,
+  });
+});
+app.get('/panel/:slug/clientes', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json({});
+  const clientes = cargarClientes();
+  const filtrado = {};
+  for (const [num, c] of Object.entries(clientes)) {
+    if (c.historial_pedidos?.some(p => p.negocio === negocio.nombre)) filtrado[num] = c;
+  }
+  res.json(filtrado);
+});
+app.get('/panel/:slug/promociones', authPanel, (req, res) => res.json(cargarPromociones()));
+app.post('/panel/:slug/promociones', authPanel, (req, res) => {
+  const promos = cargarPromociones();
+  promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
+  guardarJSON('./promociones.json', promos);
+  res.json({ ok: true });
+});
+app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => {
+  guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id));
+  res.json({ ok: true });
+});
+app.get('/panel/:slug/cupones', authPanel, (req, res) => res.json(cargarCupones()));
+app.post('/panel/:slug/cupones', authPanel, (req, res) => {
+  const cupones = cargarCupones();
+  cupones.push({ id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body });
+  guardarJSON('./cupones.json', cupones);
+  res.json({ ok: true });
+});
+app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => {
+  guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id));
+  res.json({ ok: true });
+});
+app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  res.json(cargarRepartidores().filter(r => r.negocio_id === negocio?.id));
+});
+app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
+  const reps = cargarRepartidores();
+  reps.push({ id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body });
+  guardarJSON('./repartidores.json', reps);
+  res.json({ ok: true });
+});
+app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
+  guardarJSON('./repartidores.json', cargarRepartidores().filter(r => r.id !== req.params.id));
+  res.json({ ok: true });
+});
+app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { mensaje, solo_frecuentes } = req.body;
+  if (!mensaje) return res.status(400).json({ error: 'Mensaje requerido' });
+  const clientes = cargarClientes();
+  const lista = Object.values(clientes).filter(c => c.total_pedidos > 0 && c.historial_pedidos?.some(p => p.negocio === negocio.nombre) && (!solo_frecuentes || c.es_frecuente));
+  res.json({ ok: true, total: lista.length });
+  for (const c of lista) { await enviarMensaje(c.numero, mensaje); await new Promise(r => setTimeout(r, 1500)); }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));

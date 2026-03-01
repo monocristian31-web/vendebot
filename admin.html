@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VendeBot — Admin Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:#2a2a3a;--accent:#00ff88;--accent2:#7c3aed;--accent3:#f59e0b;--text:#e8e8f0;--text2:#888899;--red:#ff4466;--blue:#3b82f6;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+header{padding:20px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:100;}
+.logo{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--accent);}
+.logo span{color:var(--accent2);}
+main{padding:32px;max-width:1200px;margin:0 auto;}
+.section-title{font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;margin-top:32px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:768px){.grid2{grid-template-columns:1fr;}}
+.btn{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;transition:all 0.2s;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{opacity:0.85;}
+.btn-danger{background:rgba(255,68,102,0.15);color:var(--red);border:1px solid var(--red);}
+.btn-secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:10px;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent2);}
+label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;font-size:14px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge.green{background:rgba(0,255,136,0.15);color:var(--accent);}
+.badge.red{background:rgba(255,68,102,0.15);color:var(--red);}
+.badge.blue{background:rgba(59,130,246,0.15);color:var(--blue);}
+.alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none;}
+.alert.success{background:rgba(0,255,136,0.1);color:var(--accent);border:1px solid rgba(0,255,136,0.3);}
+.alert.error{background:rgba(255,68,102,0.1);color:var(--red);border:1px solid rgba(255,68,102,0.3);}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:380px;}
+.login-title{font-family:'Space Mono',monospace;font-size:22px;color:var(--accent);margin-bottom:8px;}
+.login-sub{color:var(--text2);font-size:14px;margin-bottom:28px;}
+.tab-bar{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:24px;}
+.tab{flex:1;padding:8px;text-align:center;border-radius:7px;cursor:pointer;font-size:14px;color:var(--text2);transition:all 0.2s;}
+.tab.active{background:var(--surface);color:var(--text);font-weight:500;}
+.panel{display:none;}.panel.active{display:block;}
+.url-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);word-break:break-all;margin-top:8px;}
+.stats-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+@media(max-width:600px){.stats-mini{grid-template-columns:repeat(2,1fr);}}
+.stat-mini{background:var(--surface2);border-radius:10px;padding:14px;text-align:center;}
+.stat-mini-val{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--accent);}
+.stat-mini-label{font-size:11px;color:var(--text2);margin-top:4px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-title">VendeBot</div>
+    <div class="login-sub">Panel de Administración Master</div>
+    <div class="alert" id="loginAlert"></div>
+    <label>Contraseña de administrador</label>
+    <input type="password" id="adminPass" placeholder="Ingresa la contraseña" onkeydown="if(event.key==='Enter')login()">
+    <br>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="login()">Entrar</button>
+  </div>
+</div>
+
+<!-- PANEL PRINCIPAL -->
+<div id="mainPanel" style="display:none;">
+<header>
+  <div class="logo">VendeBot <span>Admin Master</span></div>
+  <div style="display:flex;gap:12px;">
+    <button class="btn btn-secondary btn-sm" onclick="cargarTodo()">↻ Actualizar</button>
+    <button class="btn btn-danger btn-sm" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<main>
+  <!-- TABS -->
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('negocios')">🏪 Negocios</div>
+    <div class="tab" onclick="switchTab('stats')">📊 Estadísticas</div>
+    <div class="tab" onclick="switchTab('crear')">➕ Crear cliente</div>
+  </div>
+
+  <!-- TAB: STATS GLOBALES -->
+  <div class="panel" id="tab-stats">
+    <div class="section-title">Estadísticas globales</div>
+    <div class="stats-mini" id="statsGlobal"></div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:500;margin-bottom:16px;">Todos los negocios</div>
+      <div id="statsNegocios"></div>
+    </div>
+  </div>
+
+  <!-- TAB: NEGOCIOS -->
+  <div class="panel active" id="tab-negocios">
+    <div class="section-title">Clientes registrados</div>
+    <div id="negociosList"></div>
+  </div>
+
+  <!-- TAB: CREAR CLIENTE -->
+  <div class="panel" id="tab-crear">
+    <div class="section-title">Registrar nuevo cliente</div>
+    <div class="card">
+      <div class="alert" id="crearAlert"></div>
+      <div class="form-row">
+        <div>
+          <label>Nombre del negocio *</label>
+          <input type="text" id="c_nombre" placeholder="Ej: Camiloshause">
+        </div>
+        <div>
+          <label>Tipo de negocio *</label>
+          <input type="text" id="c_tipo" placeholder="Ej: floristería, restaurante">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>WhatsApp del dueño *</label>
+          <input type="text" id="c_whatsapp" placeholder="+593990000000">
+        </div>
+        <div>
+          <label>WhatsApp delivery</label>
+          <input type="text" id="c_delivery" placeholder="+593990000000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Banco</label>
+          <input type="text" id="c_banco" placeholder="Banco Pichincha">
+        </div>
+        <div>
+          <label>Número de cuenta</label>
+          <input type="text" id="c_cuenta" placeholder="2200123456789">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Titular de la cuenta</label>
+          <input type="text" id="c_titular" placeholder="Nombre del titular">
+        </div>
+        <div>
+          <label>Contraseña del panel *</label>
+          <input type="password" id="c_password" placeholder="Contraseña para el cliente">
+        </div>
+      </div>
+      <label>Slug (URL del panel, sin espacios) *</label>
+      <input type="text" id="c_slug" placeholder="camiloshause">
+      <div class="url-box" id="urlPreview">URL: esperando slug...</div>
+      <br>
+      <button class="btn btn-primary" onclick="crearNegocio()">Crear cliente</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const BASE = window.location.origin;
+let TOKEN = localStorage.getItem('vb_admin_token') || '';
+
+document.getElementById('c_slug').addEventListener('input', function() {
+  const slug = this.value.toLowerCase().replace(/\s/g,'-');
+  this.value = slug;
+  document.getElementById('urlPreview').textContent = `URL del panel: ${BASE}/panel/${slug}`;
+});
+
+async function login() {
+  const pass = document.getElementById('adminPass').value;
+  const r = await fetch(BASE + '/auth/admin', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pass }) });
+  const data = await r.json();
+  if (data.ok) {
+    TOKEN = data.token;
+    localStorage.setItem('vb_admin_token', TOKEN);
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('mainPanel').style.display = 'block';
+    cargarTodo();
+  } else {
+    const alert = document.getElementById('loginAlert');
+    alert.textContent = 'Contraseña incorrecta';
+    alert.className = 'alert error';
+    alert.style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('vb_admin_token');
+  location.reload();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  const tabs = ['negocios','stats','crear'];
+  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+}
+
+async function cargarTodo() {
+  await cargarNegocios();
+  await cargarStatsGlobal();
+}
+
+async function cargarStatsGlobal() {
+  const stats = await fetch(BASE + '/admin/stats', { headers: { Authorization: 'Bearer ' + TOKEN } }).then(r => r.json()).catch(() => null);
+  if (!stats) return;
+  document.getElementById('statsGlobal').innerHTML = `
+    <div class="stat-mini"><div class="stat-mini-val">${stats.negocios_activos}</div><div class="stat-mini-label">Negocios activos</div></div>
+    <div class="stat-mini"><div class="stat-mini-val">${stats.total_clientes}</div><div class="stat-mini-label">Total clientes</div></div>
+    <div class="stat-mini"><div class="stat-mini-val">$${(stats.ventas_hoy||0).toFixed(0)}</div><div class="stat-mini-label">Ventas hoy</div></div>
+    <div class="stat-mini"><div class="stat-mini-val">${stats.conversaciones_activas}</div><div class="stat-mini-label">Conversaciones</div></div>
+  `;
+}
+
+async function cargarNegocios() {
+  const negocios = await fetch(BASE + '/admin/negocios', { headers: { Authorization: 'Bearer ' + TOKEN } }).then(r => r.json()).catch(() => []);
+  const container = document.getElementById('negociosList');
+  if (!negocios.length) { container.innerHTML = '<div class="card" style="color:var(--text2);">No hay negocios registrados aún.</div>'; return; }
+  container.innerHTML = negocios.map(n => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-size:16px;font-weight:600;">${n.nombre} <span class="badge ${n.activo ? 'green' : 'red'}">${n.activo ? 'Activo' : 'Inactivo'}</span>${n.modo_vacaciones ? '<span class="badge blue" style="margin-left:6px;">Vacaciones</span>' : ''}</div>
+          <div style="color:var(--text2);font-size:13px;margin-top:4px;">${n.tipo} · ${n.whatsapp_dueno}</div>
+          <div class="url-box" style="margin-top:8px;">Panel: ${BASE}/panel/${n.slug || n.id}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="window.open('/panel/${n.slug || n.id}','_blank')">Ver panel</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarNegocio('${n.id}')">Eliminar</button>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="font-size:13px;color:var(--text2);">Catálogo: <b style="color:var(--text)">${n.catalogo?.length || 0} productos</b></div>
+        <div style="font-size:13px;color:var(--text2);">Banco: <b style="color:var(--text)">${n.banco || 'No configurado'}</b></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function crearNegocio() {
+  const alert = document.getElementById('crearAlert');
+  const datos = {
+    nombre: document.getElementById('c_nombre').value.trim(),
+    tipo: document.getElementById('c_tipo').value.trim(),
+    whatsapp_dueno: document.getElementById('c_whatsapp').value.trim(),
+    whatsapp_delivery: document.getElementById('c_delivery').value.trim(),
+    banco: document.getElementById('c_banco').value.trim(),
+    numero_cuenta: document.getElementById('c_cuenta').value.trim(),
+    titular_cuenta: document.getElementById('c_titular').value.trim(),
+    password: document.getElementById('c_password').value.trim(),
+    slug: document.getElementById('c_slug').value.trim(),
+  };
+  if (!datos.nombre || !datos.whatsapp_dueno || !datos.password || !datos.slug) {
+    alert.textContent = 'Completa los campos obligatorios (*)';
+    alert.className = 'alert error'; alert.style.display = 'block'; return;
+  }
+  const r = await fetch(BASE + '/admin/negocios', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN }, body: JSON.stringify(datos) });
+  const data = await r.json();
+  if (data.ok) {
+    alert.textContent = `✓ Cliente creado. Panel: ${BASE}/panel/${datos.slug}`;
+    alert.className = 'alert success'; alert.style.display = 'block';
+    cargarNegocios(); switchTab('negocios');
+  } else {
+    alert.textContent = 'Error al crear el cliente';
+    alert.className = 'alert error'; alert.style.display = 'block';
+  }
+}
+
+async function eliminarNegocio(id) {
+  if (!confirm('¿Eliminar este negocio? Esta acción no se puede deshacer.')) return;
+  await fetch(BASE + '/admin/negocios/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
+  cargarNegocios();
+}
+
+// Auto-login si ya hay token
+if (TOKEN) {
+  fetch(BASE + '/auth/verify', { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        document.getElementById('loginWrap').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+        cargarTodo();
+      } else { localStorage.removeItem('vb_admin_token'); TOKEN = ''; }
+    }).catch(() => {});
+}
+</script>
+</body>
+</html>

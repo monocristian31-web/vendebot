@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VendeBot — Panel del Negocio</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f8f9fc;--surface:#ffffff;--surface2:#f1f3f8;--border:#e2e6ef;--accent:#7c3aed;--accent2:#00c47a;--text:#1a1a2e;--text2:#6b7280;--red:#ef4444;--yellow:#f59e0b;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.logo{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent);}
+.negocio-name{font-size:14px;color:var(--text2);margin-top:2px;}
+nav{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;}
+.nav-btn{padding:8px 14px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text2);transition:all 0.2s;border:none;background:none;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.nav-btn.active{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+@media(max-width:768px){nav{overflow-x:auto;max-width:calc(100vw - 180px);}header{flex-wrap:wrap;gap:12px;}}
+main{padding:24px;max-width:1100px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+.section-title{font-size:18px;font-weight:700;margin-bottom:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;}
+.stat-val{font-family:'Space Mono',monospace;font-size:26px;font-weight:700;color:var(--accent);}
+.stat-label{font-size:12px;color:var(--text2);margin-top:4px;}
+.btn{padding:9px 18px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;transition:all 0.2s;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#6d28d9;}
+.btn-success{background:var(--accent2);color:#fff;}
+.btn-danger{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid var(--red);}
+.btn-secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:12px;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:10px 12px;font-size:14px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge.green{background:rgba(0,196,122,0.15);color:var(--accent2);}
+.badge.purple{background:rgba(124,58,237,0.15);color:var(--accent);}
+.badge.red{background:rgba(239,68,68,0.15);color:var(--red);}
+.badge.yellow{background:rgba(245,158,11,0.15);color:var(--yellow);}
+.alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none;}
+.alert.success{background:rgba(0,196,122,0.1);color:var(--accent2);border:1px solid rgba(0,196,122,0.3);}
+.alert.error{background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:380px;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+.login-title{font-family:'Space Mono',monospace;font-size:22px;color:var(--accent);margin-bottom:6px;}
+.product-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;gap:14px;align-items:flex-start;margin-bottom:12px;}
+.product-img{width:70px;height:70px;border-radius:8px;object-fit:cover;background:var(--surface2);border:1px solid var(--border);flex-shrink:0;}
+.product-info{flex:1;}
+.product-name{font-weight:600;font-size:15px;}
+.product-price{color:var(--accent);font-family:'Space Mono',monospace;font-weight:700;margin-top:2px;}
+.product-desc{font-size:13px;color:var(--text2);margin-top:4px;}
+.product-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.toggle{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.toggle-switch{width:44px;height:24px;background:var(--border);border-radius:12px;cursor:pointer;position:relative;transition:background 0.3s;}
+.toggle-switch.on{background:var(--accent2);}
+.toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.3s;}
+.toggle-switch.on::after{left:23px;}
+.toggle-label{font-size:14px;}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:100px;}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;}
+.bar{width:100%;border-radius:4px 4px 0 0;background:var(--accent);min-height:4px;}
+.bar.today{background:var(--accent2);}
+.bar-label{font-size:10px;color:var(--text2);}
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-title">VendeBot</div>
+    <div style="color:var(--text2);font-size:14px;margin-bottom:24px;">Panel de tu negocio</div>
+    <div class="alert" id="loginAlert"></div>
+    <label>Contraseña</label>
+    <input type="password" id="panelPass" placeholder="Tu contraseña" onkeydown="if(event.key==='Enter')loginPanel()">
+    <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="loginPanel()">Entrar</button>
+  </div>
+</div>
+
+<div id="mainPanel" style="display:none;">
+<header>
+  <div>
+    <div class="logo">VendeBot</div>
+    <div class="negocio-name" id="negocioName">Cargando...</div>
+  </div>
+  <nav>
+    <button class="nav-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+    <button class="nav-btn" onclick="switchTab('catalogo')">📦 Catálogo</button>
+    <button class="nav-btn" onclick="switchTab('promociones')">🏷️ Promociones</button>
+    <button class="nav-btn" onclick="switchTab('repartidores')">🛵 Repartidores</button>
+    <button class="nav-btn" onclick="switchTab('clientes')">👥 Clientes</button>
+    <button class="nav-btn" onclick="switchTab('masivo')">📢 Masivo</button>
+    <button class="nav-btn" onclick="switchTab('config')">⚙️ Config</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- DASHBOARD -->
+<div class="panel active" id="tab-dashboard">
+  <div class="section-title">📊 Dashboard</div>
+  <div class="stats-grid" id="statsGrid"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:16px;">Ventas últimos 7 días</div>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:16px;">🏆 Productos más vendidos</div>
+      <div id="topProductos"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:16px;">👑 Mejores clientes</div>
+      <div id="topClientes"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:16px;">📋 Pedidos recientes</div>
+      <div id="pedidosRecientes"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CATÁLOGO -->
+<div class="panel" id="tab-catalogo">
+  <div class="section-title">📦 Catálogo de productos</div>
+  <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Agregar producto</button>
+  <div class="card" id="formProducto" style="display:none;margin-top:16px;">
+    <div style="font-weight:600;margin-bottom:16px;" id="formProductoTitle">Nuevo producto</div>
+    <input type="hidden" id="p_id">
+    <div class="form-row">
+      <div><label>Nombre *</label><input type="text" id="p_nombre" placeholder="Nombre del producto"></div>
+      <div><label>Precio *</label><input type="number" id="p_precio" placeholder="0.00" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Emoji</label><input type="text" id="p_emoji" placeholder="🌹" maxlength="2"></div>
+      <div><label>Stock (vacío = ilimitado)</label><input type="number" id="p_stock" placeholder="Dejar vacío para ilimitado"></div>
+    </div>
+    <label>Descripción</label>
+    <textarea id="p_descripcion" placeholder="Descripción del producto" rows="2"></textarea>
+    <label>URL de imagen</label>
+    <input type="url" id="p_imagen" placeholder="https://i.imgur.com/...">
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-success" onclick="guardarProducto()">Guardar producto</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('formProducto').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+  <div id="catalogoList" style="margin-top:16px;"></div>
+</div>
+
+<!-- PROMOCIONES -->
+<div class="panel" id="tab-promociones">
+  <div class="section-title">🏷️ Promociones y cupones</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+      <div style="font-weight:600;margin-bottom:12px;">Crear promoción</div>
+      <div class="card">
+        <label>Nombre</label><input type="text" id="promo_nombre" placeholder="Ej: 2x1 en ramos">
+        <label>Descripción</label><input type="text" id="promo_desc" placeholder="Descripción de la promoción">
+        <label>Descuento</label><input type="text" id="promo_descuento" placeholder="Ej: 20% de descuento">
+        <label>Emoji</label><input type="text" id="promo_emoji" placeholder="🎁" maxlength="2">
+        <button class="btn btn-primary" onclick="crearPromocion()">Crear promoción</button>
+      </div>
+    </div>
+    <div>
+      <div style="font-weight:600;margin-bottom:12px;">Crear cupón</div>
+      <div class="card">
+        <label>Código del cupón</label><input type="text" id="cupon_codigo" placeholder="DESCUENTO10">
+        <label>Tipo</label>
+        <select id="cupon_tipo"><option value="porcentaje">Porcentaje (%)</option><option value="fijo">Monto fijo ($)</option></select>
+        <label>Valor</label><input type="number" id="cupon_valor" placeholder="10">
+        <label>Usos máximos (0 = ilimitado)</label><input type="number" id="cupon_usos" placeholder="0">
+        <button class="btn btn-success" onclick="crearCupon()">Crear cupón</button>
+      </div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;">
+    <div class="card"><div style="font-weight:600;margin-bottom:12px;">Promociones activas</div><div id="promocionesList"></div></div>
+    <div class="card"><div style="font-weight:600;margin-bottom:12px;">Cupones</div><div id="cuponesList"></div></div>
+  </div>
+</div>
+
+<!-- REPARTIDORES -->
+<div class="panel" id="tab-repartidores">
+  <div class="section-title">🛵 Repartidores</div>
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:12px;">Agregar repartidor</div>
+    <div class="form-row">
+      <div><label>Nombre *</label><input type="text" id="rep_nombre" placeholder="Nombre del repartidor"></div>
+      <div><label>WhatsApp *</label><input type="text" id="rep_whatsapp" placeholder="+593990000000"></div>
+    </div>
+    <button class="btn btn-primary" onclick="crearRepartidor()">Agregar repartidor</button>
+  </div>
+  <div class="card" style="margin-top:16px;"><div id="repartidoresList"></div></div>
+</div>
+
+<!-- CLIENTES -->
+<div class="panel" id="tab-clientes">
+  <div class="section-title">👥 Clientes</div>
+  <div class="card"><div id="clientesList"></div></div>
+</div>
+
+<!-- MASIVO -->
+<div class="panel" id="tab-masivo">
+  <div class="section-title">📢 Envío masivo</div>
+  <div class="card">
+    <label>Mensaje a enviar</label>
+    <textarea id="mensajeMasivo" rows="4" placeholder="Escribe tu mensaje aqui..."></textarea>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="enviarMasivo()">Enviar a todos</button>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="soloFrecuentes" style="width:auto;margin:0;"> Solo clientes frecuentes
+      </label>
+    </div>
+    <div class="alert" id="masivoAlert" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="panel" id="tab-config">
+  <div class="section-title">⚙️ Configuración del negocio</div>
+  <div class="alert" id="configAlert"></div>
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:16px;">Datos del negocio</div>
+    <div class="form-row">
+      <div><label>Nombre del negocio</label><input type="text" id="cfg_nombre"></div>
+      <div><label>Tipo de negocio</label><input type="text" id="cfg_tipo"></div>
+    </div>
+    <div class="form-row">
+      <div><label>WhatsApp del dueño</label><input type="text" id="cfg_whatsapp"></div>
+      <div><label>WhatsApp delivery</label><input type="text" id="cfg_delivery"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Banco</label><input type="text" id="cfg_banco"></div>
+      <div><label>Número de cuenta</label><input type="text" id="cfg_cuenta"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Titular de la cuenta</label><input type="text" id="cfg_titular"></div>
+      <div><label>Tiempo de entrega</label><input type="text" id="cfg_tiempo" placeholder="30-45 minutos"></div>
+    </div>
+    <label>Mensaje de bienvenida</label>
+    <textarea id="cfg_bienvenida" rows="2"></textarea>
+    <label>Política de devoluciones</label>
+    <textarea id="cfg_devoluciones" rows="2"></textarea>
+  </div>
+  <div class="card">
+    <div style="font-weight:600;margin-bottom:16px;">Modo vacaciones</div>
+    <div class="toggle">
+      <div class="toggle-switch" id="toggleVacaciones" onclick="toggleVacaciones()"></div>
+      <span class="toggle-label" id="vacacionesLabel">Desactivado</span>
+    </div>
+    <label>Mensaje de vacaciones</label>
+    <textarea id="cfg_vacaciones" rows="2" placeholder="Ej: Estamos de vacaciones hasta el 15 de enero..."></textarea>
+  </div>
+  <button class="btn btn-primary" onclick="guardarConfig()">Guardar configuración</button>
+</div>
+
+</main>
+</div>
+
+<script>
+const BASE = window.location.origin;
+const SLUG = window.location.pathname.split('/').pop();
+let TOKEN = sessionStorage.getItem('vb_panel_token_' + SLUG) || '';
+let negocioData = null;
+
+async function loginPanel() {
+  const pass = document.getElementById('panelPass').value;
+  const r = await fetch(`${BASE}/auth/panel/${SLUG}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pass }) });
+  const data = await r.json();
+  if (data.ok) {
+    TOKEN = data.token;
+    sessionStorage.setItem('vb_panel_token_' + SLUG, TOKEN);
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('mainPanel').style.display = 'block';
+    cargarTodo();
+  } else {
+    const al = document.getElementById('loginAlert');
+    al.textContent = 'Contraseña incorrecta'; al.className = 'alert error'; al.style.display = 'block';
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  const tabs = ['dashboard','catalogo','promociones','repartidores','clientes','masivo','config'];
+  document.querySelectorAll('.nav-btn')[tabs.indexOf(tab)].classList.add('active');
+  if (tab === 'catalogo') cargarCatalogo();
+  if (tab === 'promociones') { cargarPromociones(); cargarCupones(); }
+  if (tab === 'repartidores') cargarRepartidores();
+  if (tab === 'clientes') cargarClientes();
+  if (tab === 'config') cargarConfig();
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(BASE + url, { ...opts, headers: { ...(opts.headers||{}), Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' } });
+  return r.json();
+}
+
+async function cargarTodo() {
+  const negocio = await api(`/panel/${SLUG}/negocio`);
+  if (!negocio) return;
+  negocioData = negocio;
+  document.getElementById('negocioName').textContent = negocio.nombre;
+  await cargarDashboard();
+}
+
+async function cargarDashboard() {
+  const stats = await api(`/panel/${SLUG}/stats`);
+  const clientes = await api(`/panel/${SLUG}/clientes`);
+  if (!stats) return;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat"><div class="stat-val">$${(stats.ventas_hoy||0).toFixed(2)}</div><div class="stat-label">Ventas hoy</div></div>
+    <div class="stat"><div class="stat-val">${stats.pedidos_hoy||0}</div><div class="stat-label">Pedidos hoy</div></div>
+    <div class="stat"><div class="stat-val">${stats.total_clientes||0}</div><div class="stat-label">Total clientes</div></div>
+    <div class="stat"><div class="stat-val">${stats.clientes_frecuentes||0}</div><div class="stat-label">Clientes frecuentes</div></div>
+  `;
+
+  if (!clientes) return;
+  const todos = Object.values(clientes);
+
+  // Grafico ventas 7 dias
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const semana = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const fecha = d.toLocaleDateString('es-EC');
+    const ventas = todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === fecha).reduce((s, p) => s + (p.total||0), 0)||0), 0);
+    semana.push({ dia: dias[d.getDay()], ventas, isHoy: i === 0 });
+  }
+  const maxV = Math.max(...semana.map(s => s.ventas), 1);
+  document.getElementById('barChart').innerHTML = semana.map(s => `<div class="bar-wrap"><div class="bar ${s.isHoy?'today':''}" style="height:${Math.max(s.ventas/maxV*90,4)}px"></div><div class="bar-label">${s.dia}</div></div>`).join('');
+
+  // Top productos
+  const conteo = {};
+  todos.forEach(c => c.historial_pedidos?.forEach(p => p.items?.forEach(item => { if(!conteo[item.nombre]) conteo[item.nombre]=0; conteo[item.nombre]+=item.cantidad||1; })));
+  const top = Object.entries(conteo).sort((a,b) => b[1]-a[1]).slice(0,4);
+  document.getElementById('topProductos').innerHTML = top.length ? top.map((p,i) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'•'} ${p[0]}<span class="badge purple">${p[1]}</span></div>`).join('') : '<div style="color:var(--text2);font-size:14px;">Sin ventas aún</div>';
+
+  // Top clientes
+  const topC = todos.filter(c => c.total_pedidos > 0).sort((a,b) => b.total_gastado-a.total_gastado).slice(0,4);
+  document.getElementById('topClientes').innerHTML = topC.length ? topC.map((c,i) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">${i===0?'👑':'•'} ${c.nombre||c.numero.slice(-6)}<span>$${(c.total_gastado||0).toFixed(2)}</span></div>`).join('') : '<div style="color:var(--text2);font-size:14px;">Sin clientes aún</div>';
+
+  // Pedidos recientes
+  const pedidos = [];
+  todos.forEach(c => c.historial_pedidos?.slice(-2).forEach(p => pedidos.push({ ...p, cliente: c.nombre||c.numero.slice(-6) })));
+  pedidos.sort((a,b) => new Date(b.fecha)-new Date(a.fecha));
+  document.getElementById('pedidosRecientes').innerHTML = pedidos.slice(0,4).length ? pedidos.slice(0,4).map(p => `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:500;">${p.cliente} — $${p.total}</div><div style="color:var(--text2);font-size:12px;">${new Date(p.fecha).toLocaleDateString('es-EC')}</div></div>`).join('') : '<div style="color:var(--text2);font-size:14px;">Sin pedidos aún</div>';
+}
+
+async function cargarCatalogo() {
+  const neg = await api(`/panel/${SLUG}/negocio`);
+  negocioData = neg;
+  const lista = document.getElementById('catalogoList');
+  if (!neg?.catalogo?.length) { lista.innerHTML = '<div class="card" style="color:var(--text2);text-align:center;">No hay productos aún. Agrega tu primer producto!</div>'; return; }
+  lista.innerHTML = neg.catalogo.map(p => `
+    <div class="product-card">
+      ${p.imagen ? `<img class="product-img" src="${p.imagen}" onerror="this.style.display='none'">` : '<div class="product-img" style="display:flex;align-items:center;justify-content:center;font-size:28px;">' + (p.emoji||'📦') + '</div>'}
+      <div class="product-info">
+        <div class="product-name">${p.emoji||''} ${p.nombre}</div>
+        <div class="product-price">$${p.precio.toFixed(2)}</div>
+        <div class="product-desc">${p.descripcion||''}</div>
+        ${p.stock !== undefined ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;">Stock: ${p.stock}</div>` : ''}
+        <div class="product-actions">
+          <button class="btn btn-secondary btn-sm" onclick="editarProducto(${p.id})">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${p.id})">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function mostrarFormProducto(producto = null) {
+  document.getElementById('formProducto').style.display = 'block';
+  document.getElementById('formProductoTitle').textContent = producto ? 'Editar producto' : 'Nuevo producto';
+  document.getElementById('p_id').value = producto?.id || '';
+  document.getElementById('p_nombre').value = producto?.nombre || '';
+  document.getElementById('p_precio').value = producto?.precio || '';
+  document.getElementById('p_emoji').value = producto?.emoji || '';
+  document.getElementById('p_stock').value = producto?.stock ?? '';
+  document.getElementById('p_descripcion').value = producto?.descripcion || '';
+  document.getElementById('p_imagen').value = producto?.imagen || '';
+  document.getElementById('p_nombre').focus();
+}
+
+function editarProducto(id) {
+  const p = negocioData?.catalogo?.find(p => p.id === id);
+  if (p) mostrarFormProducto(p);
+}
+
+async function guardarProducto() {
+  const nombre = document.getElementById('p_nombre').value.trim();
+  const precio = parseFloat(document.getElementById('p_precio').value);
+  if (!nombre || isNaN(precio)) { alert('Nombre y precio son obligatorios'); return; }
+  const producto = {
+    nombre, precio,
+    emoji: document.getElementById('p_emoji').value.trim(),
+    descripcion: document.getElementById('p_descripcion').value.trim(),
+    imagen: document.getElementById('p_imagen').value.trim(),
+  };
+  const stockVal = document.getElementById('p_stock').value;
+  if (stockVal !== '') producto.stock = parseInt(stockVal);
+
+  const idExistente = document.getElementById('p_id').value;
+  const neg = negocioData;
+  if (!neg) return;
+
+  if (idExistente) {
+    const idx = neg.catalogo.findIndex(p => p.id == idExistente);
+    if (idx >= 0) neg.catalogo[idx] = { ...neg.catalogo[idx], ...producto };
+  } else {
+    const maxId = Math.max(0, ...neg.catalogo.map(p => p.id || 0));
+    neg.catalogo.push({ id: maxId + 1, ...producto });
+  }
+
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  document.getElementById('formProducto').style.display = 'none';
+  cargarCatalogo();
+}
+
+async function eliminarProducto(id) {
+  if (!confirm('¿Eliminar este producto?')) return;
+  const neg = negocioData;
+  neg.catalogo = neg.catalogo.filter(p => p.id !== id);
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  cargarCatalogo();
+}
+
+async function cargarPromociones() {
+  const promos = await api(`/panel/${SLUG}/promociones`);
+  document.getElementById('promocionesList').innerHTML = promos?.length ? promos.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-size:14px;font-weight:500;">${p.emoji||''} ${p.nombre}</div><div style="font-size:12px;color:var(--text2);">${p.descuento}</div></div>
+      <div style="display:flex;gap:6px;">
+        <span class="badge ${p.activa?'green':'red'}">${p.activa?'Activa':'Inactiva'}</span>
+        <button class="btn btn-danger btn-sm" onclick="eliminarPromocion('${p.id}')">✕</button>
+      </div>
+    </div>
+  `).join('') : '<div style="color:var(--text2);font-size:14px;">Sin promociones</div>';
+}
+
+async function crearPromocion() {
+  const data = { nombre: document.getElementById('promo_nombre').value.trim(), descripcion: document.getElementById('promo_desc').value.trim(), descuento: document.getElementById('promo_descuento').value.trim(), emoji: document.getElementById('promo_emoji').value.trim() };
+  if (!data.nombre) { alert('Ingresa el nombre'); return; }
+  await api(`/panel/${SLUG}/promociones`, { method: 'POST', body: JSON.stringify(data) });
+  document.getElementById('promo_nombre').value = ''; document.getElementById('promo_desc').value = ''; document.getElementById('promo_descuento').value = '';
+  cargarPromociones();
+}
+
+async function eliminarPromocion(id) {
+  await api(`/panel/${SLUG}/promociones/${id}`, { method: 'DELETE' });
+  cargarPromociones();
+}
+
+async function cargarCupones() {
+  const cupones = await api(`/panel/${SLUG}/cupones`);
+  document.getElementById('cuponesList').innerHTML = cupones?.length ? cupones.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div><div style="font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);">${c.codigo}</div><div style="font-size:12px;color:var(--text2);">${c.tipo==='porcentaje'?c.valor+'%':'$'+c.valor} · ${c.usos_actuales||0}/${c.usos_maximos||'∞'} usos</div></div>
+      <button class="btn btn-danger btn-sm" onclick="eliminarCupon('${c.id}')">✕</button>
+    </div>
+  `).join('') : '<div style="color:var(--text2);font-size:14px;">Sin cupones</div>';
+}
+
+async function crearCupon() {
+  const data = { codigo: document.getElementById('cupon_codigo').value.trim().toUpperCase(), tipo: document.getElementById('cupon_tipo').value, valor: parseFloat(document.getElementById('cupon_valor').value), usos_maximos: parseInt(document.getElementById('cupon_usos').value)||0 };
+  if (!data.codigo || !data.valor) { alert('Completa el código y el valor'); return; }
+  await api(`/panel/${SLUG}/cupones`, { method: 'POST', body: JSON.stringify(data) });
+  document.getElementById('cupon_codigo').value = ''; document.getElementById('cupon_valor').value = '';
+  cargarCupones();
+}
+
+async function eliminarCupon(id) {
+  await api(`/panel/${SLUG}/cupones/${id}`, { method: 'DELETE' });
+  cargarCupones();
+}
+
+async function cargarRepartidores() {
+  const reps = await api(`/panel/${SLUG}/repartidores`);
+  document.getElementById('repartidoresList').innerHTML = reps?.length ? `
+    <table><thead><tr><th>Nombre</th><th>WhatsApp</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${reps.map(r => `<tr><td>${r.nombre}</td><td>${r.whatsapp}</td><td><span class="badge ${r.disponible?'green':'yellow'}">${r.disponible?'Disponible':'Ocupado'}</span></td><td><button class="btn btn-danger btn-sm" onclick="eliminarRepartidor('${r.id}')">✕</button></td></tr>`).join('')}
+    </tbody></table>
+  ` : '<div style="color:var(--text2);">Sin repartidores</div>';
+}
+
+async function crearRepartidor() {
+  const data = { nombre: document.getElementById('rep_nombre').value.trim(), whatsapp: document.getElementById('rep_whatsapp').value.trim(), negocio_id: negocioData?.id };
+  if (!data.nombre || !data.whatsapp) { alert('Completa nombre y WhatsApp'); return; }
+  await api(`/panel/${SLUG}/repartidores`, { method: 'POST', body: JSON.stringify(data) });
+  document.getElementById('rep_nombre').value = ''; document.getElementById('rep_whatsapp').value = '';
+  cargarRepartidores();
+}
+
+async function eliminarRepartidor(id) {
+  await api(`/panel/${SLUG}/repartidores/${id}`, { method: 'DELETE' });
+  cargarRepartidores();
+}
+
+async function cargarClientes() {
+  const clientes = await api(`/panel/${SLUG}/clientes`);
+  const todos = Object.values(clientes || {}).filter(c => c.total_pedidos > 0).sort((a,b) => b.total_gastado - a.total_gastado);
+  document.getElementById('clientesList').innerHTML = todos.length ? `
+    <table><thead><tr><th>Cliente</th><th>Pedidos</th><th>Total gastado</th><th>Última visita</th><th>Estado</th></tr></thead><tbody>
+    ${todos.map(c => `<tr><td>${c.nombre||c.numero.slice(-6)}<br><span style="font-size:11px;color:var(--text2);">${c.numero}</span></td><td>${c.total_pedidos}</td><td>$${(c.total_gastado||0).toFixed(2)}</td><td>${new Date(c.ultima_visita).toLocaleDateString('es-EC')}</td><td><span class="badge ${c.es_frecuente?'green':'yellow'}">${c.es_frecuente?'Frecuente':'Regular'}</span></td></tr>`).join('')}
+    </tbody></table>
+  ` : '<div style="color:var(--text2);">Sin clientes aún</div>';
+}
+
+async function enviarMasivo() {
+  const mensaje = document.getElementById('mensajeMasivo').value.trim();
+  const solo = document.getElementById('soloFrecuentes').checked;
+  if (!mensaje) { alert('Escribe un mensaje'); return; }
+  if (!confirm('¿Enviar este mensaje a todos tus clientes?')) return;
+  const al = document.getElementById('masivoAlert');
+  const r = await api(`/panel/${SLUG}/masivo`, { method: 'POST', body: JSON.stringify({ mensaje, solo_frecuentes: solo }) });
+  al.textContent = `✓ Enviando a ${r.total} clientes`; al.className = 'alert success'; al.style.display = 'block';
+}
+
+async function cargarConfig() {
+  const neg = await api(`/panel/${SLUG}/negocio`);
+  if (!neg) return;
+  negocioData = neg;
+  document.getElementById('cfg_nombre').value = neg.nombre || '';
+  document.getElementById('cfg_tipo').value = neg.tipo || '';
+  document.getElementById('cfg_whatsapp').value = neg.whatsapp_dueno || '';
+  document.getElementById('cfg_delivery').value = neg.whatsapp_delivery || '';
+  document.getElementById('cfg_banco').value = neg.banco || '';
+  document.getElementById('cfg_cuenta').value = neg.numero_cuenta || '';
+  document.getElementById('cfg_titular').value = neg.titular_cuenta || '';
+  document.getElementById('cfg_tiempo').value = neg.tiempo_entrega || '';
+  document.getElementById('cfg_bienvenida').value = neg.mensajes?.bienvenida || '';
+  document.getElementById('cfg_devoluciones').value = neg.politica_devoluciones || '';
+  document.getElementById('cfg_vacaciones').value = neg.mensaje_vacaciones || '';
+  const toggle = document.getElementById('toggleVacaciones');
+  toggle.classList.toggle('on', neg.modo_vacaciones);
+  document.getElementById('vacacionesLabel').textContent = neg.modo_vacaciones ? 'Activado — El bot responde que está de vacaciones' : 'Desactivado';
+}
+
+function toggleVacaciones() {
+  const toggle = document.getElementById('toggleVacaciones');
+  toggle.classList.toggle('on');
+  const on = toggle.classList.contains('on');
+  document.getElementById('vacacionesLabel').textContent = on ? 'Activado — El bot responde que está de vacaciones' : 'Desactivado';
+}
+
+async function guardarConfig() {
+  const toggle = document.getElementById('toggleVacaciones');
+  const data = {
+    nombre: document.getElementById('cfg_nombre').value,
+    tipo: document.getElementById('cfg_tipo').value,
+    whatsapp_dueno: document.getElementById('cfg_whatsapp').value,
+    whatsapp_delivery: document.getElementById('cfg_delivery').value,
+    banco: document.getElementById('cfg_banco').value,
+    numero_cuenta: document.getElementById('cfg_cuenta').value,
+    titular_cuenta: document.getElementById('cfg_titular').value,
+    tiempo_entrega: document.getElementById('cfg_tiempo').value,
+    politica_devoluciones: document.getElementById('cfg_devoluciones').value,
+    modo_vacaciones: toggle.classList.contains('on'),
+    mensaje_vacaciones: document.getElementById('cfg_vacaciones').value,
+    mensajes: { bienvenida: document.getElementById('cfg_bienvenida').value, tono: 'amigable' },
+  };
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify(data) });
+  const al = document.getElementById('configAlert');
+  al.textContent = '✓ Configuración guardada'; al.className = 'alert success'; al.style.display = 'block';
+  setTimeout(() => al.style.display = 'none', 3000);
+}
+
+// Auto-login si ya hay sesión
+if (TOKEN) {
+  fetch(`${BASE}/auth/verify-panel/${SLUG}`, { headers: { Authorization: 'Bearer ' + TOKEN } })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        document.getElementById('loginWrap').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+        cargarTodo();
+      } else { sessionStorage.removeItem('vb_panel_token_' + SLUG); TOKEN = ''; }
+    }).catch(() => {});
+}
+</script>
+</body>
+</html>
