@@ -1,13 +1,7 @@
 [
   {
     "id": "negocio_001",
-    "nombre": "Camiloshause",[{
-  "id": "negocio_001",
-  "nombre": "Camiloshause",
-  ...
-  "slug": "camiloshause",
-  "password": "Alexander_122134"
-}]
+    "nombre": "Camiloshause",
     "tipo": "floristería",
     "whatsapp_dueno": "+593993397278",
     "whatsapp_delivery": "+593993397278",
@@ -15,6 +9,11 @@
     "numero_cuenta": "2200123456789",
     "titular_cuenta": "Camilo García",
     "activo": true,
+    "slug": "camiloshause",
+    "password": "Alexander_122134",
+    "modo_vacaciones": false,
+    "tiempo_entrega": "30-45 minutos",
+    "politica_devoluciones": "Tienes 24 horas para reportar cualquier problema con tu pedido.",
     "catalogo": [
       {
         "id": 1,
@@ -42,7 +41,7 @@
       }
     ],
     "mensajes": {
-      "bienvenida": "¡Hola! 👋 Bienvenido/a a *Camiloshause* 🌸 Soy tu asistente virtual. ¿Qué estás buscando hoy?",
+      "bienvenida": "¡Hola! 👋 Bienvenido/a a *Camiloshause* 🌸 Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?",
       "tono": "amigable"
     }
   }
