@@ -966,5 +966,23 @@ app.post('/panel/:slug/upload', uploadMiddleware.single('file'), async (req, res
     res.status(500).json({ error: 'Error al subir imagen' });
   }
 });
+// RENOVACION AUTOMATICA DE TOKEN
+async function renovarToken() {
+  try {
+    const appId = process.env.APP_ID;
+    const appSecret = process.env.APP_SECRET;
+    const tokenActual = process.env.WHATSAPP_TOKEN;
+    const r = await axios.get(`https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenActual}`);
+    const nuevoToken = r.data.access_token;
+    process.env.WHATSAPP_TOKEN = nuevoToken;
+    console.log('Token renovado exitosamente');
+  } catch (e) {
+    console.error('Error renovando token:', e.response?.data?.error?.message || e.message);
+  }
+}
+
+// Renovar token cada 20 horas
+renovarToken();
+setInterval(renovarToken, 20 * 60 * 60 * 1000);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));
