@@ -947,6 +947,24 @@ app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
   res.json({ ok: true, total: lista.length });
   for (const c of lista) { await enviarMensaje(c.numero, mensaje); await new Promise(r => setTimeout(r, 1500)); }
 });
+// UPLOAD IMAGENES
+const multer = require('multer');
+const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const cloudinary = require('cloudinary').v2;
+cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
 
+app.post('/panel/:slug/upload', uploadMiddleware.single('file'), async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!verificarTokenPanel(token, req.params.slug)) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const resultado = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream({ folder: 'vendebot/' + req.params.slug, resource_type: 'image' }, (error, result) => error ? reject(error) : resolve(result)).end(req.file.buffer);
+    });
+    res.json({ url: resultado.secure_url });
+  } catch (e) {
+    console.error('Error Cloudinary:', e.message);
+    res.status(500).json({ error: 'Error al subir imagen' });
+  }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));
