@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VendeBot — Panel del Negocio</title>
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VendeBot">
+<link rel="manifest" href="/manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f8f9fc;--surface:#ffffff;--surface2:#f1f3f8;--border:#e2e6ef;--accent:#7c3aed;--accent2:#00c47a;--text:#1a1a2e;--text2:#6b7280;--red:#ef4444;--yellow:#f59e0b;}
@@ -100,6 +105,7 @@ tr:hover td{background:var(--surface2);}
     <button class="nav-btn" onclick="switchTab('masivo')">📢 Masivo</button>
     <button class="nav-btn" onclick="switchTab('chat')">💬 Chat</button>
     <button class="nav-btn" onclick="switchTab('reportes')">📊 Reportes</button>
+    <button class="nav-btn" onclick="switchTab('resenas')">⭐ Reseñas</button>
     <button class="nav-btn" onclick="switchTab('config')">⚙️ Config</button>
   </nav>
 </header>
@@ -272,6 +278,13 @@ tr:hover td{background:var(--surface2);}
   </div>
 </div>
 
+<!-- RESEÑAS -->
+<div class="panel" id="tab-resenas">
+  <div class="section-title">⭐ Reseñas de clientes</div>
+  <div class="card" id="resenasResumen" style="margin-bottom:16px;"></div>
+  <div id="resenasList"></div>
+</div>
+
 <!-- CONFIG -->
 <div class="panel" id="tab-config">
   <div class="section-title">⚙️ Configuración del negocio</div>
@@ -348,6 +361,7 @@ function switchTab(tab) {
   if (tab === 'clientes') cargarClientes();
   if (tab === 'chat') cargarChat();
   if (tab === 'reportes') { const hoy = new Date().toISOString().split('T')[0]; document.getElementById('rep_desde').value = hoy.slice(0,7) + '-01'; document.getElementById('rep_hasta').value = hoy; }
+  if (tab === 'resenas') cargarResenas();
   if (tab === 'config') cargarConfig();
 }
 
@@ -749,6 +763,60 @@ function exportarCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+// RESEÑAS
+async function cargarResenas() {
+  const data = await api('/panel/' + SLUG + '/resenas');
+  const resenas = data || [];
+  const resumen = document.getElementById('resenasResumen');
+  const lista = document.getElementById('resenasList');
+
+  if (!resenas.length) {
+    resumen.innerHTML = '<div style="color:var(--text2);">Aún no hay reseñas. Se generan automáticamente después de cada pedido.</div>';
+    lista.innerHTML = '';
+    return;
+  }
+
+  const promedio = resenas.reduce((s, r) => s + r.calificacion, 0) / resenas.length;
+  const estrellas = (n) => '⭐'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+
+  resumen.innerHTML = `
+    <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+      <div style="text-align:center;">
+        <div style="font-size:48px;font-weight:700;color:var(--yellow);">${promedio.toFixed(1)}</div>
+        <div style="font-size:20px;">${estrellas(promedio)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">${resenas.length} reseñas</div>
+      </div>
+      <div style="flex:1;">
+        ${[5,4,3,2,1].map(n => {
+          const count = resenas.filter(r => Math.round(r.calificacion) === n).length;
+          const pct = resenas.length ? (count/resenas.length*100) : 0;
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;">
+            <span style="width:20px;">${n}⭐</span>
+            <div style="flex:1;background:var(--border);border-radius:4px;height:8px;">
+              <div style="background:var(--yellow);width:${pct}%;height:100%;border-radius:4px;"></div>
+            </div>
+            <span style="color:var(--text2);width:24px;">${count}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+
+  lista.innerHTML = resenas.slice().reverse().map(r => `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-weight:600;">${r.cliente}</div>
+          <div style="font-size:12px;color:var(--text2);">${new Date(r.fecha).toLocaleDateString('es-EC')}</div>
+        </div>
+        <div style="font-size:20px;">${estrellas(r.calificacion)}</div>
+      </div>
+      ${r.comentario ? `<div style="margin-top:8px;font-size:14px;color:var(--text2);">"${r.comentario}"</div>` : ''}
+      <div style="margin-top:8px;font-size:12px;color:var(--text2);">Pedido: ${r.pedido || ''}</div>
+    </div>
+  `).join('');
+}
+
 // Auto-login si ya hay sesión
 if (TOKEN) {
   fetch(`${BASE}/auth/verify-panel/${SLUG}`, { headers: { Authorization: 'Bearer ' + TOKEN } })
@@ -760,6 +828,11 @@ if (TOKEN) {
         cargarTodo();
       } else { sessionStorage.removeItem('vb_panel_token_' + SLUG); TOKEN = ''; }
     }).catch(() => {});
+}
+
+// Registrar Service Worker para PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
 </body>

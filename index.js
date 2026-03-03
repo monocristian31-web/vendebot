@@ -622,6 +622,33 @@ app.post('/webhook', async (req, res) => {
     if (!texto) return;
     const textoLower = texto.toLowerCase();
 
+    // Verificar si cliente está esperando dar reseña
+    const clienteData = cargarClientes()[numero];
+    const ultimoPedido = clienteData?.historial_pedidos?.[clienteData.historial_pedidos.length - 1];
+    if (ultimoPedido?.esperando_resena && /^[1-5]$/.test(texto.trim())) {
+      const calificacion = parseInt(texto.trim());
+      const estrellas = '⭐'.repeat(calificacion);
+      agregarResena(numero, negocio.nombre, calificacion, '', ultimoPedido.descripcion);
+      ultimoPedido.esperando_resena = false;
+      guardarJSON('./clientes.json', cargarClientes());
+      await enviarMensaje(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
+      notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
+      return;
+    }
+
+    // Busqueda de productos
+    if (textoLower.startsWith('buscar ') || textoLower.startsWith('busca ')) {
+      const termino = texto.replace(/^buscar?\s+/i, '').trim();
+      const resultados = negocio.catalogo.filter(p => p.nombre.toLowerCase().includes(termino.toLowerCase()) || p.descripcion?.toLowerCase().includes(termino.toLowerCase()));
+      if (resultados.length > 0) {
+        await enviarMensaje(numero, `Encontre ${resultados.length} producto(s) para "${termino}":`);
+        for (const p of resultados) await enviarProducto(numero, p);
+      } else {
+        await enviarMensaje(numero, `No encontre productos para "${termino}". Escribe "ver catalogo" para ver todos.`);
+      }
+      return;
+    }
+
     // Comandos
     if (['cancelar', 'cancel'].includes(textoLower)) {
       if (conv.etapa === 'confirmado') { await enviarMensaje(numero, 'Tu pedido ya fue confirmado. Contacta al negocio si necesitas ayuda.'); }
@@ -1097,6 +1124,98 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
 
 // Notificar panel en webhook cuando llega pedido nuevo
 const _notificarDuenoOriginal = notificarDueno;
+
+// ─── VENDEBOT v9.0 ───────────────────────────────────────────────────────────
+
+// RESEÑAS
+function cargarResenas() { return cargarJSON('./resenas.json', []); }
+function guardarResenas(r) { guardarJSON('./resenas.json', r); }
+
+function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDesc) {
+  const resenas = cargarResenas();
+  const cliente = cargarClientes()[numero];
+  resenas.push({
+    id: 'res_' + Date.now(),
+    numero,
+    cliente: cliente?.nombre || numero.slice(-6),
+    negocio: negocioNombre,
+    calificacion,
+    comentario: comentario || '',
+    pedido: pedidoDesc || '',
+    fecha: new Date().toISOString(),
+  });
+  guardarResenas(resenas);
+}
+
+// Pedir reseña 2 horas después del pedido
+setInterval(async () => {
+  if (!estaEnHorario()) return;
+  const clientes = cargarClientes();
+  const ahora = Date.now();
+  let cambios = false;
+  for (const [numero, cliente] of Object.entries(clientes)) {
+    if (!cliente.historial_pedidos?.length) continue;
+    const ultimo = cliente.historial_pedidos[cliente.historial_pedidos.length - 1];
+    if (!ultimo.resena_solicitada) {
+      const diff = ahora - new Date(ultimo.fecha).getTime();
+      if (diff > 2 * 60 * 60 * 1000 && diff < 4 * 60 * 60 * 1000) {
+        await enviarMensaje(numero, `Hola ${cliente.nombre || ''}! Como calificarias tu pedido reciente?\n\nResponde con un numero del 1 al 5:\n⭐ 1 - Muy malo\n⭐⭐ 2 - Malo\n⭐⭐⭐ 3 - Regular\n⭐⭐⭐⭐ 4 - Bueno\n⭐⭐⭐⭐⭐ 5 - Excelente`);
+        ultimo.resena_solicitada = true;
+        ultimo.esperando_resena = true;
+        cambios = true;
+      }
+    }
+  }
+  if (cambios) guardarJSON('./clientes.json', clientes);
+}, 30 * 60 * 1000);
+
+// Ruta de reseñas para el panel
+app.get('/panel/:slug/resenas', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  const resenas = cargarResenas().filter(r => r.negocio === negocio.nombre);
+  res.json(resenas);
+});
+
+// BÚSQUEDA DE PRODUCTOS (manejada en el webhook directamente por Claude)
+// Claude ya busca por nombre, pero agregamos búsqueda directa en el panel
+app.get('/panel/:slug/buscar', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  const q = (req.query.q || '').toLowerCase();
+  const resultados = negocio.catalogo.filter(p =>
+    p.nombre.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q)
+  );
+  res.json(resultados);
+});
+
+// PWA - manifest.json y service worker
+app.get('/manifest.json', (req, res) => {
+  res.json({
+    name: 'VendeBot Panel',
+    short_name: 'VendeBot',
+    start_url: '/panel/' + (req.query.slug || ''),
+    display: 'standalone',
+    background_color: '#f8f9fc',
+    theme_color: '#7c3aed',
+    icons: [
+      { src: 'https://i.imgur.com/placeholder.png', sizes: '192x192', type: 'image/png' },
+      { src: 'https://i.imgur.com/placeholder.png', sizes: '512x512', type: 'image/png' }
+    ]
+  });
+});
+
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(`
+self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('activate', e => clients.claim());
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});
+  `);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));
