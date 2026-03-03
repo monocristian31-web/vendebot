@@ -106,6 +106,7 @@ tr:hover td{background:var(--surface2);}
     <button class="nav-btn" onclick="switchTab('chat')">💬 Chat</button>
     <button class="nav-btn" onclick="switchTab('reportes')">📊 Reportes</button>
     <button class="nav-btn" onclick="switchTab('resenas')">⭐ Reseñas</button>
+    <button class="nav-btn" onclick="switchTab('citas')">🗓️ Citas</button>
     <button class="nav-btn" onclick="switchTab('config')">⚙️ Config</button>
   </nav>
 </header>
@@ -163,6 +164,11 @@ tr:hover td{background:var(--surface2);}
     </div>
     <input type="hidden" id="p_imagen">
     <div id="p_imagen_preview" style="margin-top:4px;margin-bottom:12px;"></div>
+    
+    <div style="font-weight:600;margin-bottom:8px;margin-top:4px;">Modificadores del producto</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">Permite que el cliente personalice el producto (extras, ingredientes, variantes, tamaños, etc.)</div>
+    <div id="modificadoresContainer"></div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="agregarGrupoModificador()" style="margin-bottom:12px;">+ Agregar grupo de opciones</button>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-success" onclick="guardarProducto()">Guardar producto</button>
       <button class="btn btn-secondary" onclick="document.getElementById('formProducto').style.display='none'">Cancelar</button>
@@ -285,6 +291,51 @@ tr:hover td{background:var(--surface2);}
   <div id="resenasList"></div>
 </div>
 
+<!-- CITAS -->
+<div class="panel" id="tab-citas">
+  <div class="section-title">🗓️ Sistema de citas</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:12px;">Configurar horarios disponibles</div>
+      <label>Días disponibles</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="diasDisponibles">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Lunes" onchange="actualizarDias()"> Lun</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Martes" onchange="actualizarDias()"> Mar</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Miércoles" onchange="actualizarDias()"> Mié</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Jueves" onchange="actualizarDias()"> Jue</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Viernes" onchange="actualizarDias()"> Vie</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Sábado" onchange="actualizarDias()"> Sáb</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="Domingo" onchange="actualizarDias()"> Dom</label>
+      </div>
+      <div class="form-row">
+        <div><label>Hora de inicio</label><input type="time" id="cita_hora_inicio" value="09:00"></div>
+        <div><label>Hora de fin</label><input type="time" id="cita_hora_fin" value="18:00"></div>
+      </div>
+      <label>Duración por cita (minutos)</label>
+      <select id="cita_duracion">
+        <option value="15">15 minutos</option>
+        <option value="30" selected>30 minutos</option>
+        <option value="45">45 minutos</option>
+        <option value="60">1 hora</option>
+        <option value="90">1.5 horas</option>
+        <option value="120">2 horas</option>
+      </select>
+      <label>Servicios disponibles (uno por línea)</label>
+      <textarea id="cita_servicios" rows="4" placeholder="Corte de cabello\nTinte\nManicure\nPedicure"></textarea>
+      <button class="btn btn-primary" onclick="guardarConfigCitas()">Guardar configuración</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:12px;">Citas del día</div>
+      <input type="date" id="cita_fecha_filtro" onchange="cargarCitasDia()" style="margin-bottom:12px;">
+      <div id="citasDiaLista"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div style="font-weight:600;margin-bottom:12px;">Próximas citas</div>
+    <div id="proximasCitas"></div>
+  </div>
+</div>
+
 <!-- CONFIG -->
 <div class="panel" id="tab-config">
   <div class="section-title">⚙️ Configuración del negocio</div>
@@ -353,8 +404,9 @@ function switchTab(tab) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  const tabs = ['dashboard','catalogo','promociones','repartidores','clientes','masivo','config'];
-  document.querySelectorAll('.nav-btn')[tabs.indexOf(tab)].classList.add('active');
+  // Marcar el botón activo buscando por onclick en lugar de por índice
+  const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick') === `switchTab('${tab}')`);
+  if (btn) btn.classList.add('active');
   if (tab === 'catalogo') cargarCatalogo();
   if (tab === 'promociones') { cargarPromociones(); cargarCupones(); }
   if (tab === 'repartidores') cargarRepartidores();
@@ -362,6 +414,7 @@ function switchTab(tab) {
   if (tab === 'chat') cargarChat();
   if (tab === 'reportes') { const hoy = new Date().toISOString().split('T')[0]; document.getElementById('rep_desde').value = hoy.slice(0,7) + '-01'; document.getElementById('rep_hasta').value = hoy; }
   if (tab === 'resenas') cargarResenas();
+  if (tab === 'citas') cargarCitas();
   if (tab === 'config') cargarConfig();
 }
 
@@ -454,42 +507,17 @@ function mostrarFormProducto(producto = null) {
   document.getElementById('p_stock').value = producto?.stock ?? '';
   document.getElementById('p_descripcion').value = producto?.descripcion || '';
   document.getElementById('p_imagen').value = producto?.imagen || '';
+  document.getElementById('p_imagen_preview').innerHTML = producto?.imagen ? `<img src="${producto.imagen}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">` : '';
+  document.getElementById('p_imagen_status').textContent = producto?.imagen ? 'Foto actual cargada' : 'Sin foto seleccionada';
+  // Cargar modificadores del producto
+  modificadoresTemp = producto?.modificadores ? JSON.parse(JSON.stringify(producto.modificadores)) : [];
+  renderModificadores();
   document.getElementById('p_nombre').focus();
 }
 
 function editarProducto(id) {
   const p = negocioData?.catalogo?.find(p => p.id === id);
   if (p) mostrarFormProducto(p);
-}
-
-async function guardarProducto() {
-  const nombre = document.getElementById('p_nombre').value.trim();
-  const precio = parseFloat(document.getElementById('p_precio').value);
-  if (!nombre || isNaN(precio)) { alert('Nombre y precio son obligatorios'); return; }
-  const producto = {
-    nombre, precio,
-    emoji: document.getElementById('p_emoji').value.trim(),
-    descripcion: document.getElementById('p_descripcion').value.trim(),
-    imagen: document.getElementById('p_imagen').value.trim(),
-  };
-  const stockVal = document.getElementById('p_stock').value;
-  if (stockVal !== '') producto.stock = parseInt(stockVal);
-
-  const idExistente = document.getElementById('p_id').value;
-  const neg = negocioData;
-  if (!neg) return;
-
-  if (idExistente) {
-    const idx = neg.catalogo.findIndex(p => p.id == idExistente);
-    if (idx >= 0) neg.catalogo[idx] = { ...neg.catalogo[idx], ...producto };
-  } else {
-    const maxId = Math.max(0, ...neg.catalogo.map(p => p.id || 0));
-    neg.catalogo.push({ id: maxId + 1, ...producto });
-  }
-
-  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
-  document.getElementById('formProducto').style.display = 'none';
-  cargarCatalogo();
 }
 
 async function eliminarProducto(id) {
@@ -815,6 +843,149 @@ async function cargarResenas() {
       <div style="margin-top:8px;font-size:12px;color:var(--text2);">Pedido: ${r.pedido || ''}</div>
     </div>
   `).join('');
+}
+
+// ═══ MODIFICADORES DE PRODUCTOS ═══
+let modificadoresTemp = [];
+
+function agregarGrupoModificador() {
+  modificadoresTemp.push({ nombre: '', tipo: 'multiple', obligatorio: false, opciones: [] });
+  renderModificadores();
+}
+
+function renderModificadores() {
+  const container = document.getElementById('modificadoresContainer');
+  if (!container) return;
+  container.innerHTML = modificadoresTemp.map((grupo, gi) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+        <input type="text" placeholder="Nombre del grupo (ej: Tamaño, Extras, Ingredientes)" value="${grupo.nombre}" oninput="modificadoresTemp[${gi}].nombre=this.value" style="flex:1;margin:0;">
+        <select onchange="modificadoresTemp[${gi}].tipo=this.value" style="width:auto;margin:0;">
+          <option value="multiple" ${grupo.tipo==='multiple'?'selected':''}>Selección múltiple</option>
+          <option value="unico" ${grupo.tipo==='unico'?'selected':''}>Selección única</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" ${grupo.obligatorio?'checked':''} onchange="modificadoresTemp[${gi}].obligatorio=this.checked"> Obligatorio
+        </label>
+        <button class="btn btn-danger btn-sm" onclick="modificadoresTemp.splice(${gi},1);renderModificadores()">✕</button>
+      </div>
+      <div id="opciones_${gi}">
+        ${grupo.opciones.map((op, oi) => `
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+            <input type="text" placeholder="Opción (ej: Extra queso, Sin cebolla)" value="${op.nombre}" oninput="modificadoresTemp[${gi}].opciones[${oi}].nombre=this.value" style="flex:1;margin:0;">
+            <input type="number" placeholder="Precio +/-" value="${op.precio||0}" step="0.01" oninput="modificadoresTemp[${gi}].opciones[${oi}].precio=parseFloat(this.value)||0" style="width:90px;margin:0;">
+            <button class="btn btn-danger btn-sm" onclick="modificadoresTemp[${gi}].opciones.splice(${oi},1);renderModificadores()">✕</button>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="modificadoresTemp[${gi}].opciones.push({nombre:'',precio:0});renderModificadores()">+ Opción</button>
+    </div>
+  `).join('');
+}
+
+async function guardarProducto() {
+  const nombre = document.getElementById('p_nombre').value.trim();
+  const precio = parseFloat(document.getElementById('p_precio').value);
+  if (!nombre || isNaN(precio)) { alert('Nombre y precio son obligatorios'); return; }
+  const producto = {
+    nombre, precio,
+    emoji: document.getElementById('p_emoji').value.trim(),
+    descripcion: document.getElementById('p_descripcion').value.trim(),
+    imagen: document.getElementById('p_imagen').value.trim(),
+    modificadores: modificadoresTemp.filter(g => g.nombre && g.opciones.length > 0),
+  };
+  const stockVal = document.getElementById('p_stock').value;
+  if (stockVal !== '') producto.stock = parseInt(stockVal);
+  const neg = negocioData;
+  if (!neg) return;
+  const idExistente = document.getElementById('p_id').value;
+  if (idExistente) {
+    const idx = neg.catalogo.findIndex(p => p.id == idExistente);
+    if (idx >= 0) neg.catalogo[idx] = { ...neg.catalogo[idx], ...producto };
+  } else {
+    const maxId = Math.max(0, ...neg.catalogo.map(p => p.id || 0));
+    neg.catalogo.push({ id: maxId + 1, ...producto });
+  }
+  await api('/panel/' + SLUG + '/negocio', { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  document.getElementById('formProducto').style.display = 'none';
+  modificadoresTemp = [];
+  cargarCatalogo();
+}
+
+// ═══ CITAS ═══
+async function cargarCitas() {
+  const neg = await api('/panel/' + SLUG + '/negocio');
+  negocioData = neg;
+  const config = neg?.citas_config || {};
+  if (config.dias_disponibles) {
+    document.querySelectorAll('#diasDisponibles input[type=checkbox]').forEach(cb => {
+      cb.checked = config.dias_disponibles.includes(cb.value);
+    });
+  }
+  if (config.hora_inicio) document.getElementById('cita_hora_inicio').value = config.hora_inicio;
+  if (config.hora_fin) document.getElementById('cita_hora_fin').value = config.hora_fin;
+  if (config.duracion) document.getElementById('cita_duracion').value = config.duracion;
+  if (config.servicios) document.getElementById('cita_servicios').value = config.servicios.join('\n');
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('cita_fecha_filtro').value = hoy;
+  cargarCitasDia();
+  cargarProximasCitas();
+}
+
+function actualizarDias() {}
+
+async function guardarConfigCitas() {
+  const dias = Array.from(document.querySelectorAll('#diasDisponibles input[type=checkbox]:checked')).map(cb => cb.value);
+  const serviciosRaw = document.getElementById('cita_servicios').value;
+  const config = {
+    dias_disponibles: dias,
+    hora_inicio: document.getElementById('cita_hora_inicio').value,
+    hora_fin: document.getElementById('cita_hora_fin').value,
+    duracion: parseInt(document.getElementById('cita_duracion').value),
+    servicios: serviciosRaw.split('\n').map(s => s.trim()).filter(Boolean),
+    activo: true,
+  };
+  await api('/panel/' + SLUG + '/negocio', { method: 'PUT', body: JSON.stringify({ citas_config: config }) });
+  mostrarNotificacion('✓ Configuración de citas guardada');
+}
+
+async function cargarCitasDia() {
+  const fecha = document.getElementById('cita_fecha_filtro').value;
+  const citas = await api('/panel/' + SLUG + '/citas?fecha=' + fecha);
+  const lista = document.getElementById('citasDiaLista');
+  if (!citas?.length) { lista.innerHTML = '<div style="color:var(--text2);font-size:14px;">Sin citas para este día</div>'; return; }
+  lista.innerHTML = `<table><thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th></th></tr></thead><tbody>
+    ${citas.map(c => `<tr>
+      <td style="font-weight:600;">${c.hora}</td>
+      <td>${c.cliente}<br><span style="font-size:11px;color:var(--text2);">${c.numero}</span></td>
+      <td>${c.servicio}</td>
+      <td><span class="badge ${c.estado==='confirmada'?'green':c.estado==='cancelada'?'red':'yellow'}">${c.estado}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="cancelarCita('${c.id}')">Cancelar</button></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function cargarProximasCitas() {
+  const citas = await api('/panel/' + SLUG + '/citas');
+  const lista = document.getElementById('proximasCitas');
+  const proximas = (citas || []).filter(c => new Date(c.fecha + 'T' + c.hora) >= new Date() && c.estado !== 'cancelada').slice(0, 8);
+  if (!proximas.length) { lista.innerHTML = '<div style="color:var(--text2);font-size:14px;">Sin citas próximas</div>'; return; }
+  lista.innerHTML = `<table><thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th></tr></thead><tbody>
+    ${proximas.map(c => `<tr>
+      <td>${new Date(c.fecha).toLocaleDateString('es-EC')}</td>
+      <td>${c.hora}</td>
+      <td>${c.cliente}</td>
+      <td>${c.servicio}</td>
+      <td><span class="badge ${c.estado==='confirmada'?'green':'yellow'}">${c.estado}</span></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+async function cancelarCita(id) {
+  if (!confirm('¿Cancelar esta cita?')) return;
+  await api('/panel/' + SLUG + '/citas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'cancelada' }) });
+  cargarCitasDia();
+  cargarProximasCitas();
 }
 
 // Auto-login si ya hay sesión

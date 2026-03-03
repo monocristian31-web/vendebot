@@ -209,7 +209,7 @@ function getOrCreateConversacion(numero, negocio) {
     conversaciones.set(key, {
       numero, negocio_id: negocio.id, historial: [], etapa: 'inicio',
       pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '', cupon: null, descuento: 0 },
-      esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(),
+      esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(), citaTemp: {},
     });
   }
   const conv = conversaciones.get(key);
@@ -338,11 +338,18 @@ async function enviarImagen(numero, url, caption) {
   } catch (err) { console.error(`Error imagen: ${err.response?.data?.error?.message || err.message}`); }
 }
 
-async function enviarProducto(numero, producto) {
+async function enviarProducto(numero, producto, negocio) {
   const stockInfo = producto.stock !== undefined ? `\nStock: ${producto.stock}` : '';
-  const caption = `${producto.emoji || ''} ${producto.nombre}\nPrecio: $${producto.precio.toFixed(2)}\n${producto.descripcion}${stockInfo}`;
+  const caption = `${producto.emoji || ''} ${producto.nombre}\nPrecio: $${producto.precio.toFixed(2)}\n${producto.descripcion || ''}${stockInfo}`;
   if (producto.imagen) await enviarImagen(numero, producto.imagen, caption);
   else await enviarMensaje(numero, caption);
+  // Si tiene modificadores, mandar link de personalización
+  if (producto.modificadores?.length > 0 && negocio) {
+    const slug = negocio.slug || negocio.id;
+    const numeroLimpio = numero.replace(/\D/g, '');
+    const link = `${process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app'}/personalizar/${slug}/${producto.id}?n=${numeroLimpio}`;
+    await enviarMensaje(numero, `Personaliza este producto aqui:\n${link}`);
+  }
   await new Promise(r => setTimeout(r, 800));
 }
 
@@ -459,6 +466,7 @@ REGLAS:
 12. Horario: Lunes a Sabado 8am-6pm. Domingos cerrado.
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
+15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
 
 Al FINAL escribe:
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
@@ -709,7 +717,75 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Bienvenida
+    // CITAS POR WHATSAPP
+    if (textoLower === 'cita' || textoLower === 'agendar' || textoLower === 'reservar' || textoLower.includes('quiero una cita') || textoLower.includes('hacer una cita')) {
+      const config = negocio.citas_config;
+      if (!config?.activo || !config.servicios?.length) {
+        await enviarMensaje(numero, `${negocio.nombre} no tiene sistema de citas activo. Contáctanos para más información.`);
+      } else {
+        const serviciosTexto = config.servicios.map((s, i) => `${i + 1}. ${s}`).join('\n');
+        conv.esperando = 'cita_servicio';
+        conv.citaTemp = {};
+        await enviarMensaje(numero, `Para agendar tu cita en ${negocio.nombre}, elige el servicio:\n\n${serviciosTexto}\n\nResponde con el número del servicio.`);
+      }
+      return;
+    }
+
+    if (conv.esperando === 'cita_servicio') {
+      const config = negocio.citas_config;
+      const idx = parseInt(texto.trim()) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= config.servicios.length) {
+        await enviarMensaje(numero, 'Por favor responde con el número del servicio.');
+        return;
+      }
+      conv.citaTemp.servicio = config.servicios[idx];
+      conv.esperando = 'cita_fecha';
+      const diasTexto = config.dias_disponibles?.join(', ') || 'Lunes a Viernes';
+      await enviarMensaje(numero, `Servicio: ${conv.citaTemp.servicio}\n\nDías disponibles: ${diasTexto}\n\nEscribe la fecha deseada (ej: 15/03/2025)`);
+      return;
+    }
+
+    if (conv.esperando === 'cita_fecha') {
+      const config = negocio.citas_config;
+      conv.citaTemp.fecha = texto.trim();
+      conv.esperando = 'cita_hora';
+      await enviarMensaje(numero, `Fecha: ${conv.citaTemp.fecha}\n\nHorario disponible: ${config.hora_inicio || '09:00'} — ${config.hora_fin || '18:00'} (cada ${config.duracion || 30} minutos)\n\nEscribe la hora deseada (ej: 10:00)`);
+      return;
+    }
+
+    if (conv.esperando === 'cita_hora') {
+      conv.citaTemp.hora = texto.trim();
+      conv.esperando = null;
+      // Verificar si el horario está disponible
+      const citas = cargarCitas();
+      const ocupada = citas.some(c => c.negocio_id === negocio.id && c.fecha === conv.citaTemp.fecha && c.hora === conv.citaTemp.hora && c.estado !== 'cancelada');
+      if (ocupada) {
+        await enviarMensaje(numero, `Lo siento, ese horario ya está ocupado. Por favor elige otra hora.`);
+        conv.esperando = 'cita_hora';
+        return;
+      }
+      // Guardar la cita
+      const cita = {
+        id: 'cita_' + Date.now(),
+        negocio_id: negocio.id,
+        numero,
+        cliente: cliente.nombre || numero.slice(-6),
+        servicio: conv.citaTemp.servicio,
+        fecha: conv.citaTemp.fecha,
+        hora: conv.citaTemp.hora,
+        estado: 'pendiente',
+        fecha_creacion: new Date().toISOString(),
+      };
+      citas.push(cita);
+      guardarCitas(citas);
+      conv.citaTemp = {};
+      await enviarMensaje(numero, `✅ Cita agendada!\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n💆 Servicio: ${cita.servicio}\n\nTe esperamos en ${negocio.nombre}. Si necesitas cancelar escríbenos.`);
+      await enviarMensaje(negocio.whatsapp_dueno, `📅 Nueva cita!\n\nCliente: ${cita.cliente}\nWhatsApp: ${numero}\nServicio: ${cita.servicio}\nFecha: ${cita.fecha}\nHora: ${cita.hora}`);
+      notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_cita', cliente: cita.cliente, servicio: cita.servicio, fecha: cita.fecha, hora: cita.hora });
+      return;
+    }
+
+
     if (conv.etapa === 'inicio' && conv.historial.length === 0) {
       let bienvenida = '';
       const fechaEsp = obtenerFechaEspecial();
@@ -727,7 +803,7 @@ app.post('/webhook', async (req, res) => {
       if (!saludos.includes(textoLower) && texto.length > 6) {
         const { mensaje: r, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
         if (r) await enviarMensaje(numero, r);
-        if (imagenesIds?.length > 0 && conv.etapa !== 'pago') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+        if (imagenesIds?.length > 0 && conv.etapa !== 'pago') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
       }
       return;
     }
@@ -736,7 +812,7 @@ app.post('/webhook', async (req, res) => {
 
     const { mensaje: respuesta, imagenesIds, mostrarPago } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviarMensaje(numero, respuesta);
-    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p);
+    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
 
     if ((conv.etapa === 'pago' || mostrarPago) && conv.esperando !== 'boucher') {
       await new Promise(r => setTimeout(r, 500));
@@ -1122,9 +1198,6 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
   res.json({ negocio: negocio.nombre, pedidos, total_pedidos: pedidos.length, total_ventas: pedidos.reduce((s, p) => s + (p.total || 0), 0), generado: new Date().toLocaleString('es-EC') });
 });
 
-// Notificar panel en webhook cuando llega pedido nuevo
-const _notificarDuenoOriginal = notificarDueno;
-
 // ─── VENDEBOT v9.0 ───────────────────────────────────────────────────────────
 
 // RESEÑAS
@@ -1214,5 +1287,214 @@ self.addEventListener('fetch', e => { return; });
   `);
 });
 
+// ─── VENDEBOT v10.0 ──────────────────────────────────────────────────────────
+
+// CITAS
+function cargarCitas() { return cargarJSON('./citas.json', []); }
+function guardarCitas(c) { guardarJSON('./citas.json', c); }
+
+app.get('/panel/:slug/citas', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  const { fecha } = req.query;
+  let citas = cargarCitas().filter(c => c.negocio_id === negocio.id);
+  if (fecha) citas = citas.filter(c => c.fecha === fecha);
+  citas.sort((a, b) => a.hora.localeCompare(b.hora));
+  res.json(citas);
+});
+
+app.post('/panel/:slug/citas', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const citas = cargarCitas();
+  citas.push({ id: 'cita_' + Date.now(), negocio_id: negocio.id, estado: 'pendiente', fecha_creacion: new Date().toISOString(), ...req.body });
+  guardarCitas(citas);
+  res.json({ ok: true });
+});
+
+app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
+  const citas = cargarCitas();
+  const idx = citas.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  citas[idx] = { ...citas[idx], ...req.body };
+  guardarCitas(citas);
+  if (req.body.estado === 'cancelada') {
+    enviarMensaje(citas[idx].numero, `Tu cita del ${citas[idx].fecha} a las ${citas[idx].hora} ha sido cancelada. Contáctanos para reagendar.`);
+  }
+  res.json({ ok: true });
+});
+
+// CATÁLOGO PÚBLICO
+app.get('/catalogo/:slug', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).send('<h1>Negocio no encontrado</h1>');
+  const productos = negocio.catalogo.filter(p => p.activo !== false);
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${negocio.nombre} — Catálogo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:#f8f9fc;color:#1a1a2e;}
+header{background:linear-gradient(135deg,#7c3aed,#00c47a);color:#fff;padding:24px 20px;text-align:center;}
+header h1{font-size:26px;font-weight:700;}
+header p{font-size:14px;opacity:0.85;margin-top:4px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:20px;}
+.card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.card img{width:100%;height:140px;object-fit:cover;}
+.card .no-img{width:100%;height:140px;background:#f1f3f8;display:flex;align-items:center;justify-content:center;font-size:40px;}
+.card .info{padding:12px;}
+.card .name{font-weight:600;font-size:14px;}
+.card .price{color:#7c3aed;font-weight:700;font-size:16px;margin-top:4px;}
+.card .desc{font-size:12px;color:#6b7280;margin-top:4px;}
+.cta{display:block;background:#25D366;color:#fff;text-align:center;padding:14px;font-size:15px;font-weight:600;text-decoration:none;margin:0 20px 20px;border-radius:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>${negocio.emoji || '🛍️'} ${negocio.nombre}</h1>
+  <p>${negocio.tipo}${negocio.tiempo_entrega ? ' · Entrega: ' + negocio.tiempo_entrega : ''}</p>
+</header>
+<div class="grid">
+${productos.map(p => `
+  <div class="card">
+    ${p.imagen ? `<img src="${p.imagen}" alt="${p.nombre}" onerror="this.parentNode.innerHTML='<div class=no-img>${p.emoji || '📦'}</div>'+this.parentNode.innerHTML.replace(this.outerHTML,'')">` : `<div class="no-img">${p.emoji || '📦'}</div>`}
+    <div class="info">
+      <div class="name">${p.nombre}</div>
+      <div class="price">$${p.precio.toFixed(2)}</div>
+      ${p.descripcion ? `<div class="desc">${p.descripcion}</div>` : ''}
+    </div>
+  </div>`).join('')}
+</div>
+<a class="cta" href="https://wa.me/${negocio.whatsapp_dueno?.replace(/\D/g,'')}?text=Hola!%20Vi%20su%20catálogo%20y%20quiero%20hacer%20un%20pedido" target="_blank">💬 Pedir por WhatsApp</a>
+</body></html>`;
+  res.send(html);
+});
+
+// PÁGINA DE PERSONALIZACIÓN DE PRODUCTO
+app.get('/personalizar/:slug/:productoId', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).send('<h1>No encontrado</h1>');
+  const producto = negocio.catalogo.find(p => p.id == req.params.productoId);
+  if (!producto) return res.status(404).send('<h1>Producto no encontrado</h1>');
+  const modificadores = producto.modificadores || [];
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personalizar — ${producto.nombre}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:#f8f9fc;color:#1a1a2e;max-width:480px;margin:0 auto;}
+header{background:linear-gradient(135deg,#7c3aed,#00c47a);color:#fff;padding:16px 20px;}
+header h1{font-size:18px;font-weight:700;}
+.producto-header{background:#fff;padding:16px;display:flex;gap:14px;align-items:center;border-bottom:1px solid #e2e6ef;}
+.producto-img{width:80px;height:80px;border-radius:10px;object-fit:cover;background:#f1f3f8;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
+.producto-nombre{font-size:17px;font-weight:700;}
+.producto-precio{color:#7c3aed;font-size:16px;font-weight:700;margin-top:4px;}
+.grupo{background:#fff;margin-top:10px;padding:16px;}
+.grupo-titulo{font-weight:700;font-size:15px;margin-bottom:4px;}
+.grupo-sub{font-size:12px;color:#6b7280;margin-bottom:12px;}
+.opcion{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f3f8;}
+.opcion:last-child{border-bottom:none;}
+.opcion-label{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.opcion-label input{width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;}
+.opcion-nombre{font-size:14px;}
+.opcion-precio{font-size:13px;font-weight:600;color:#7c3aed;}
+.footer{position:sticky;bottom:0;background:#fff;border-top:1px solid #e2e6ef;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
+.total{font-size:18px;font-weight:700;}
+.total span{color:#7c3aed;}
+.btn-agregar{background:#25D366;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;}
+.btn-agregar:active{opacity:0.85;}
+</style>
+</head>
+<body>
+<header><h1>Personaliza tu pedido</h1></header>
+<div class="producto-header">
+  ${producto.imagen ? `<img class="producto-img" src="${producto.imagen}" alt="${producto.nombre}">` : `<div class="producto-img">${producto.emoji || '📦'}</div>`}
+  <div>
+    <div class="producto-nombre">${producto.nombre}</div>
+    <div class="producto-precio" id="precioBase">$${producto.precio.toFixed(2)}</div>
+    ${producto.descripcion ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${producto.descripcion}</div>` : ''}
+  </div>
+</div>
+
+${modificadores.map((grupo, gi) => `
+<div class="grupo">
+  <div class="grupo-titulo">${grupo.nombre} ${grupo.obligatorio ? '<span style="color:#ef4444;font-size:11px;">*Obligatorio</span>' : ''}</div>
+  <div class="grupo-sub">${grupo.tipo === 'unico' ? 'Elige una opción' : 'Puedes elegir varias'}</div>
+  ${grupo.opciones.map((op, oi) => `
+  <div class="opcion">
+    <label class="opcion-label">
+      <input type="${grupo.tipo === 'unico' ? 'radio' : 'checkbox'}" name="grupo_${gi}" value="${op.precio || 0}" data-nombre="${op.nombre}" onchange="calcularTotal()">
+      <span class="opcion-nombre">${op.nombre}</span>
+    </label>
+    <span class="opcion-precio">${op.precio > 0 ? '+$' + op.precio.toFixed(2) : op.precio < 0 ? '-$' + Math.abs(op.precio).toFixed(2) : 'Incluido'}</span>
+  </div>`).join('')}
+</div>`).join('')}
+
+<div style="height:80px;"></div>
+<div class="footer">
+  <div class="total">Total: <span id="totalFinal">$${producto.precio.toFixed(2)}</span></div>
+  <button class="btn-agregar" onclick="agregarAlPedido()">Agregar al pedido →</button>
+</div>
+
+<script>
+const precioBase = ${producto.precio};
+const numero = new URLSearchParams(window.location.search).get('n') || '';
+const slug = '${req.params.slug}';
+
+function calcularTotal() {
+  let extra = 0;
+  document.querySelectorAll('input[type=checkbox]:checked, input[type=radio]:checked').forEach(input => {
+    extra += parseFloat(input.value) || 0;
+  });
+  document.getElementById('totalFinal').textContent = '$' + (precioBase + extra).toFixed(2);
+}
+
+function agregarAlPedido() {
+  const selecciones = [];
+  ${modificadores.map((grupo, gi) => `
+  const sel_${gi} = Array.from(document.querySelectorAll('input[name="grupo_${gi}"]:checked')).map(i => i.dataset.nombre);
+  if (${grupo.obligatorio} && sel_${gi}.length === 0) { alert('Por favor selecciona una opción en: ${grupo.nombre}'); return; }
+  if (sel_${gi}.length > 0) selecciones.push('${grupo.nombre}: ' + sel_${gi}.join(', '));
+  `).join('')}
+  
+  const total = document.getElementById('totalFinal').textContent;
+  const descripcion = '${producto.nombre}' + (selecciones.length > 0 ? ' (' + selecciones.join(' | ') + ')' : '');
+  const msg = encodeURIComponent('Quiero agregar a mi pedido:\\n' + descripcion + '\\nTotal: ' + total);
+  
+  if (numero) {
+    window.location.href = 'https://wa.me/' + numero + '?text=' + msg;
+  } else {
+    window.location.href = 'https://wa.me/${negocio.whatsapp_dueno?.replace(/\D/g,'')}?text=' + msg;
+  }
+}
+</script>
+</body></html>`;
+  res.send(html);
+});
+
+// RESUMEN MATUTINO
+setInterval(async () => {
+  const ahora = horaActual();
+  if (ahora.getHours() !== 8 || ahora.getMinutes() > 5) return;
+  const negocios = cargarNegocios().filter(n => n.activo);
+  const clientes = cargarClientes();
+  const ayer = new Date(ahora); ayer.setDate(ayer.getDate() - 1);
+  const fechaAyer = ayer.toLocaleDateString('es-EC');
+  for (const negocio of negocios) {
+    const pedidosAyer = [];
+    Object.values(clientes).forEach(c => {
+      c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === fechaAyer).forEach(p => pedidosAyer.push({ ...p, cliente: c.nombre || c.numero }));
+    });
+    if (!pedidosAyer.length) continue;
+    const total = pedidosAyer.reduce((s, p) => s + (p.total || 0), 0);
+    const msg = `☀️ Buenos días! Resumen de ayer en ${negocio.nombre}:\n\n📦 Pedidos: ${pedidosAyer.length}\n💰 Total ventas: $${total.toFixed(2)}\n\n${pedidosAyer.map(p => `• ${p.cliente} — $${p.total}`).join('\n')}`;
+    await enviarMensaje(negocio.whatsapp_dueno, msg);
+  }
+}, 5 * 60 * 1000);
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`VendeBot v10.0 iniciado en puerto ${PORT}`));
