@@ -161,6 +161,20 @@ tr:hover td{background:var(--surface2);}
     <div class="form-row">
       <div><label>Categoría (para organizar el menú)</label><input type="text" id="p_categoria" placeholder="Ej: Hamburguesas, Bebidas, Postres..."></div>
     </div>
+    <div class="form-row" style="margin-top:4px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin:0;">
+          <input type="checkbox" id="p_destacado" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+          ⭐ Producto destacado (aparece en "Más populares" del catálogo)
+        </label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;margin:0;">
+          <input type="checkbox" id="p_activo" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;" checked>
+          ✅ Producto activo (visible en el catálogo)
+        </label>
+      </div>
+    </div>
     <label>Descripción</label>
     <textarea id="p_descripcion" placeholder="Descripción del producto" rows="2"></textarea>
     <label>Foto del producto</label>
@@ -371,6 +385,29 @@ tr:hover td{background:var(--surface2);}
     <textarea id="cfg_devoluciones" rows="2"></textarea>
   </div>
   <div class="card">
+    <div style="font-weight:700;font-size:15px;margin-bottom:16px;">🌐 Apariencia del catálogo web</div>
+    <label>Logo del negocio</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+      <input type="text" id="cfg_logo" placeholder="https://... o sube una imagen">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()">Subir</button>
+      <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="subirImagenConfig(this,'cfg_logo','logoPreview')">
+    </div>
+    <div id="logoPreview" style="margin-bottom:12px;"></div>
+    <label>Banner de portada (foto grande del hero)</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+      <input type="text" id="cfg_banner" placeholder="https://... o sube una imagen">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()">Subir</button>
+      <input type="file" id="bannerFile" accept="image/*" style="display:none" onchange="subirImagenConfig(this,'cfg_banner','bannerPreview')">
+    </div>
+    <div id="bannerPreview" style="margin-bottom:12px;"></div>
+    <div class="form-row">
+      <div><label>Costo de delivery (referencial)</label><input type="text" id="cfg_costo_delivery" placeholder="Ej: Varía según distancia, Desde $1.50..."><div style="font-size:11px;color:var(--text2);margin-top:3px;">⚠️ El costo real lo confirma el repartidor. Esto es solo informativo para el cliente.</div></div>
+      <div><label>Pedido mínimo ($)</label><input type="number" id="cfg_pedido_minimo" placeholder="Ej: 5.00" step="0.01"></div>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:var(--text2);">💡 Estos datos aparecen visibles en el catálogo web para que el cliente sepa antes de pedir.</div>
+  </div>
+
+  <div class="card">
     <div style="font-weight:600;margin-bottom:16px;">Modo vacaciones</div>
     <div class="toggle">
       <div class="toggle-switch" id="toggleVacaciones" onclick="toggleVacaciones()"></div>
@@ -482,6 +519,25 @@ async function cargarDashboard() {
   document.getElementById('pedidosRecientes').innerHTML = pedidos.slice(0,4).length ? pedidos.slice(0,4).map(p => `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:500;">${p.cliente} — $${p.total}</div><div style="color:var(--text2);font-size:12px;">${new Date(p.fecha).toLocaleDateString('es-EC')}</div></div>`).join('') : '<div style="color:var(--text2);font-size:14px;">Sin pedidos aún</div>';
 }
 
+async function subirImagenConfig(input, campoId, previewId) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const r = await fetch(BASE + '/panel/' + SLUG + '/upload', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + TOKEN }, body: formData
+    });
+    const data = await r.json();
+    if (data.url) {
+      document.getElementById(campoId).value = data.url;
+      const isLogo = campoId === 'cfg_logo';
+      document.getElementById(previewId).innerHTML = `<img src="${data.url}" style="margin-top:4px;${isLogo?'width:60px;height:60px;object-fit:cover;border-radius:8px;':'width:100%;max-height:100px;object-fit:cover;border-radius:8px;'}border:1px solid #ddd;">`;
+      mostrarNotificacion('✓ Imagen subida correctamente');
+    }
+  } catch(e) { mostrarNotificacion('Error al subir la imagen'); }
+}
+
 function verCatalogoPublico() {
   window.open(BASE + '/catalogo/' + SLUG, '_blank');
 }
@@ -526,6 +582,8 @@ function mostrarFormProducto(producto = null) {
   document.getElementById('p_imagen').value = producto?.imagen || '';
   document.getElementById('p_imagen_preview').innerHTML = producto?.imagen ? `<img src="${producto.imagen}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">` : '';
   document.getElementById('p_imagen_status').textContent = producto?.imagen ? 'Foto actual cargada' : 'Sin foto seleccionada';
+  document.getElementById('p_destacado').checked = producto?.destacado || false;
+  document.getElementById('p_activo').checked = producto?.activo !== false;
   // Cargar modificadores del producto
   modificadoresTemp = producto?.modificadores ? JSON.parse(JSON.stringify(producto.modificadores)) : [];
   renderModificadores();
@@ -651,6 +709,12 @@ async function cargarConfig() {
   document.getElementById('cfg_bienvenida').value = neg.mensajes?.bienvenida || '';
   document.getElementById('cfg_devoluciones').value = neg.politica_devoluciones || '';
   document.getElementById('cfg_vacaciones').value = neg.mensaje_vacaciones || '';
+  document.getElementById('cfg_logo').value = neg.logo || '';
+  document.getElementById('cfg_banner').value = neg.banner || '';
+  document.getElementById('cfg_costo_delivery').value = neg.costo_delivery || '';
+  document.getElementById('cfg_pedido_minimo').value = neg.pedido_minimo || '';
+  if (neg.logo) document.getElementById('logoPreview').innerHTML = `<img src="${neg.logo}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;margin-top:4px;">`;
+  if (neg.banner) document.getElementById('bannerPreview').innerHTML = `<img src="${neg.banner}" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;border:1px solid #ddd;margin-top:4px;">`;
   const toggle = document.getElementById('toggleVacaciones');
   toggle.classList.toggle('on', neg.modo_vacaciones);
   document.getElementById('vacacionesLabel').textContent = neg.modo_vacaciones ? 'Activado — El bot responde que está de vacaciones' : 'Desactivado';
@@ -678,6 +742,10 @@ async function guardarConfig() {
     modo_vacaciones: toggle.classList.contains('on'),
     mensaje_vacaciones: document.getElementById('cfg_vacaciones').value,
     mensajes: { bienvenida: document.getElementById('cfg_bienvenida').value, tono: 'amigable' },
+    logo: document.getElementById('cfg_logo').value.trim(),
+    banner: document.getElementById('cfg_banner').value.trim(),
+    costo_delivery: document.getElementById('cfg_costo_delivery').value.trim(),
+    pedido_minimo: parseFloat(document.getElementById('cfg_pedido_minimo').value) || null,
   };
   await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify(data) });
   const al = document.getElementById('configAlert');
@@ -910,6 +978,8 @@ async function guardarProducto() {
     descripcion: document.getElementById('p_descripcion').value.trim(),
     imagen: document.getElementById('p_imagen').value.trim(),
     categoria: document.getElementById('p_categoria').value.trim() || 'Menú',
+    destacado: document.getElementById('p_destacado').checked,
+    activo: document.getElementById('p_activo').checked,
     modificadores: modificadoresTemp.filter(g => g.nombre && g.opciones.length > 0),
   };
   const stockVal = document.getElementById('p_stock').value;
