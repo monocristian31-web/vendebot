@@ -1324,52 +1324,20 @@ app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 
-// CATÁLOGO PÚBLICO
+// CATÁLOGO PÚBLICO — sirve el HTML del e-commerce
 app.get('/catalogo/:slug', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).send('<h1>Negocio no encontrado</h1>');
-  const productos = negocio.catalogo.filter(p => p.activo !== false);
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${negocio.nombre} — Catálogo</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',sans-serif;background:#f8f9fc;color:#1a1a2e;}
-header{background:linear-gradient(135deg,#7c3aed,#00c47a);color:#fff;padding:24px 20px;text-align:center;}
-header h1{font-size:26px;font-weight:700;}
-header p{font-size:14px;opacity:0.85;margin-top:4px;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:20px;}
-.card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-.card img{width:100%;height:140px;object-fit:cover;}
-.card .no-img{width:100%;height:140px;background:#f1f3f8;display:flex;align-items:center;justify-content:center;font-size:40px;}
-.card .info{padding:12px;}
-.card .name{font-weight:600;font-size:14px;}
-.card .price{color:#7c3aed;font-weight:700;font-size:16px;margin-top:4px;}
-.card .desc{font-size:12px;color:#6b7280;margin-top:4px;}
-.cta{display:block;background:#25D366;color:#fff;text-align:center;padding:14px;font-size:15px;font-weight:600;text-decoration:none;margin:0 20px 20px;border-radius:12px;}
-</style>
-</head>
-<body>
-<header>
-  <h1>${negocio.emoji || '🛍️'} ${negocio.nombre}</h1>
-  <p>${negocio.tipo}${negocio.tiempo_entrega ? ' · Entrega: ' + negocio.tiempo_entrega : ''}</p>
-</header>
-<div class="grid">
-${productos.map(p => `
-  <div class="card">
-    ${p.imagen ? `<img src="${p.imagen}" alt="${p.nombre}" onerror="this.parentNode.innerHTML='<div class=no-img>${p.emoji || '📦'}</div>'+this.parentNode.innerHTML.replace(this.outerHTML,'')">` : `<div class="no-img">${p.emoji || '📦'}</div>`}
-    <div class="info">
-      <div class="name">${p.nombre}</div>
-      <div class="price">$${p.precio.toFixed(2)}</div>
-      ${p.descripcion ? `<div class="desc">${p.descripcion}</div>` : ''}
-    </div>
-  </div>`).join('')}
-</div>
-<a class="cta" href="https://wa.me/${negocio.whatsapp_dueno?.replace(/\D/g,'')}?text=Hola!%20Vi%20su%20catálogo%20y%20quiero%20hacer%20un%20pedido" target="_blank">💬 Pedir por WhatsApp</a>
-</body></html>`;
-  res.send(html);
+  res.sendFile('catalogo.html', { root: '.' });
+});
+
+// API de datos del catálogo (usada por catalogo.html via JS)
+app.get('/catalogo-data/:slug', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  // Devolver negocio sin datos sensibles
+  const { password, ...pub } = negocio;
+  res.json(pub);
 });
 
 // PÁGINA DE PERSONALIZACIÓN DE PRODUCTO

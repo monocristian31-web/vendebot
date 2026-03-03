@@ -142,7 +142,11 @@ tr:hover td{background:var(--surface2);}
 <!-- CATÁLOGO -->
 <div class="panel" id="tab-catalogo">
   <div class="section-title">📦 Catálogo de productos</div>
-  <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Agregar producto</button>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Agregar producto</button>
+    <button class="btn btn-secondary" onclick="verCatalogoPublico()">🌐 Ver catálogo web</button>
+    <button class="btn btn-secondary" onclick="copiarLinkCatalogo()">📋 Copiar link</button>
+  </div>
   <div class="card" id="formProducto" style="display:none;margin-top:16px;">
     <div style="font-weight:600;margin-bottom:16px;" id="formProductoTitle">Nuevo producto</div>
     <input type="hidden" id="p_id">
@@ -153,6 +157,9 @@ tr:hover td{background:var(--surface2);}
     <div class="form-row">
       <div><label>Emoji</label><input type="text" id="p_emoji" placeholder="🌹" maxlength="2"></div>
       <div><label>Stock (vacío = ilimitado)</label><input type="number" id="p_stock" placeholder="Dejar vacío para ilimitado"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Categoría (para organizar el menú)</label><input type="text" id="p_categoria" placeholder="Ej: Hamburguesas, Bebidas, Postres..."></div>
     </div>
     <label>Descripción</label>
     <textarea id="p_descripcion" placeholder="Descripción del producto" rows="2"></textarea>
@@ -475,6 +482,15 @@ async function cargarDashboard() {
   document.getElementById('pedidosRecientes').innerHTML = pedidos.slice(0,4).length ? pedidos.slice(0,4).map(p => `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><div style="font-weight:500;">${p.cliente} — $${p.total}</div><div style="color:var(--text2);font-size:12px;">${new Date(p.fecha).toLocaleDateString('es-EC')}</div></div>`).join('') : '<div style="color:var(--text2);font-size:14px;">Sin pedidos aún</div>';
 }
 
+function verCatalogoPublico() {
+  window.open(BASE + '/catalogo/' + SLUG, '_blank');
+}
+
+function copiarLinkCatalogo() {
+  const link = BASE + '/catalogo/' + SLUG;
+  navigator.clipboard.writeText(link).then(() => mostrarNotificacion('✓ Link copiado: ' + link));
+}
+
 async function cargarCatalogo() {
   const neg = await api(`/panel/${SLUG}/negocio`);
   negocioData = neg;
@@ -505,6 +521,7 @@ function mostrarFormProducto(producto = null) {
   document.getElementById('p_precio').value = producto?.precio || '';
   document.getElementById('p_emoji').value = producto?.emoji || '';
   document.getElementById('p_stock').value = producto?.stock ?? '';
+  document.getElementById('p_categoria').value = producto?.categoria || '';
   document.getElementById('p_descripcion').value = producto?.descripcion || '';
   document.getElementById('p_imagen').value = producto?.imagen || '';
   document.getElementById('p_imagen_preview').innerHTML = producto?.imagen ? `<img src="${producto.imagen}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #ddd;">` : '';
@@ -892,6 +909,7 @@ async function guardarProducto() {
     emoji: document.getElementById('p_emoji').value.trim(),
     descripcion: document.getElementById('p_descripcion').value.trim(),
     imagen: document.getElementById('p_imagen').value.trim(),
+    categoria: document.getElementById('p_categoria').value.trim() || 'Menú',
     modificadores: modificadoresTemp.filter(g => g.nombre && g.opciones.length > 0),
   };
   const stockVal = document.getElementById('p_stock').value;
