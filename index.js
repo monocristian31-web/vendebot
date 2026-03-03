@@ -395,6 +395,15 @@ async function validarBoucher(b64, mediaType, monto) {
 }
 
 // ─── CLAUDE ───────────────────────────────────────────────────────────────────
+// ─── SUGERENCIAS PERSONALIZADAS ───────────────────────────────
+function generarSugerencias(numero, catalogo) {
+  const cliente = cargarClientes()[numero];
+  if (!cliente?.historial_pedidos?.length) return [];
+  const comprados = new Set();
+  cliente.historial_pedidos.forEach(p => p.items?.forEach(i => comprados.add(i.nombre)));
+  return (catalogo || []).filter(p => !comprados.has(p.nombre) && p.activo !== false).slice(0, 3);
+}
+
 async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const catalogoTexto = negocio.catalogo.map(p => {
     const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
@@ -409,7 +418,11 @@ async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const puntos = obtenerPuntos(conv.numero);
   const codigoReferido = generarCodigoReferido(conv.numero);
 
-  const system = `Eres el asistente de ${negocio.nombre}, una ${negocio.tipo} en Ecuador. Atiende clientes por WhatsApp de forma calida y profesional.
+  const sugerencias = generarSugerencias(conv.numero, negocio.catalogo);
+  const sugerenciasTexto = sugerencias.length > 0 ? '\nPRODUCTOS SUGERIDOS PARA ESTE CLIENTE (no los ha comprado antes):\n' + sugerencias.map(p => `  - ${p.emoji || ''} ${p.nombre} $${p.precio.toFixed(2)}`).join('\n') : '';
+
+  const system = `Eres el asistente de ${negocio.nombre}, una ${negocio.tipo}. Detecta el idioma del cliente y responde SIEMPRE en ese mismo idioma (español o inglés). Atiende clientes por WhatsApp de forma calida y profesional.
+${sugerenciasTexto}
 
 CATALOGO:
 ${catalogoTexto}
@@ -984,5 +997,106 @@ async function renovarToken() {
 // Renovar token cada 20 horas
 renovarToken();
 setInterval(renovarToken, 20 * 60 * 60 * 1000);
+// ─── ALERTAS DE STOCK BAJO ────────────────────────────────────
+const STOCK_MINIMO = 3;
+setInterval(async () => {
+  if (!estaEnHorario()) return;
+  const negocios = cargarNegocios();
+  for (const negocio of negocios.filter(n => n.activo)) {
+    const stockBajo = (negocio.catalogo || []).filter(p => p.stock !== undefined && p.stock <= STOCK_MINIMO && p.stock > 0);
+    for (const producto of stockBajo) {
+      const key = `stock_alerta_${negocio.id}_${producto.id}`;
+      if (!global[key]) {
+        await enviarMensaje(negocio.whatsapp_dueno, `⚠️ Stock bajo en ${negocio.nombre}\n\nProducto: ${producto.emoji || ''} ${producto.nombre}\nStock restante: ${producto.stock} unidades\n\nActualiza el stock desde tu panel.`);
+        global[key] = true;
+        setTimeout(() => { global[key] = false; }, 24 * 60 * 60 * 1000);
+      }
+    }
+    let cambios = false;
+    (negocio.catalogo || []).forEach(p => {
+      if (p.stock === 0 && p.activo !== false) { p.activo = false; cambios = true; }
+      if (p.stock > 0 && p.activo === false) { p.activo = true; cambios = true; }
+    });
+    if (cambios) guardarJSON('./negocios.json', negocios);
+  }
+}, 60 * 60 * 1000);
+
+// ─── NOTIFICACIONES EN TIEMPO REAL (SSE) ─────────────────────
+const sseClients = new Map();
+
+app.get('/panel/:slug/events', (req, res) => {
+  const token = req.query.token;
+  if (!verificarTokenPanel(token, req.params.slug)) return res.status(401).end();
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  const slug = req.params.slug;
+  if (!sseClients.has(slug)) sseClients.set(slug, new Set());
+  sseClients.get(slug).add(res);
+  res.write('data: {"tipo":"conectado"}\n\n');
+  req.on('close', () => { sseClients.get(slug)?.delete(res); });
+});
+
+function notificarPanel(slug, evento) {
+  const clients = sseClients.get(slug);
+  if (!clients) return;
+  const data = JSON.stringify(evento);
+  for (const client of clients) {
+    try { client.write(`data: ${data}\n\n`); } catch {}
+  }
+}
+
+// ─── CHAT EN VIVO ─────────────────────────────────────────────
+app.get('/panel/:slug/conversaciones', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  const activas = [];
+  for (const [key, conv] of conversaciones) {
+    if (conv.negocio_id === negocio.id) {
+      const cliente = cargarClientes()[conv.numero] || {};
+      activas.push({ numero: conv.numero, nombre: cliente.nombre || conv.numero.slice(-6), etapa: conv.etapa, ultimo_mensaje: conv.ultimo_mensaje, historial: conv.historial.slice(-10), pedido: conv.pedido });
+    }
+  }
+  activas.sort((a, b) => b.ultimo_mensaje - a.ultimo_mensaje);
+  res.json(activas);
+});
+
+app.post('/panel/:slug/responder', authPanel, async (req, res) => {
+  const { numero, mensaje } = req.body;
+  if (!numero || !mensaje) return res.status(400).json({ error: 'Faltan datos' });
+  await enviarMensaje(numero, mensaje);
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (negocio) {
+    const key = `${numero}:${negocio.id}`;
+    const conv = conversaciones.get(key);
+    if (conv) conv.historial.push({ role: 'assistant', content: `[Dueno]: ${mensaje}` });
+  }
+  res.json({ ok: true });
+});
+
+// ─── REPORTES EXPORTABLES ─────────────────────────────────────
+app.get('/panel/:slug/reporte', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const clientes = cargarClientes();
+  const todos = Object.values(clientes).filter(c => c.historial_pedidos?.some(p => p.negocio === negocio.nombre));
+  const { desde, hasta } = req.query;
+  const pedidos = [];
+  todos.forEach(c => {
+    c.historial_pedidos?.filter(p => {
+      if (p.negocio !== negocio.nombre) return false;
+      if (desde && new Date(p.fecha) < new Date(desde)) return false;
+      if (hasta && new Date(p.fecha) > new Date(hasta)) return false;
+      return true;
+    }).forEach(p => pedidos.push({ cliente: c.nombre || c.numero, numero: c.numero, fecha: new Date(p.fecha).toLocaleDateString('es-EC'), descripcion: p.descripcion, total: p.total, entrega: p.es_domicilio ? 'Domicilio' : 'Retiro' }));
+  });
+  pedidos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  res.json({ negocio: negocio.nombre, pedidos, total_pedidos: pedidos.length, total_ventas: pedidos.reduce((s, p) => s + (p.total || 0), 0), generado: new Date().toLocaleString('es-EC') });
+});
+
+// Notificar panel en webhook cuando llega pedido nuevo
+const _notificarDuenoOriginal = notificarDueno;
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v6.0 iniciado en puerto ${PORT}`));
