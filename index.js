@@ -453,8 +453,8 @@ ESTADO:
 
 REGLAS:
 1. Habla en espanol, tono amigable y calido.
-2. Si el cliente menciona un producto especifico: ENVIAR_IMAGENES: [ese ID]
-3. Si quiere ver TODO el catalogo: ENVIAR_IMAGENES: [todos los IDs]
+2. Si el cliente pregunta por productos, quiere ver el menu, o quiere hacer un pedido: ENVIAR_CATALOGO: true (manda el link del catalogo web para que seleccione ahi).
+3. Si el cliente ya viene CON un pedido armado desde el catalogo (el mensaje empieza con "Hola! Quiero hacer un pedido 🛒"): NO mandes el catalogo, procesa directamente el pedido que trae en el mensaje y pon PEDIDO_DESDE_CATALOGO: true.
 4. Si hay fecha especial activa, mencionala con entusiasmo.
 5. Si el cliente tiene muchos puntos, sugieres que puede canjearlos.
 6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro, metodo pago.
@@ -463,7 +463,7 @@ REGLAS:
 9. Si el cliente quiere su codigo de referido, dimelo.
 10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
 11. Si producto con stock 0, sugiere alternativas.
-12. Horario: Lunes a Sabado 8am-6pm. Domingos cerrado.
+12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sabado 8am-6pm'}.
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
 15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
@@ -480,7 +480,7 @@ NOMBRE_CLIENTE: `;
   const response = await anthropic.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1000, system, messages: conv.historial });
   const full = response.content[0].text;
   const lineas = full.split('\n');
-  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], mostrarPago = false, aplicarCupon = '', nombreCliente = '';
+  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], mostrarPago = false, aplicarCupon = '', nombreCliente = '', enviarCatalogo = false, pedidoDesdeCatalogo = false;
 
   for (const l of lineas) {
     if (l.startsWith('ETAPA:')) etapa = l.replace('ETAPA:', '').trim();
@@ -489,6 +489,8 @@ NOMBRE_CLIENTE: `;
     else if (l.startsWith('MOSTRAR_PAGO:')) mostrarPago = l.includes('true');
     else if (l.startsWith('APLICAR_CUPON:')) aplicarCupon = l.replace('APLICAR_CUPON:', '').trim();
     else if (l.startsWith('NOMBRE_CLIENTE:')) nombreCliente = l.replace('NOMBRE_CLIENTE:', '').trim();
+    else if (l.startsWith('ENVIAR_CATALOGO:')) enviarCatalogo = l.includes('true');
+    else if (l.startsWith('PEDIDO_DESDE_CATALOGO:')) pedidoDesdeCatalogo = l.includes('true');
     else msg.push(l);
   }
 
@@ -521,7 +523,7 @@ NOMBRE_CLIENTE: `;
   conv.historial.push({ role: 'assistant', content: mensajeFinal });
   if (conv.historial.length > 30) conv.historial = conv.historial.slice(-30);
 
-  return { mensaje: mensajeFinal, imagenesIds: imgs, mostrarPago };
+  return { mensaje: mensajeFinal, imagenesIds: imgs, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo };
 }
 
 // ─── WEBHOOK ──────────────────────────────────────────────────────────────────
@@ -810,8 +812,46 @@ app.post('/webhook', async (req, res) => {
 
     if (conv.esperando === 'boucher') { await enviarMensaje(numero, `Estoy esperando tu comprobante. Envia una foto del ${negocio.banco} por $${conv.pedido.total?.toFixed(2) || '0.00'}`); return; }
 
-    const { mensaje: respuesta, imagenesIds, mostrarPago } = await procesarConClaude(conv, negocio, texto, cliente);
+    // Detectar pedido que viene del catálogo web
+    if (texto.startsWith('Hola! Quiero hacer un pedido 🛒') || texto.startsWith('Hola! Quiero hacer un pedido')) {
+      // Parsear las líneas del pedido para armar conv.pedido.items
+      const lineas = texto.split('\n');
+      const items = [];
+      lineas.forEach(l => {
+        const match = l.match(/^•\s+(.+?)\s+x(\d+)\s+—\s+\$[\d.]+/);
+        if (match) {
+          const nombre = match[1].trim();
+          const cantidad = parseInt(match[2]);
+          const prod = negocio.catalogo.find(p => p.nombre === nombre);
+          if (prod) items.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad, emoji: prod.emoji || '📦' });
+        }
+      });
+      if (items.length > 0) {
+        conv.pedido.items = items;
+        conv.pedido.subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+        conv.pedido.total = conv.pedido.subtotal;
+        conv.etapa = 'confirmando';
+      }
+    }
+
+    const { mensaje: respuesta, imagenesIds, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviarMensaje(numero, respuesta);
+
+    // Enviar link del catálogo web
+    if (enviarCatalogo) {
+      const slug = negocio.slug || negocio.id;
+      const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
+      const linkCatalogo = `${dominio}/catalogo/${slug}`;
+      await new Promise(r => setTimeout(r, 500));
+      await enviarMensaje(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${linkCatalogo}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
+    }
+
+    // Si el cliente trae un pedido desde el catálogo, saltar a confirmar
+    if (pedidoDesdeCatalogo && conv.pedido.items?.length > 0) {
+      await new Promise(r => setTimeout(r, 500));
+      await enviarResumenPedido(numero, conv);
+    }
+
     if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
 
     if ((conv.etapa === 'pago' || mostrarPago) && conv.esperando !== 'boucher') {
@@ -1324,6 +1364,28 @@ app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── FUNCIÓN HORARIO DINÁMICO ──────────────────────────────────────────────────
+function estaAbiertoAhora(negocio) {
+  if (negocio.modo_vacaciones) return false;
+  const horarios = negocio.horarios;
+  if (!horarios) {
+    // fallback al hardcoded si no hay horarios configurados
+    const h = new Date().getHours();
+    return h >= 8 && h < 18;
+  }
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const hoy = dias[new Date().getDay()];
+  const horario = horarios[hoy];
+  if (!horario || !horario.abierto || !horario.desde || !horario.hasta) return false;
+  const ahora = new Date();
+  const [dH, dM] = horario.desde.split(':').map(Number);
+  const [hH, hM] = horario.hasta.split(':').map(Number);
+  const minActual = ahora.getHours() * 60 + ahora.getMinutes();
+  const minDesde = dH * 60 + dM;
+  const minHasta = hH * 60 + hM;
+  return minActual >= minDesde && minActual < minHasta;
+}
+
 // CATÁLOGO PÚBLICO — sirve el HTML del e-commerce
 app.get('/catalogo/:slug', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
@@ -1335,8 +1397,9 @@ app.get('/catalogo/:slug', (req, res) => {
 app.get('/catalogo-data/:slug', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
-  // Devolver negocio sin datos sensibles
+  // Devolver negocio sin datos sensibles, con estado calculado
   const { password, ...pub } = negocio;
+  pub.esta_abierto = estaAbiertoAhora(negocio);
   res.json(pub);
 });
 

@@ -363,8 +363,31 @@ function renderAll() {
 }
 
 function estaAbierto() {
+  // Usar el estado calculado por el servidor si está disponible
+  if (typeof neg.esta_abierto === 'boolean') return neg.esta_abierto;
+  // Fallback con horarios locales si los hay
+  if (neg.horarios) {
+    const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const hoy = dias[new Date().getDay()];
+    const h = neg.horarios[hoy];
+    if (!h || !h.abierto || !h.desde || !h.hasta) return false;
+    const ahora = new Date();
+    const [dH,dM] = h.desde.split(':').map(Number);
+    const [hH,hM] = h.hasta.split(':').map(Number);
+    const min = ahora.getHours()*60+ahora.getMinutes();
+    return min >= dH*60+dM && min < hH*60+hM;
+  }
   const h = new Date().getHours();
   return !neg.modo_vacaciones && h >= 8 && h < 18;
+}
+
+function obtenerHorarioHoy() {
+  if (!neg.horarios) return null;
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const hoy = dias[new Date().getDay()];
+  const h = neg.horarios[hoy];
+  if (!h || !h.abierto) return null;
+  return h.desde + ' — ' + h.hasta;
 }
 
 function renderHero() {
@@ -379,7 +402,7 @@ function renderHero() {
           '<div class="hero-name">' + neg.nombre + '</div>' +
           '<div class="hero-chips">' +
             '<div class="chip-glass"><div class="dot' + (ab?'':' off') + '"></div>' + (ab?'Abierto':'Cerrado') + '</div>' +
-            (neg.tipo ? '<div class="chip-glass">' + neg.tipo + '</div>' : '') +
+            (neg.tipo ? '<div class="chip-glass">' + neg.tipo + '</div>' : '') + (obtenerHorarioHoy() ? '<div class="chip-glass">🕐 ' + obtenerHorarioHoy() + '</div>' : '') +
           '</div>' +
         '</div>' +
       '</div>';

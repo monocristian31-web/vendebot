@@ -361,15 +361,41 @@ tr:hover td{background:var(--surface2);}
 <div class="panel" id="tab-config">
   <div class="section-title">⚙️ Configuración del negocio</div>
   <div class="alert" id="configAlert"></div>
+
+  <!-- DATOS BÁSICOS -->
   <div class="card">
-    <div style="font-weight:600;margin-bottom:16px;">Datos del negocio</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;">📋 Datos del negocio</div>
     <div class="form-row">
       <div><label>Nombre del negocio</label><input type="text" id="cfg_nombre"></div>
-      <div><label>Tipo de negocio</label><input type="text" id="cfg_tipo"></div>
+      <div><label>Tipo de negocio</label><input type="text" id="cfg_tipo" placeholder="Ej: Restaurante, Tienda, Salón..."></div>
     </div>
     <div class="form-row">
-      <div><label>WhatsApp del dueño</label><input type="text" id="cfg_whatsapp"></div>
-      <div><label>WhatsApp delivery</label><input type="text" id="cfg_delivery"></div>
+      <div><label>Dirección física</label><input type="text" id="cfg_direccion" placeholder="Ej: Av. Principal 123, Quito"></div>
+      <div><label>Tiempo de entrega</label><input type="text" id="cfg_tiempo" placeholder="Ej: 30-45 minutos"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Zonas de delivery</label><input type="text" id="cfg_zonas" placeholder="Ej: Norte, Sur, Centro, La Mariscal..."></div>
+      <div><label>Pedido mínimo ($)</label><input type="number" id="cfg_pedido_minimo" placeholder="Ej: 5.00" step="0.01"></div>
+    </div>
+    <label>Métodos de pago aceptados</label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 4px;">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;"><input type="checkbox" id="pago_transferencia" style="accent-color:var(--accent);"> Transferencia bancaria</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;"><input type="checkbox" id="pago_efectivo" style="accent-color:var(--accent);"> Efectivo</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;"><input type="checkbox" id="pago_tarjeta" style="accent-color:var(--accent);"> Tarjeta</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:500;font-size:13px;"><input type="checkbox" id="pago_qr" style="accent-color:var(--accent);"> QR / Billetera digital</label>
+    </div>
+    <label style="margin-top:8px;">Mensaje de bienvenida del bot</label>
+    <textarea id="cfg_bienvenida" rows="2" placeholder="Ej: ¡Hola! Bienvenido a nuestro negocio 😊"></textarea>
+    <label>Política de devoluciones</label>
+    <textarea id="cfg_devoluciones" rows="2" placeholder="Ej: No se aceptan devoluciones una vez preparado el pedido"></textarea>
+  </div>
+
+  <!-- PAGOS -->
+  <div class="card">
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;">💳 Datos bancarios</div>
+    <div class="form-row">
+      <div><label>WhatsApp del dueño</label><input type="text" id="cfg_whatsapp" placeholder="593912345678"></div>
+      <div><label>WhatsApp delivery</label><input type="text" id="cfg_delivery" placeholder="593912345678"></div>
     </div>
     <div class="form-row">
       <div><label>Banco</label><input type="text" id="cfg_banco"></div>
@@ -377,46 +403,68 @@ tr:hover td{background:var(--surface2);}
     </div>
     <div class="form-row">
       <div><label>Titular de la cuenta</label><input type="text" id="cfg_titular"></div>
-      <div><label>Tiempo de entrega</label><input type="text" id="cfg_tiempo" placeholder="30-45 minutos"></div>
+      <div><label>Tipo de cuenta</label>
+        <select id="cfg_tipo_cuenta">
+          <option value="Ahorros">Ahorros</option>
+          <option value="Corriente">Corriente</option>
+        </select>
+      </div>
     </div>
-    <label>Mensaje de bienvenida</label>
-    <textarea id="cfg_bienvenida" rows="2"></textarea>
-    <label>Política de devoluciones</label>
-    <textarea id="cfg_devoluciones" rows="2"></textarea>
   </div>
+
+  <!-- HORARIOS -->
   <div class="card">
-    <div style="font-weight:700;font-size:15px;margin-bottom:16px;">🌐 Apariencia del catálogo web</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🕐 Horarios de atención</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Configura los días y horarios en que atiendes. El bot y el catálogo mostrarán si estás abierto o cerrado.</div>
+    <div id="horariosContainer">
+      <!-- Se renderiza dinámicamente -->
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:var(--text2);">💡 Deja el campo vacío si ese día no atiendes (cierra el campo de hora).</div>
+  </div>
+
+  <!-- APARIENCIA -->
+  <div class="card">
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🌐 Apariencia del catálogo web</div>
     <label>Logo del negocio</label>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
       <input type="text" id="cfg_logo" placeholder="https://... o sube una imagen">
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()">Subir</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()">📷 Subir</button>
       <input type="file" id="logoFile" accept="image/*" style="display:none" onchange="subirImagenConfig(this,'cfg_logo','logoPreview')">
     </div>
     <div id="logoPreview" style="margin-bottom:12px;"></div>
-    <label>Banner de portada (foto grande del hero)</label>
+    <label>Banner de portada</label>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
       <input type="text" id="cfg_banner" placeholder="https://... o sube una imagen">
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()">Subir</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()">📷 Subir</button>
       <input type="file" id="bannerFile" accept="image/*" style="display:none" onchange="subirImagenConfig(this,'cfg_banner','bannerPreview')">
     </div>
     <div id="bannerPreview" style="margin-bottom:12px;"></div>
     <div class="form-row">
-      <div><label>Costo de delivery (referencial)</label><input type="text" id="cfg_costo_delivery" placeholder="Ej: Varía según distancia, Desde $1.50..."><div style="font-size:11px;color:var(--text2);margin-top:3px;">⚠️ El costo real lo confirma el repartidor. Esto es solo informativo para el cliente.</div></div>
-      <div><label>Pedido mínimo ($)</label><input type="number" id="cfg_pedido_minimo" placeholder="Ej: 5.00" step="0.01"></div>
+      <div>
+        <label>Costo de delivery (referencial)</label>
+        <input type="text" id="cfg_costo_delivery" placeholder="Ej: Varía según distancia">
+        <div style="font-size:11px;color:var(--text2);margin-top:3px;">⚠️ El costo real lo confirma el repartidor.</div>
+      </div>
+      <div>
+        <label>Redes sociales</label>
+        <input type="text" id="cfg_instagram" placeholder="Instagram: @tunegocio" style="margin-bottom:6px;">
+        <input type="text" id="cfg_facebook" placeholder="Facebook: facebook.com/tunegocio">
+      </div>
     </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--text2);">💡 Estos datos aparecen visibles en el catálogo web para que el cliente sepa antes de pedir.</div>
   </div>
 
+  <!-- MODO VACACIONES -->
   <div class="card">
-    <div style="font-weight:600;margin-bottom:16px;">Modo vacaciones</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🏖️ Modo vacaciones</div>
     <div class="toggle">
       <div class="toggle-switch" id="toggleVacaciones" onclick="toggleVacaciones()"></div>
       <span class="toggle-label" id="vacacionesLabel">Desactivado</span>
     </div>
-    <label>Mensaje de vacaciones</label>
-    <textarea id="cfg_vacaciones" rows="2" placeholder="Ej: Estamos de vacaciones hasta el 15 de enero..."></textarea>
+    <label style="margin-top:12px;">Mensaje cuando estás en vacaciones</label>
+    <textarea id="cfg_vacaciones" rows="2" placeholder="Ej: Estamos de vacaciones hasta el 15 de enero. ¡Volvemos pronto!"></textarea>
   </div>
-  <button class="btn btn-primary" onclick="guardarConfig()">Guardar configuración</button>
+
+  <button class="btn btn-primary" onclick="guardarConfig()" style="width:100%;padding:14px;">💾 Guardar toda la configuración</button>
 </div>
 
 </main>
@@ -595,6 +643,46 @@ function editarProducto(id) {
   if (p) mostrarFormProducto(p);
 }
 
+// ── STOCK RÁPIDO ──────────────────────────────────────────────
+async function cambiarStock(id, delta) {
+  const neg = negocioData;
+  if (!neg) return;
+  const idx = neg.catalogo.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  const actual = neg.catalogo[idx].stock ?? null;
+  if (actual === null) {
+    // Si era ilimitado, al restar ponemos 0, al sumar ponemos 10
+    neg.catalogo[idx].stock = delta > 0 ? 10 : 0;
+  } else {
+    neg.catalogo[idx].stock = Math.max(0, actual + delta);
+  }
+  document.getElementById('stock-' + id).textContent = neg.catalogo[idx].stock;
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  mostrarNotificacion('Stock actualizado: ' + neg.catalogo[idx].stock + ' unidades');
+}
+
+async function resetStock(id) {
+  const neg = negocioData;
+  if (!neg) return;
+  const idx = neg.catalogo.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  neg.catalogo[idx].stock = null; // ilimitado
+  document.getElementById('stock-' + id).textContent = '∞';
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  mostrarNotificacion('Stock ilimitado activado');
+}
+
+async function toggleActivo(id) {
+  const neg = negocioData;
+  if (!neg) return;
+  const idx = neg.catalogo.findIndex(p => p.id === id);
+  if (idx < 0) return;
+  neg.catalogo[idx].activo = neg.catalogo[idx].activo === false ? true : false;
+  await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
+  cargarCatalogo();
+  mostrarNotificacion(neg.catalogo[idx].activo ? '✓ Producto activado' : 'Producto desactivado');
+}
+
 async function eliminarProducto(id) {
   if (!confirm('¿Eliminar este producto?')) return;
   const neg = negocioData;
@@ -705,6 +793,7 @@ async function cargarConfig() {
   document.getElementById('cfg_banco').value = neg.banco || '';
   document.getElementById('cfg_cuenta').value = neg.numero_cuenta || '';
   document.getElementById('cfg_titular').value = neg.titular_cuenta || '';
+  document.getElementById('cfg_tipo_cuenta').value = neg.tipo_cuenta || 'Ahorros';
   document.getElementById('cfg_tiempo').value = neg.tiempo_entrega || '';
   document.getElementById('cfg_bienvenida').value = neg.mensajes?.bienvenida || '';
   document.getElementById('cfg_devoluciones').value = neg.politica_devoluciones || '';
@@ -713,11 +802,70 @@ async function cargarConfig() {
   document.getElementById('cfg_banner').value = neg.banner || '';
   document.getElementById('cfg_costo_delivery').value = neg.costo_delivery || '';
   document.getElementById('cfg_pedido_minimo').value = neg.pedido_minimo || '';
+  document.getElementById('cfg_direccion').value = neg.direccion || '';
+  document.getElementById('cfg_zonas').value = neg.zonas_delivery || '';
+  document.getElementById('cfg_instagram').value = neg.instagram || '';
+  document.getElementById('cfg_facebook').value = neg.facebook || '';
+  // Métodos de pago
+  const metodos = neg.metodos_pago || ['transferencia'];
+  document.getElementById('pago_transferencia').checked = metodos.includes('transferencia');
+  document.getElementById('pago_efectivo').checked = metodos.includes('efectivo');
+  document.getElementById('pago_tarjeta').checked = metodos.includes('tarjeta');
+  document.getElementById('pago_qr').checked = metodos.includes('qr');
+  // Previsualización imágenes
   if (neg.logo) document.getElementById('logoPreview').innerHTML = `<img src="${neg.logo}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #ddd;margin-top:4px;">`;
   if (neg.banner) document.getElementById('bannerPreview').innerHTML = `<img src="${neg.banner}" style="width:100%;max-height:100px;object-fit:cover;border-radius:8px;border:1px solid #ddd;margin-top:4px;">`;
+  // Vacaciones
   const toggle = document.getElementById('toggleVacaciones');
   toggle.classList.toggle('on', neg.modo_vacaciones);
   document.getElementById('vacacionesLabel').textContent = neg.modo_vacaciones ? 'Activado — El bot responde que está de vacaciones' : 'Desactivado';
+  // Horarios
+  renderHorarios(neg.horarios || {});
+}
+
+const DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+function renderHorarios(horarios) {
+  document.getElementById('horariosContainer').innerHTML = DIAS.map(dia => {
+    const h = horarios[dia] || {};
+    const abierto = h.abierto !== false && (h.desde || h.hasta);
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="width:90px;font-weight:600;font-size:13px;">${dia}</div>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="h_open_${dia}" ${abierto?'checked':''} onchange="toggleDia('${dia}')" style="accent-color:var(--accent);width:15px;height:15px;"> Abierto
+      </label>
+      <div id="h_horas_${dia}" style="display:${abierto?'flex':'none'};align-items:center;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--text2);">Desde</span>
+          <input type="time" id="h_desde_${dia}" value="${h.desde||'08:00'}" style="width:110px;font-size:13px;padding:4px 8px;">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--text2);">Hasta</span>
+          <input type="time" id="h_hasta_${dia}" value="${h.hasta||'18:00'}" style="width:110px;font-size:13px;padding:4px 8px;">
+        </div>
+      </div>
+      <div id="h_cerrado_${dia}" style="display:${abierto?'none':'block'};font-size:12px;color:var(--text2);">Cerrado</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDia(dia) {
+  const abierto = document.getElementById('h_open_' + dia).checked;
+  document.getElementById('h_horas_' + dia).style.display = abierto ? 'flex' : 'none';
+  document.getElementById('h_cerrado_' + dia).style.display = abierto ? 'none' : 'block';
+}
+
+function obtenerHorarios() {
+  const horarios = {};
+  DIAS.forEach(dia => {
+    const abierto = document.getElementById('h_open_' + dia)?.checked;
+    horarios[dia] = {
+      abierto: !!abierto,
+      desde: abierto ? (document.getElementById('h_desde_' + dia)?.value || '08:00') : '',
+      hasta: abierto ? (document.getElementById('h_hasta_' + dia)?.value || '18:00') : '',
+    };
+  });
+  return horarios;
 }
 
 function toggleVacaciones() {
@@ -729,6 +877,11 @@ function toggleVacaciones() {
 
 async function guardarConfig() {
   const toggle = document.getElementById('toggleVacaciones');
+  const metodos = [];
+  if (document.getElementById('pago_transferencia').checked) metodos.push('transferencia');
+  if (document.getElementById('pago_efectivo').checked) metodos.push('efectivo');
+  if (document.getElementById('pago_tarjeta').checked) metodos.push('tarjeta');
+  if (document.getElementById('pago_qr').checked) metodos.push('qr');
   const data = {
     nombre: document.getElementById('cfg_nombre').value,
     tipo: document.getElementById('cfg_tipo').value,
@@ -737,6 +890,7 @@ async function guardarConfig() {
     banco: document.getElementById('cfg_banco').value,
     numero_cuenta: document.getElementById('cfg_cuenta').value,
     titular_cuenta: document.getElementById('cfg_titular').value,
+    tipo_cuenta: document.getElementById('cfg_tipo_cuenta').value,
     tiempo_entrega: document.getElementById('cfg_tiempo').value,
     politica_devoluciones: document.getElementById('cfg_devoluciones').value,
     modo_vacaciones: toggle.classList.contains('on'),
@@ -746,11 +900,18 @@ async function guardarConfig() {
     banner: document.getElementById('cfg_banner').value.trim(),
     costo_delivery: document.getElementById('cfg_costo_delivery').value.trim(),
     pedido_minimo: parseFloat(document.getElementById('cfg_pedido_minimo').value) || null,
+    direccion: document.getElementById('cfg_direccion').value.trim(),
+    zonas_delivery: document.getElementById('cfg_zonas').value.trim(),
+    instagram: document.getElementById('cfg_instagram').value.trim(),
+    facebook: document.getElementById('cfg_facebook').value.trim(),
+    metodos_pago: metodos,
+    horarios: obtenerHorarios(),
   };
   await api(`/panel/${SLUG}/negocio`, { method: 'PUT', body: JSON.stringify(data) });
   const al = document.getElementById('configAlert');
-  al.textContent = '✓ Configuración guardada'; al.className = 'alert success'; al.style.display = 'block';
+  al.textContent = '✓ Configuración guardada correctamente'; al.className = 'alert success'; al.style.display = 'block';
   setTimeout(() => al.style.display = 'none', 3000);
+  negocioData = { ...negocioData, ...data };
 }
 async function subirImagen(input) {
   const file = input.files[0];
