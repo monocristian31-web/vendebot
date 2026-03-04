@@ -1243,8 +1243,8 @@ async function guardarProducto() {
     const idx = neg.catalogo.findIndex(p => p.id == idExistente);
     if (idx >= 0) neg.catalogo[idx] = { ...neg.catalogo[idx], ...producto };
   } else {
-    const maxId = Math.max(0, ...neg.catalogo.map(p => p.id || 0));
-    neg.catalogo.push({ id: maxId + 1, ...producto });
+    const nuevoId = 'prod_' + Date.now();
+    neg.catalogo.push({ id: nuevoId, ...producto });
   }
   await api('/panel/' + SLUG + '/negocio', { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
   document.getElementById('formProducto').style.display = 'none';
