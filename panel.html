@@ -190,6 +190,23 @@ tr:hover td{background:var(--surface2);}
     <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">Permite que el cliente personalice el producto (extras, ingredientes, variantes, tamaños, etc.)</div>
     <div id="modificadoresContainer"></div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="agregarGrupoModificador()" style="margin-bottom:12px;">+ Agregar grupo de opciones</button>
+
+    <div id="bloqueMitadMitad" style="display:none;">
+    <div style="border:2px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:12px;background:#fffbeb;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin:0;font-size:14px;">
+          <input type="checkbox" id="p_mitad_mitad" style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;" onchange="toggleMitadMitad(this.checked)">
+          🍕 Permite personalización mitad y mitad
+        </label>
+      </div>
+      <div style="font-size:12px;color:#92400e;margin-bottom:10px;">El cliente podrá elegir ingredientes diferentes para cada mitad de la pizza (u otro producto).</div>
+      <div id="mitadMitadConfig" style="display:none;">
+        <label style="font-size:13px;font-weight:500;margin-bottom:4px;display:block;">Ingredientes disponibles para elegir <span style="color:#92400e;font-size:11px;">(uno por línea)</span></label>
+        <textarea id="p_ingredientes_mitad" rows="5" placeholder="Pepperoni&#10;Hawaiana&#10;Mozzarella&#10;Vegetariana&#10;BBQ Pollo&#10;Cuatro quesos" style="font-size:13px;line-height:1.6;"></textarea>
+        <div style="font-size:11px;color:#92400e;margin-top:4px;">El precio ya está fijado por tamaño — los ingredientes no alteran el costo.</div>
+      </div>
+    </div>
+    </div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-success" onclick="guardarProducto()">Guardar producto</button>
       <button class="btn btn-secondary" onclick="document.getElementById('formProducto').style.display='none'">Cancelar</button>
@@ -388,6 +405,15 @@ tr:hover td{background:var(--surface2);}
     <textarea id="cfg_bienvenida" rows="2" placeholder="Ej: ¡Hola! Bienvenido a nuestro negocio 😊"></textarea>
     <label>Política de devoluciones</label>
     <textarea id="cfg_devoluciones" rows="2" placeholder="Ej: No se aceptan devoluciones una vez preparado el pedido"></textarea>
+    <div style="border:2px solid #f59e0b;border-radius:12px;padding:14px;margin-top:14px;background:#fffbeb;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+        <input type="checkbox" id="cfg_tiene_mitad_mitad" style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;" onchange="actualizarVisibilidadMitadMitad()">
+        <div>
+          <div style="font-weight:600;font-size:14px;">🍕 Este negocio vende productos personalizables por mitades</div>
+          <div style="font-size:12px;color:#92400e;margin-top:2px;">Activa esto si vendes pizzas, arepas, o cualquier producto donde el cliente pueda elegir ingredientes por mitad.</div>
+        </div>
+      </label>
+    </div>
   </div>
 
   <!-- PAGOS -->
@@ -619,6 +645,7 @@ async function cargarCatalogo() {
 
 function mostrarFormProducto(producto = null) {
   document.getElementById('formProducto').style.display = 'block';
+  actualizarVisibilidadMitadMitad();
   document.getElementById('formProductoTitle').textContent = producto ? 'Editar producto' : 'Nuevo producto';
   document.getElementById('p_id').value = producto?.id || '';
   document.getElementById('p_nombre').value = producto?.nombre || '';
@@ -632,6 +659,11 @@ function mostrarFormProducto(producto = null) {
   document.getElementById('p_imagen_status').textContent = producto?.imagen ? 'Foto actual cargada' : 'Sin foto seleccionada';
   document.getElementById('p_destacado').checked = producto?.destacado || false;
   document.getElementById('p_activo').checked = producto?.activo !== false;
+  // Cargar mitad y mitad
+  const mitadActivo = producto?.mitad_mitad || false;
+  document.getElementById('p_mitad_mitad').checked = mitadActivo;
+  document.getElementById('mitadMitadConfig').style.display = mitadActivo ? 'block' : 'none';
+  document.getElementById('p_ingredientes_mitad').value = (producto?.ingredientes_mitad || []).join('\n');
   // Cargar modificadores del producto
   modificadoresTemp = producto?.modificadores ? JSON.parse(JSON.stringify(producto.modificadores)) : [];
   renderModificadores();
@@ -797,6 +829,8 @@ async function cargarConfig() {
   document.getElementById('cfg_tiempo').value = neg.tiempo_entrega || '';
   document.getElementById('cfg_bienvenida').value = neg.mensajes?.bienvenida || '';
   document.getElementById('cfg_devoluciones').value = neg.politica_devoluciones || '';
+  document.getElementById('cfg_tiene_mitad_mitad').checked = neg.tiene_mitad_mitad || false;
+  actualizarVisibilidadMitadMitad();
   document.getElementById('cfg_vacaciones').value = neg.mensaje_vacaciones || '';
   document.getElementById('cfg_logo').value = neg.logo || '';
   document.getElementById('cfg_banner').value = neg.banner || '';
@@ -893,6 +927,7 @@ async function guardarConfig() {
     tipo_cuenta: document.getElementById('cfg_tipo_cuenta').value,
     tiempo_entrega: document.getElementById('cfg_tiempo').value,
     politica_devoluciones: document.getElementById('cfg_devoluciones').value,
+    tiene_mitad_mitad: document.getElementById('cfg_tiene_mitad_mitad').checked,
     modo_vacaciones: toggle.classList.contains('on'),
     mensaje_vacaciones: document.getElementById('cfg_vacaciones').value,
     mensajes: { bienvenida: document.getElementById('cfg_bienvenida').value, tono: 'amigable' },
@@ -1129,10 +1164,24 @@ function renderModificadores() {
   `).join('');
 }
 
+function actualizarVisibilidadMitadMitad() {
+  const habilitado = document.getElementById('cfg_tiene_mitad_mitad')?.checked || false;
+  const bloque = document.getElementById('bloqueMitadMitad');
+  if (bloque) bloque.style.display = habilitado ? 'block' : 'none';
+}
+
+function toggleMitadMitad(checked) {
+  document.getElementById('mitadMitadConfig').style.display = checked ? 'block' : 'none';
+}
+
 async function guardarProducto() {
   const nombre = document.getElementById('p_nombre').value.trim();
   const precio = parseFloat(document.getElementById('p_precio').value);
   if (!nombre || isNaN(precio)) { alert('Nombre y precio son obligatorios'); return; }
+  const mitadMitad = document.getElementById('p_mitad_mitad').checked;
+  const ingredientesMitad = mitadMitad
+    ? document.getElementById('p_ingredientes_mitad').value.split('\n').map(s => s.trim()).filter(Boolean)
+    : [];
   const producto = {
     nombre, precio,
     emoji: document.getElementById('p_emoji').value.trim(),
@@ -1142,6 +1191,8 @@ async function guardarProducto() {
     destacado: document.getElementById('p_destacado').checked,
     activo: document.getElementById('p_activo').checked,
     modificadores: modificadoresTemp.filter(g => g.nombre && g.opciones.length > 0),
+    mitad_mitad: mitadMitad,
+    ingredientes_mitad: ingredientesMitad,
   };
   const stockVal = document.getElementById('p_stock').value;
   if (stockVal !== '') producto.stock = parseInt(stockVal);

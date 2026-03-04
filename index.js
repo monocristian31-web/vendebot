@@ -357,7 +357,11 @@ async function enviarResumenPedido(numero, conv) {
   const p = conv.pedido;
   if (!p.items?.length) return;
   let resumen = 'Tu pedido:\n\n';
-  for (const item of p.items) resumen += `${item.emoji || ''} ${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+  for (const item of p.items) {
+    resumen += `${item.emoji || ''} ${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+    if (item.mitad1) resumen += `   🍕 Mitad 1: ${item.mitad1}\n`;
+    if (item.mitad2) resumen += `   🍕 Mitad 2: ${item.mitad2}\n`;
+  }
   resumen += `\nSubtotal: $${p.subtotal.toFixed(2)}`;
   if (p.descuento > 0) resumen += `\nDescuento: -$${p.descuento.toFixed(2)}`;
   if (p.costo_delivery) resumen += `\nDelivery: $${p.costo_delivery.toFixed(2)}`;
@@ -378,7 +382,12 @@ function generarMensajePago(conv, negocio) {
 
 async function notificarDueno(conv, negocio) {
   const p = conv.pedido;
-  const items = p.items?.map(i => `  - ${i.nombre} x${i.cantidad} = $${(i.precio * i.cantidad).toFixed(2)}`).join('\n') || '';
+  const items = p.items?.map(i => {
+    let linea = `  - ${i.nombre} x${i.cantidad} = $${(i.precio * i.cantidad).toFixed(2)}`;
+    if (i.mitad1) linea += `\n     Mitad 1: ${i.mitad1}`;
+    if (i.mitad2) linea += `\n     Mitad 2: ${i.mitad2}`;
+    return linea;
+  }).join('\n') || '';
   const msg = `NUEVO PEDIDO - ${negocio.nombre}\n\nCliente: ${p.nombre_cliente || conv.numero}\nWhatsApp: ${conv.numero}\n\nDetalle:\n${items}\n${p.descuento > 0 ? `Descuento: -$${p.descuento.toFixed(2)}\n` : ''}Total: $${p.total?.toFixed(2) || '0.00'}\n${p.es_domicilio ? `Direccion: ${p.direccion}` : 'Retira en tienda'}${p.fecha_entrega ? `\nEntrega: ${p.fecha_entrega} ${p.hora_entrega || ''}` : ''}${p.notas ? `\nNotas: ${p.notas}` : ''}\nPago: ${p.metodo_pago === 'efectivo' ? 'Efectivo' : 'Transferencia verificada'}`;
   await enviarMensaje(negocio.whatsapp_dueno, msg);
 }
@@ -467,6 +476,7 @@ REGLAS:
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
 15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
+16. Si el pedido incluye una pizza con mitad y mitad, en el resumen siempre muestra claramente "Mitad 1: [ingrediente]" y "Mitad 2: [ingrediente]" para que el cliente confirme que está correcto.
 
 Al FINAL escribe:
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
@@ -817,15 +827,28 @@ app.post('/webhook', async (req, res) => {
       // Parsear las líneas del pedido para armar conv.pedido.items
       const lineas = texto.split('\n');
       const items = [];
+      let itemActual = null;
       lineas.forEach(l => {
         const match = l.match(/^•\s+(.+?)\s+x(\d+)\s+—\s+\$[\d.]+/);
         if (match) {
+          if (itemActual) items.push(itemActual);
           const nombre = match[1].trim();
           const cantidad = parseInt(match[2]);
           const prod = negocio.catalogo.find(p => p.nombre === nombre);
-          if (prod) items.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad, emoji: prod.emoji || '📦' });
+          if (prod) {
+            itemActual = { id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad, emoji: prod.emoji || '📦', notas_item: '' };
+          } else {
+            itemActual = null;
+          }
+        } else if (itemActual) {
+          // Capturar líneas de modificadores (incluyendo mitades)
+          const mitad1 = l.match(/Mitad 1:\s*(.+)/i);
+          const mitad2 = l.match(/Mitad 2:\s*(.+)/i);
+          if (mitad1) itemActual.mitad1 = mitad1[1].trim();
+          if (mitad2) itemActual.mitad2 = mitad2[1].trim();
         }
       });
+      if (itemActual) items.push(itemActual);
       if (items.length > 0) {
         conv.pedido.items = items;
         conv.pedido.subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);

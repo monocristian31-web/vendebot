@@ -177,6 +177,27 @@ body { font-family:var(--font); background:var(--bg); color:var(--black); min-he
 .sh-price small { font-size:12px; color:var(--g400); font-weight:400; margin-left:4px; }
 .divider { height:1px; background:var(--g100); margin:18px 0; }
 
+/* MITAD Y MITAD */
+.mm-section { padding:0 4px; }
+.mm-title { font-size:15px; font-weight:700; margin-bottom:2px; }
+.mm-sub { font-size:12px; color:var(--g400); margin-bottom:14px; }
+.mm-visual { display:flex; justify-content:center; margin-bottom:18px; }
+.mm-pizza { position:relative; width:110px; height:110px; border-radius:50%; background:#fff3e0; border:3px solid #f59e0b; overflow:hidden; box-shadow:0 4px 16px rgba(245,158,11,0.2); }
+.mm-half { position:absolute; top:0; width:50%; height:100%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#92400e; text-align:center; padding:4px; line-height:1.2; word-break:break-word; transition:background 0.2s; }
+.mm-left { left:0; background:#fef3c7; border-right:2px dashed #f59e0b; }
+.mm-right { right:0; background:#fde68a; }
+.mm-line { position:absolute; left:50%; top:0; width:2px; height:100%; background:#f59e0b; transform:translateX(-50%); pointer-events:none; }
+.mm-block { margin-bottom:16px; }
+.mm-block-title { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:8px; }
+.mm-badge { width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+.mm-badge-1 { background:#fef3c7; color:#92400e; border:2px solid #f59e0b; }
+.mm-badge-2 { background:#fde68a; color:#92400e; border:2px solid #f59e0b; }
+.mm-side-label { font-size:10px; color:var(--g400); font-weight:400; }
+.mm-opts { display:flex; flex-wrap:wrap; gap:7px; }
+.mm-opt { padding:7px 13px; border-radius:var(--r-full); border:1.5px solid var(--g200); font-size:13px; font-weight:500; cursor:pointer; transition:var(--ease); background:#fff; }
+.mm-opt:hover { border-color:#f59e0b; background:#fffbeb; }
+.mm-opt.sel { border-color:#f59e0b; background:#fef3c7; color:#92400e; font-weight:700; }
+
 /* MODIFICADORES */
 .mod-group { margin-bottom:20px; }
 .mod-head { margin-bottom:10px; }
@@ -327,6 +348,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--black); min-he
 const SLUG = window.location.pathname.split('/')[2];
 const BASE = window.location.origin;
 let neg = null, cart = [], prod = null, sels = {}, qty = 1, notas = '', searchOpen = false;
+let mitadSels = { 1: null, 2: null }; // ingredientes seleccionados por mitad
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
@@ -536,7 +558,7 @@ function irACat(cat, btn) {
 function abrirProd(id) {
   prod = neg.catalogo.find(x => x.id === id);
   if (!prod) return;
-  sels = {}; qty = 1;
+  sels = {}; qty = 1; mitadSels = { 1: null, 2: null };
   (prod.modificadores || []).forEach((g, i) => { sels[i] = g.tipo === 'unico' ? null : []; });
   renderSheet();
   document.getElementById('prodOverlay').classList.add('open');
@@ -557,6 +579,27 @@ function renderSheet() {
   html += '<div class="sh-name">' + p.nombre + '</div>';
   if (p.descripcion) html += '<div class="sh-desc">' + p.descripcion + '</div>';
   html += '<div class="sh-price" id="shPrice">$' + p.precio.toFixed(2) + '<small>por unidad</small></div>';
+
+  // ── MITAD Y MITAD ──
+  if (p.mitad_mitad && p.ingredientes_mitad?.length) {
+    html += '<div class="divider"></div>';
+    html += '<div class="mm-section">';
+    html += '<div class="mm-title">🍕 Personaliza tu pizza</div>';
+    html += '<div class="mm-sub">Elige los ingredientes de cada mitad</div>';
+    html += '<div class="mm-visual"><div class="mm-pizza"><div class="mm-half mm-left" id="mmVisL">½</div><div class="mm-half mm-right" id="mmVisR">½</div><div class="mm-line"></div></div></div>';
+    [1, 2].forEach(mitad => {
+      html += '<div class="mm-block">';
+      html += '<div class="mm-block-title"><span class="mm-badge mm-badge-' + mitad + '">' + mitad + '</span> Mitad ' + mitad + (mitad === 1 ? ' <span class="mm-side-label">← izquierda</span>' : ' <span class="mm-side-label">derecha →</span>') + '</div>';
+      html += '<div class="mm-opts" id="mmOpts' + mitad + '">';
+      p.ingredientes_mitad.forEach((ing, idx) => {
+        html += '<div class="mm-opt" id="mm-' + mitad + '-' + idx + '" onclick="selMitad(' + mitad + ',' + idx + ',\'' + ing.replace(/'/g,"\\'"  ) + '\')">' + ing + '</div>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+    html += '<div class="divider"></div>';
+  }
+
   if (mods.length) html += '<div class="divider"></div>';
   mods.forEach((g, gi) => {
     html += '<div class="mod-group">';
@@ -628,7 +671,24 @@ function cambiarQty(d) {
   actualizarPrecioSheet();
 }
 
+function selMitad(mitad, idx, nombre) {
+  mitadSels[mitad] = { idx, nombre };
+  // limpiar selección anterior de esa mitad
+  document.querySelectorAll('#mmOpts' + mitad + ' .mm-opt').forEach(el => el.classList.remove('sel'));
+  document.getElementById('mm-' + mitad + '-' + idx)?.classList.add('sel');
+  // actualizar visual de la pizza
+  const visL = document.getElementById('mmVisL');
+  const visR = document.getElementById('mmVisR');
+  if (visL && mitad === 1) visL.textContent = mitadSels[1]?.nombre?.split(' ')[0] || '½';
+  if (visR && mitad === 2) visR.textContent = mitadSels[2]?.nombre?.split(' ')[0] || '½';
+}
+
 function agregarAlCarrito() {
+  // Validar mitad y mitad si aplica
+  if (prod.mitad_mitad && prod.ingredientes_mitad?.length) {
+    if (!mitadSels[1]) { toast('Elige el ingrediente para la Mitad 1 🍕'); return; }
+    if (!mitadSels[2]) { toast('Elige el ingrediente para la Mitad 2 🍕'); return; }
+  }
   const mods = prod.modificadores || [];
   for (let gi = 0; gi < mods.length; gi++) {
     const g = mods[gi];
@@ -638,12 +698,16 @@ function agregarAlCarrito() {
   }
   const extra = calcExtra();
   const modsGuardados = [];
+  // Agregar mitades como primer modificador si aplica
+  if (prod.mitad_mitad && mitadSels[1] && mitadSels[2]) {
+    modsGuardados.push({ grupo: '🍕 Mitades', opciones: ['Mitad 1: ' + mitadSels[1].nombre, 'Mitad 2: ' + mitadSels[2].nombre], esMitad: true });
+  }
   mods.forEach((g, gi) => {
     const s = sels[gi];
     const ops = g.tipo === 'unico' && s != null ? [g.opciones[s].nombre] : Array.isArray(s) ? s.map(oi => g.opciones[oi].nombre) : [];
     if (ops.length) modsGuardados.push({ grupo: g.nombre, opciones: ops });
   });
-  cart.push({ uid: Date.now() + Math.random(), id: prod.id, nombre: prod.nombre, precio: prod.precio + extra, emoji: prod.emoji||'📦', imagen: prod.imagen||'', cantidad: qty, modificadores: modsGuardados });
+  cart.push({ uid: Date.now() + Math.random(), id: prod.id, nombre: prod.nombre, precio: prod.precio + extra, emoji: prod.emoji||'🍕', imagen: prod.imagen||'', cantidad: qty, modificadores: modsGuardados });
   cerrarProd(); actualizarFab();
   renderCatalogo(document.getElementById('si')?.value?.toLowerCase().trim() || '');
   toast('✓ ' + prod.nombre + ' agregado');
