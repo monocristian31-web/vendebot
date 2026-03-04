@@ -1591,4 +1591,32 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
+app.get('/privacidad', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Política de Privacidad - VendeBot</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}</style>
+</head>
+<body>
+<h1>Política de Privacidad</h1>
+<p><strong>Última actualización:</strong> Marzo 2025</p>
+
+<h2>1. Información que recopilamos</h2>
+<p>VendeBot recopila números de teléfono de WhatsApp y mensajes enviados por los usuarios con el único fin de procesar pedidos a través de negocios registrados en nuestra plataforma.</p>
+
+<h2>2. Uso de la información</h2>
+<p>La información recopilada se usa exclusivamente para: procesar pedidos, notificar al negocio correspondiente y mejorar la experiencia del usuario.</p>
+
+<h2>3. Compartir información</h2>
+<p>No vendemos ni compartimos datos personales con terceros. Los datos del pedido son compartidos únicamente con el negocio al que el usuario escribió.</p>
+
+<h2>4. Retención de datos</h2>
+<p>Los datos de conversación se almacenan temporalmente durante la sesión activa y no se guardan de forma permanente.</p>
+
+<h2>5. Contacto</h2>
+<p>Para cualquier consulta sobre privacidad escríbenos a: vendebot@contacto.com</p>
+</body>
+</html>`);
+});
+
 app.listen(PORT, () => console.log(`VendeBot v10.0 iniciado en puerto ${PORT}`));
