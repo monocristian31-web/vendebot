@@ -1048,7 +1048,11 @@ app.put('/admin/negocios/:id', (req, res) => {
   guardarNegociosSync(negocios);
   res.json({ ok: true });
 });
-app.delete('/admin/negocios/:id', (req, res) => { guardarJSON('./negocios.json', cargarNegocios().filter(n => n.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/negocios/:id', (req, res) => {
+  const negocios = cargarNegocios().filter(n => n.id !== req.params.id);
+  guardarNegociosSync(negocios);
+  res.json({ ok: true });
+});
 app.put('/admin/negocios/:id/vacaciones', (req, res) => {
   const negocios = cargarNegocios();
   const idx = negocios.findIndex(n => n.id === req.params.id);
@@ -1068,7 +1072,12 @@ app.post('/admin/cupones', (req, res) => {
   (function(){guardarJSON('./cupones.json',cupones);dbSet('cupones',cupones).catch(()=>{});})();
   res.json({ ok: true, cupon: nuevo });
 });
-app.delete('/admin/cupones/:id', (req, res) => { (function(){guardarJSON('./cupones.json',cargarCupones();dbSet('cupones',cargarCupones().catch(()=>{});})().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/cupones/:id', (req, res) => {
+  const cupones = cargarCupones().filter(c => c.id !== req.params.id);
+  guardarJSON('./cupones.json', cupones);
+  dbSet('cupones', cupones).catch(() => {});
+  res.json({ ok: true });
+});
 app.get('/admin/referidos', (req, res) => res.json(cargarReferidos()));
 app.get('/admin/repartidores', (req, res) => res.json(cargarRepartidores()));
 app.post('/admin/repartidores', (req, res) => {
@@ -1085,7 +1094,12 @@ app.post('/admin/promociones', (req, res) => {
   (function(){guardarJSON('./promociones.json',promos);dbSet('promociones',promos).catch(()=>{});})();
   res.json({ ok: true });
 });
-app.delete('/admin/promociones/:id', (req, res) => { (function(){guardarJSON('./promociones.json',cargarPromociones();dbSet('promociones',cargarPromociones().catch(()=>{});})().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/promociones/:id', (req, res) => {
+  const promos = cargarPromociones().filter(p => p.id !== req.params.id);
+  guardarJSON('./promociones.json', promos);
+  dbSet('promociones', promos).catch(() => {});
+  res.json({ ok: true });
+});
 
 // Envío masivo
 app.post('/admin/masivo', async (req, res) => {
@@ -1233,7 +1247,9 @@ app.post('/panel/:slug/promociones', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => {
-  (function(){guardarJSON('./promociones.json',cargarPromociones();dbSet('promociones',cargarPromociones().catch(()=>{});})().filter(p => p.id !== req.params.id));
+  const promos2 = cargarPromociones().filter(p => p.id !== req.params.id);
+  guardarJSON('./promociones.json', promos2);
+  dbSet('promociones', promos2).catch(() => {});
   res.json({ ok: true });
 });
 app.get('/panel/:slug/cupones', authPanel, (req, res) => res.json(cargarCupones()));
@@ -1244,7 +1260,9 @@ app.post('/panel/:slug/cupones', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => {
-  (function(){guardarJSON('./cupones.json',cargarCupones();dbSet('cupones',cargarCupones().catch(()=>{});})().filter(c => c.id !== req.params.id));
+  const cupones2 = cargarCupones().filter(c => c.id !== req.params.id);
+  guardarJSON('./cupones.json', cupones2);
+  dbSet('cupones', cupones2).catch(() => {});
   res.json({ ok: true });
 });
 app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
@@ -1258,7 +1276,9 @@ app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
-  (function(){guardarJSON('./repartidores.json',cargarRepartidores();dbSet('repartidores',cargarRepartidores().catch(()=>{});})().filter(r => r.id !== req.params.id));
+  const reps2 = cargarRepartidores().filter(r => r.id !== req.params.id);
+  guardarJSON('./repartidores.json', reps2);
+  dbSet('repartidores', reps2).catch(() => {});
   res.json({ ok: true });
 });
 app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
