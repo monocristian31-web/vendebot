@@ -3,292 +3,414 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VendeBot — Admin Master</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<title>VendeBot — Admin</title>
 <style>
-:root{--bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:#2a2a3a;--accent:#00ff88;--accent2:#7c3aed;--accent3:#f59e0b;--text:#e8e8f0;--text2:#888899;--red:#ff4466;--blue:#3b82f6;}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
-header{padding:20px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:100;}
-.logo{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--accent);}
-.logo span{color:var(--accent2);}
-main{padding:32px;max-width:1200px;margin:0 auto;}
-.section-title{font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;margin-top:32px;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-@media(max-width:768px){.grid2{grid-template-columns:1fr;}}
-.btn{padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;transition:all 0.2s;}
-.btn-primary{background:var(--accent);color:#000;}
-.btn-primary:hover{opacity:0.85;}
-.btn-danger{background:rgba(255,68,102,0.15);color:var(--red);border:1px solid var(--red);}
-.btn-secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
-.btn-sm{padding:6px 12px;font-size:12px;}
-input,select,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:10px;}
-input:focus,select:focus,textarea:focus{border-color:var(--accent2);}
-label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px;}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-@media(max-width:600px){.form-row{grid-template-columns:1fr;}}
-table{width:100%;border-collapse:collapse;}
-th{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
-td{padding:10px 12px;font-size:14px;border-bottom:1px solid var(--border);}
-tr:last-child td{border-bottom:none;}
-tr:hover td{background:var(--surface2);}
-.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;}
-.badge.green{background:rgba(0,255,136,0.15);color:var(--accent);}
-.badge.red{background:rgba(255,68,102,0.15);color:var(--red);}
-.badge.blue{background:rgba(59,130,246,0.15);color:var(--blue);}
-.alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px;display:none;}
-.alert.success{background:rgba(0,255,136,0.1);color:var(--accent);border:1px solid rgba(0,255,136,0.3);}
-.alert.error{background:rgba(255,68,102,0.1);color:var(--red);border:1px solid rgba(255,68,102,0.3);}
-.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:380px;}
-.login-title{font-family:'Space Mono',monospace;font-size:22px;color:var(--accent);margin-bottom:8px;}
-.login-sub{color:var(--text2);font-size:14px;margin-bottom:28px;}
-.tab-bar{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:24px;}
-.tab{flex:1;padding:8px;text-align:center;border-radius:7px;cursor:pointer;font-size:14px;color:var(--text2);transition:all 0.2s;}
-.tab.active{background:var(--surface);color:var(--text);font-weight:500;}
-.panel{display:none;}.panel.active{display:block;}
-.url-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-family:'Space Mono',monospace;font-size:12px;color:var(--accent);word-break:break-all;margin-top:8px;}
-.stats-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
-@media(max-width:600px){.stats-mini{grid-template-columns:repeat(2,1fr);}}
-.stat-mini{background:var(--surface2);border-radius:10px;padding:14px;text-align:center;}
-.stat-mini-val{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--accent);}
-.stat-mini-label{font-size:11px;color:var(--text2);margin-top:4px;}
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: #2a2a38;
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #f1f0ff;
+    --text2: #8b8aa8;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --r: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+  /* ── LOGIN ── */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 0%, #1e0a4a 0%, var(--bg) 70%);
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 48px 40px; width: 100%; max-width: 380px; text-align: center;
+    box-shadow: 0 0 80px rgba(124,58,237,0.15);
+  }
+  .login-logo { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent2); margin-bottom: 6px; }
+  .login-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
+  .login-box input {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--r);
+    color: var(--text); font-family: var(--mono); font-size: 14px; padding: 14px 16px;
+    outline: none; margin-bottom: 14px; transition: border-color .2s;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box button {
+    width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--r);
+    font-family: var(--sans); font-size: 15px; font-weight: 600; padding: 14px;
+    cursor: pointer; transition: opacity .2s;
+  }
+  .login-box button:hover { opacity: .85; }
+  .login-error { color: var(--red); font-size: 13px; margin-top: 10px; }
+
+  /* ── APP ── */
+  #app { display: none; }
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 24px; height: 58px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--accent2); }
+  .topbar-badge { font-size: 11px; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 20px; margin-left: 10px; font-weight: 600; }
+  .logout-btn { font-size: 13px; color: var(--text2); cursor: pointer; border: 1px solid var(--border); padding: 6px 14px; border-radius: 8px; font-family: var(--sans); background: transparent; transition: all .2s; }
+  .logout-btn:hover { color: var(--text); border-color: var(--text2); }
+
+  .main { max-width: 1000px; margin: 0 auto; padding: 32px 20px; }
+  .page-title { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent2); margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
+
+  /* ── STATS ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
+  .stat-val { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent2); }
+  .stat-lbl { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* ── FORM NUEVO NEGOCIO ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; margin-bottom: 24px; }
+  .card-title { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--accent2); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-full { grid-column: 1 / -1; }
+  label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  input, select {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--sans); font-size: 14px; padding: 10px 14px; outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface); }
+  .hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  .btn { border: none; border-radius: 8px; font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 11px 22px; cursor: pointer; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6d28d9; }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); font-size: 12px; padding: 6px 12px; }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+  /* ── LISTA NEGOCIOS ── */
+  .neg-grid { display: flex; flex-direction: column; gap: 12px; }
+  .neg-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color .2s;
+  }
+  .neg-card:hover { border-color: var(--accent); }
+  .neg-emoji { width: 44px; height: 44px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .neg-info { flex: 1; min-width: 0; }
+  .neg-name { font-weight: 700; font-size: 15px; }
+  .neg-slug { font-family: var(--mono); font-size: 11px; color: var(--accent2); margin-top: 2px; }
+  .neg-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .neg-phone { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+  .badge-on { background: rgba(16,185,129,.15); color: var(--green); }
+  .badge-off { background: rgba(239,68,68,.1); color: var(--red); }
+  .badge-bot-on { background: rgba(124,58,237,.15); color: var(--accent2); }
+  .badge-bot-off { background: rgba(239,68,68,.08); color: var(--red); }
+  .neg-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  /* toggle switch */
+  .sw { position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; flex-shrink: 0; }
+  .sw input { opacity: 0; width: 0; height: 0; }
+  .sw-track { position: absolute; inset: 0; border-radius: 34px; background: #2a2a38; transition: .3s; }
+  .sw input:checked + .sw-track { background: var(--green); }
+  .sw-knob { position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .3s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .sw input:checked ~ .sw-knob { transform: translateX(20px); }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 500; transition: transform .3s; z-index: 9999; pointer-events: none; }
+  #toast.on { transform: translateX(-50%) translateY(0); }
+
+  /* ── EMPTY ── */
+  .empty { text-align: center; padding: 48px 20px; color: var(--text2); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  @media (max-width: 600px) {
+    .form-grid, .form-grid.three, .stats-row { grid-template-columns: 1fr; }
+    .neg-card { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
 
 <!-- LOGIN -->
-<div class="login-wrap" id="loginWrap">
-  <div class="login-card">
-    <div class="login-title">VendeBot</div>
-    <div class="login-sub">Panel de Administración Master</div>
-    <div class="alert" id="loginAlert"></div>
-    <label>Contraseña de administrador</label>
-    <input type="password" id="adminPass" placeholder="Ingresa la contraseña" onkeydown="if(event.key==='Enter')login()">
-    <br>
-    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="login()">Entrar</button>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🤖 VendeBot</div>
+    <div class="login-sub">Panel de administración</div>
+    <input type="password" id="loginPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
-<!-- PANEL PRINCIPAL -->
-<div id="mainPanel" style="display:none;">
-<header>
-  <div class="logo">VendeBot <span>Admin Master</span></div>
-  <div style="display:flex;gap:12px;">
-    <button class="btn btn-secondary btn-sm" onclick="cargarTodo()">↻ Actualizar</button>
-    <button class="btn btn-danger btn-sm" onclick="logout()">Salir</button>
-  </div>
-</header>
-
-<main>
-  <!-- TABS -->
-  <div class="tab-bar">
-    <div class="tab active" onclick="switchTab('negocios')">🏪 Negocios</div>
-    <div class="tab" onclick="switchTab('stats')">📊 Estadísticas</div>
-    <div class="tab" onclick="switchTab('crear')">➕ Crear cliente</div>
-  </div>
-
-  <!-- TAB: STATS GLOBALES -->
-  <div class="panel" id="tab-stats">
-    <div class="section-title">Estadísticas globales</div>
-    <div class="stats-mini" id="statsGlobal"></div>
-    <div class="card">
-      <div style="font-size:14px;font-weight:500;margin-bottom:16px;">Todos los negocios</div>
-      <div id="statsNegocios"></div>
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;">
+      <span class="topbar-logo">🤖 VendeBot</span>
+      <span class="topbar-badge">ADMIN</span>
     </div>
+    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
   </div>
 
-  <!-- TAB: NEGOCIOS -->
-  <div class="panel active" id="tab-negocios">
-    <div class="section-title">Clientes registrados</div>
-    <div id="negociosList"></div>
-  </div>
+  <div class="main">
+    <div class="page-title">Panel de control</div>
+    <div class="page-sub">Gestiona todos los negocios de tu SaaS</div>
 
-  <!-- TAB: CREAR CLIENTE -->
-  <div class="panel" id="tab-crear">
-    <div class="section-title">Registrar nuevo cliente</div>
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val" id="statTotal">—</div>
+        <div class="stat-lbl">Negocios registrados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statActivos">—</div>
+        <div class="stat-lbl">Negocios activos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="statBots">—</div>
+        <div class="stat-lbl">Bots encendidos</div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO NUEVO NEGOCIO -->
     <div class="card">
-      <div class="alert" id="crearAlert"></div>
-      <div class="form-row">
+      <div class="card-title">➕ Registrar nuevo negocio</div>
+      <div class="form-grid">
         <div>
           <label>Nombre del negocio *</label>
-          <input type="text" id="c_nombre" placeholder="Ej: Camiloshause">
+          <input type="text" id="f_nombre" placeholder="Ej: Asadero Don Carlos">
         </div>
         <div>
-          <label>Tipo de negocio *</label>
-          <input type="text" id="c_tipo" placeholder="Ej: floristería, restaurante">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>WhatsApp del dueño *</label>
-          <input type="text" id="c_whatsapp" placeholder="+593990000000">
+          <label>Slug (URL) *</label>
+          <input type="text" id="f_slug" placeholder="Ej: asaderodoncarlos" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')">
+          <div class="hint">Solo letras minúsculas y números, sin espacios</div>
         </div>
         <div>
-          <label>WhatsApp delivery</label>
-          <input type="text" id="c_delivery" placeholder="+593990000000">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>Banco</label>
-          <input type="text" id="c_banco" placeholder="Banco Pichincha">
+          <label>Tipo de negocio</label>
+          <input type="text" id="f_tipo" placeholder="Ej: Restaurante, Pizzería, Tienda">
         </div>
         <div>
-          <label>Número de cuenta</label>
-          <input type="text" id="c_cuenta" placeholder="2200123456789">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>Titular de la cuenta</label>
-          <input type="text" id="c_titular" placeholder="Nombre del titular">
+          <label>Emoji del negocio</label>
+          <input type="text" id="f_emoji" placeholder="🍗" maxlength="4">
         </div>
         <div>
           <label>Contraseña del panel *</label>
-          <input type="password" id="c_password" placeholder="Contraseña para el cliente">
+          <input type="text" id="f_password" placeholder="Contraseña que usará el dueño">
+        </div>
+        <div>
+          <label>WhatsApp del dueño *</label>
+          <input type="text" id="f_whatsapp_dueno" placeholder="593912345678">
+          <div class="hint">Con código de país, sin + ni espacios</div>
         </div>
       </div>
-      <label>Slug (URL del panel, sin espacios) *</label>
-      <input type="text" id="c_slug" placeholder="camiloshause">
-      <div class="url-box" id="urlPreview">URL: esperando slug...</div>
-      <br>
-      <button class="btn btn-primary" onclick="crearNegocio()">Crear cliente</button>
+
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+        <div class="card-title" style="margin-bottom:16px;">📱 Configuración WhatsApp Business</div>
+        <div class="form-grid">
+          <div>
+            <label>WhatsApp Phone Number ID *</label>
+            <input type="text" id="f_phone_id" placeholder="Ej: 123456789012345">
+            <div class="hint">Lo encuentras en Meta Business → WhatsApp → Configuración del número</div>
+          </div>
+          <div>
+            <label>Número de WhatsApp del negocio</label>
+            <input type="text" id="f_whatsapp_numero" placeholder="Ej: 593987654321">
+            <div class="hint">El número donde los clientes escriben</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary" onclick="crearNegocio()">✓ Registrar negocio</button>
+      </div>
+    </div>
+
+    <!-- LISTA NEGOCIOS -->
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;">
+        <span>📋 Negocios registrados</span>
+        <button class="btn btn-sm" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="cargarNegocios()">↻ Actualizar</button>
+      </div>
+      <div class="neg-grid" id="negGrid">
+        <div class="empty"><div class="empty-icon">⏳</div>Cargando...</div>
+      </div>
     </div>
   </div>
-</main>
 </div>
 
+<div id="toast"></div>
+
 <script>
-const BASE = window.location.origin;
-let TOKEN = localStorage.getItem('vb_admin_token') || '';
+const BASE = '';
+let TOKEN = sessionStorage.getItem('admin_token') || '';
 
-document.getElementById('c_slug').addEventListener('input', function() {
-  const slug = this.value.toLowerCase().replace(/\s/g,'-');
-  this.value = slug;
-  document.getElementById('urlPreview').textContent = `URL del panel: ${BASE}/panel/${slug}`;
-});
-
+// ── AUTH ──
 async function login() {
-  const pass = document.getElementById('adminPass').value;
-  const r = await fetch(BASE + '/auth/admin', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pass }) });
-  const data = await r.json();
+  const pass = document.getElementById('loginPass').value;
+  const res = await fetch('/auth/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
+  const data = await res.json();
   if (data.ok) {
     TOKEN = data.token;
-    localStorage.setItem('vb_admin_token', TOKEN);
-    document.getElementById('loginWrap').style.display = 'none';
-    document.getElementById('mainPanel').style.display = 'block';
-    cargarTodo();
+    sessionStorage.setItem('admin_token', TOKEN);
+    mostrarApp();
   } else {
-    const alert = document.getElementById('loginAlert');
-    alert.textContent = 'Contraseña incorrecta';
-    alert.className = 'alert error';
-    alert.style.display = 'block';
+    document.getElementById('loginError').textContent = 'Contraseña incorrecta';
   }
 }
 
 function logout() {
-  localStorage.removeItem('vb_admin_token');
-  location.reload();
+  sessionStorage.removeItem('admin_token');
+  TOKEN = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
-  const tabs = ['negocios','stats','crear'];
-  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+async function verificarToken() {
+  if (!TOKEN) return false;
+  const res = await fetch('/auth/verify', { headers: { Authorization: 'Bearer ' + TOKEN } });
+  const data = await res.json();
+  return data.ok;
 }
 
-async function cargarTodo() {
-  await cargarNegocios();
-  await cargarStatsGlobal();
+async function api(url, opts = {}) {
+  const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN, ...(opts.headers || {}) } });
+  return res.json();
 }
 
-async function cargarStatsGlobal() {
-  const stats = await fetch(BASE + '/admin/stats', { headers: { Authorization: 'Bearer ' + TOKEN } }).then(r => r.json()).catch(() => null);
-  if (!stats) return;
-  document.getElementById('statsGlobal').innerHTML = `
-    <div class="stat-mini"><div class="stat-mini-val">${stats.negocios_activos}</div><div class="stat-mini-label">Negocios activos</div></div>
-    <div class="stat-mini"><div class="stat-mini-val">${stats.total_clientes}</div><div class="stat-mini-label">Total clientes</div></div>
-    <div class="stat-mini"><div class="stat-mini-val">$${(stats.ventas_hoy||0).toFixed(0)}</div><div class="stat-mini-label">Ventas hoy</div></div>
-    <div class="stat-mini"><div class="stat-mini-val">${stats.conversaciones_activas}</div><div class="stat-mini-label">Conversaciones</div></div>
-  `;
+async function mostrarApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  cargarNegocios();
 }
 
+// ── NEGOCIOS ──
 async function cargarNegocios() {
-  const negocios = await fetch(BASE + '/admin/negocios', { headers: { Authorization: 'Bearer ' + TOKEN } }).then(r => r.json()).catch(() => []);
-  const container = document.getElementById('negociosList');
-  if (!negocios.length) { container.innerHTML = '<div class="card" style="color:var(--text2);">No hay negocios registrados aún.</div>'; return; }
-  container.innerHTML = negocios.map(n => `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div style="font-size:16px;font-weight:600;">${n.nombre} <span class="badge ${n.activo ? 'green' : 'red'}">${n.activo ? 'Activo' : 'Inactivo'}</span>${n.modo_vacaciones ? '<span class="badge blue" style="margin-left:6px;">Vacaciones</span>' : ''}</div>
-          <div style="color:var(--text2);font-size:13px;margin-top:4px;">${n.tipo} · ${n.whatsapp_dueno}</div>
-          <div class="url-box" style="margin-top:8px;">Panel: ${BASE}/panel/${n.slug || n.id}</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="window.open('/panel/${n.slug || n.id}','_blank')">Ver panel</button>
-          <button class="btn btn-danger btn-sm" onclick="eliminarNegocio('${n.id}')">Eliminar</button>
+  const negocios = await api('/admin/negocios');
+  if (!Array.isArray(negocios)) return;
+
+  document.getElementById('statTotal').textContent = negocios.length;
+  document.getElementById('statActivos').textContent = negocios.filter(n => n.activo).length;
+  document.getElementById('statBots').textContent = negocios.filter(n => n.activo && n.bot_activo !== false).length;
+
+  const grid = document.getElementById('negGrid');
+  if (!negocios.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🏪</div><div>No hay negocios registrados aún.<br>Usa el formulario de arriba para agregar el primero.</div></div>';
+    return;
+  }
+
+  grid.innerHTML = negocios.map(n => `
+    <div class="neg-card" id="nc-${n.id}">
+      <div class="neg-emoji">${n.emoji || '🏪'}</div>
+      <div class="neg-info">
+        <div class="neg-name">${n.nombre}</div>
+        <div class="neg-slug">/${n.slug || n.id}</div>
+        <div class="neg-meta">${n.tipo || 'Negocio'}</div>
+        <div class="neg-phone">📱 ${n.whatsapp_dueno || '—'}${n.whatsapp_phone_id ? ' · Phone ID: ' + n.whatsapp_phone_id : ' · <span style="color:var(--yellow);">⚠ Sin Phone ID</span>'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">
+        <span class="badge ${n.activo ? 'badge-on' : 'badge-off'}">${n.activo ? '● Activo' : '● Inactivo'}</span>
+        <span class="badge ${n.bot_activo !== false ? 'badge-bot-on' : 'badge-bot-off'}">${n.bot_activo !== false ? '🤖 Bot ON' : '⏸ Bot OFF'}</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+          <span style="font-size:11px;color:var(--text2);">Negocio</span>
+          <label class="sw" title="${n.activo ? 'Desactivar negocio' : 'Activar negocio'}">
+            <input type="checkbox" ${n.activo ? 'checked' : ''} onchange="toggleActivo('${n.id}', this.checked)">
+            <span class="sw-track"></span>
+            <span class="sw-knob"></span>
+          </label>
         </div>
       </div>
-      <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
-        <div style="font-size:13px;color:var(--text2);">Catálogo: <b style="color:var(--text)">${n.catalogo?.length || 0} productos</b></div>
-        <div style="font-size:13px;color:var(--text2);">Banco: <b style="color:var(--text)">${n.banco || 'No configurado'}</b></div>
+      <div class="neg-actions">
+        <a href="/panel/${n.slug || n.id}" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);text-decoration:none;">Ver panel</a>
+        <button class="btn btn-danger btn-sm" onclick="eliminarNegocio('${n.id}', '${n.nombre}')">Eliminar</button>
       </div>
     </div>
   `).join('');
 }
 
 async function crearNegocio() {
-  const alert = document.getElementById('crearAlert');
-  const datos = {
-    nombre: document.getElementById('c_nombre').value.trim(),
-    tipo: document.getElementById('c_tipo').value.trim(),
-    whatsapp_dueno: document.getElementById('c_whatsapp').value.trim(),
-    whatsapp_delivery: document.getElementById('c_delivery').value.trim(),
-    banco: document.getElementById('c_banco').value.trim(),
-    numero_cuenta: document.getElementById('c_cuenta').value.trim(),
-    titular_cuenta: document.getElementById('c_titular').value.trim(),
-    password: document.getElementById('c_password').value.trim(),
-    slug: document.getElementById('c_slug').value.trim(),
+  const nombre = document.getElementById('f_nombre').value.trim();
+  const slug = document.getElementById('f_slug').value.trim();
+  const password = document.getElementById('f_password').value.trim();
+  const whatsapp_dueno = document.getElementById('f_whatsapp_dueno').value.trim();
+  const whatsapp_phone_id = document.getElementById('f_phone_id').value.trim();
+
+  if (!nombre || !slug || !password || !whatsapp_dueno) { toast('⚠ Completa los campos obligatorios (*)'); return; }
+  if (!whatsapp_phone_id) { toast('⚠ El Phone Number ID es obligatorio para que el bot funcione'); return; }
+
+  const negocio = {
+    slug, nombre,
+    tipo: document.getElementById('f_tipo').value.trim() || 'Negocio',
+    emoji: document.getElementById('f_emoji').value.trim() || '🏪',
+    password, whatsapp_dueno, whatsapp_phone_id,
+    whatsapp_numero: document.getElementById('f_whatsapp_numero').value.trim(),
+    activo: true,
+    bot_activo: true,
+    catalogo: [],
+    metodos_pago: ['transferencia', 'efectivo'],
+    modo_vacaciones: false,
+    tiempo_entrega: '30-45 minutos',
+    politica_devoluciones: '',
+    mensajes: { bienvenida: '¡Hola! Bienvenido/a. ¿En qué puedo ayudarte?', tono: 'amigable' },
+    horarios: {
+      Lunes:    { abierto: true,  desde: '08:00', hasta: '20:00' },
+      Martes:   { abierto: true,  desde: '08:00', hasta: '20:00' },
+      Miercoles:{ abierto: true,  desde: '08:00', hasta: '20:00' },
+      Jueves:   { abierto: true,  desde: '08:00', hasta: '20:00' },
+      Viernes:  { abierto: true,  desde: '08:00', hasta: '20:00' },
+      Sabado:   { abierto: true,  desde: '08:00', hasta: '18:00' },
+      Domingo:  { abierto: false, desde: '09:00', hasta: '15:00' },
+    }
   };
-  if (!datos.nombre || !datos.whatsapp_dueno || !datos.password || !datos.slug) {
-    alert.textContent = 'Completa los campos obligatorios (*)';
-    alert.className = 'alert error'; alert.style.display = 'block'; return;
-  }
-  const r = await fetch(BASE + '/admin/negocios', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN }, body: JSON.stringify(datos) });
-  const data = await r.json();
-  if (data.ok) {
-    alert.textContent = `✓ Cliente creado. Panel: ${BASE}/panel/${datos.slug}`;
-    alert.className = 'alert success'; alert.style.display = 'block';
-    cargarNegocios(); switchTab('negocios');
+
+  const res = await api('/admin/negocios', { method: 'POST', body: JSON.stringify(negocio) });
+  if (res.ok) {
+    toast('✅ Negocio registrado correctamente');
+    ['f_nombre','f_slug','f_tipo','f_emoji','f_password','f_whatsapp_dueno','f_phone_id','f_whatsapp_numero'].forEach(id => document.getElementById(id).value = '');
+    cargarNegocios();
   } else {
-    alert.textContent = 'Error al crear el cliente';
-    alert.className = 'alert error'; alert.style.display = 'block';
+    toast('❌ Error al crear el negocio');
   }
 }
 
-async function eliminarNegocio(id) {
-  if (!confirm('¿Eliminar este negocio? Esta acción no se puede deshacer.')) return;
-  await fetch(BASE + '/admin/negocios/' + id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + TOKEN } });
-  cargarNegocios();
+async function toggleActivo(id, activo) {
+  const res = await api(`/admin/negocios/${id}`, { method: 'PUT', body: JSON.stringify({ activo }) });
+  if (res.ok) {
+    toast(activo ? '✅ Negocio activado' : '⏸ Negocio desactivado');
+    cargarNegocios();
+  }
 }
 
-// Auto-login si ya hay token
-if (TOKEN) {
-  fetch(BASE + '/auth/verify', { headers: { Authorization: 'Bearer ' + TOKEN } })
-    .then(r => r.json())
-    .then(data => {
-      if (data.ok) {
-        document.getElementById('loginWrap').style.display = 'none';
-        document.getElementById('mainPanel').style.display = 'block';
-        cargarTodo();
-      } else { localStorage.removeItem('vb_admin_token'); TOKEN = ''; }
-    }).catch(() => {});
+async function eliminarNegocio(id, nombre) {
+  if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+  const res = await api(`/admin/negocios/${id}`, { method: 'DELETE' });
+  if (res.ok) { toast('🗑 Negocio eliminado'); cargarNegocios(); }
 }
+
+// ── TOAST ──
+let toastTimer;
+function toast(txt) {
+  const t = document.getElementById('toast');
+  t.textContent = txt; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2800);
+}
+
+// ── INIT ──
+(async () => {
+  if (TOKEN && await verificarToken()) {
+    mostrarApp();
+  }
+})();
 </script>
 </body>
 </html>

@@ -116,6 +116,20 @@ tr:hover td{background:var(--surface2);}
 <!-- DASHBOARD -->
 <div class="panel active" id="tab-dashboard">
   <div class="section-title">📊 Dashboard</div>
+
+  <!-- SWITCH BOT -->
+  <div class="card" style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;">
+    <div>
+      <div style="font-weight:700;font-size:15px;" id="botStatusLabel">🤖 Bot activo</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px;" id="botStatusSub">El bot está respondiendo a tus clientes</div>
+    </div>
+    <label style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;cursor:pointer;">
+      <input type="checkbox" id="botToggle" style="opacity:0;width:0;height:0;" onchange="toggleBot(this.checked)">
+      <span id="botToggleSlider" style="position:absolute;inset:0;border-radius:34px;background:#ccc;transition:.3s;"></span>
+      <span id="botToggleKnob" style="position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.2);"></span>
+    </label>
+  </div>
+
   <div class="stats-grid" id="statsGrid"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
     <div class="card">
@@ -553,6 +567,11 @@ async function cargarDashboard() {
   const stats = await api(`/panel/${SLUG}/stats`);
   const clientes = await api(`/panel/${SLUG}/clientes`);
   if (!stats) return;
+
+  // Cargar estado del bot
+  const neg = negocioData || await api(`/panel/${SLUG}/negocio`);
+  const botActivo = neg?.bot_activo !== false; // true por defecto
+  actualizarSwitchBot(botActivo);
 
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat"><div class="stat-val">$${(stats.ventas_hoy||0).toFixed(2)}</div><div class="stat-label">Ventas hoy</div></div>
@@ -1168,6 +1187,27 @@ function actualizarVisibilidadMitadMitad() {
   const habilitado = document.getElementById('cfg_tiene_mitad_mitad')?.checked || false;
   const bloque = document.getElementById('bloqueMitadMitad');
   if (bloque) bloque.style.display = habilitado ? 'block' : 'none';
+}
+
+function actualizarSwitchBot(activo) {
+  const toggle = document.getElementById('botToggle');
+  const slider = document.getElementById('botToggleSlider');
+  const knob = document.getElementById('botToggleKnob');
+  const label = document.getElementById('botStatusLabel');
+  const sub = document.getElementById('botStatusSub');
+  if (!toggle) return;
+  toggle.checked = activo;
+  slider.style.background = activo ? 'var(--accent)' : '#ccc';
+  knob.style.transform = activo ? 'translateX(24px)' : 'translateX(0)';
+  label.textContent = activo ? '🤖 Bot activo' : '⏸️ Bot pausado';
+  sub.textContent = activo ? 'El bot está respondiendo a tus clientes' : 'El bot no responde. Actívalo cuando estés listo.';
+  sub.style.color = activo ? 'var(--text2)' : '#e11d48';
+}
+
+async function toggleBot(activo) {
+  actualizarSwitchBot(activo);
+  const res = await api(`/panel/${SLUG}/bot-activo`, { method: 'PUT', body: JSON.stringify({ activo }) });
+  if (!res?.ok) { actualizarSwitchBot(!activo); alert('Error al cambiar estado del bot'); }
 }
 
 function toggleMitadMitad(checked) {

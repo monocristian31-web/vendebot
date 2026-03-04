@@ -316,11 +316,12 @@ setInterval(async () => {
 }, 60 * 60 * 1000);
 
 // ─── ENVÍO MENSAJES ───────────────────────────────────────────────────────────
-async function enviarMensaje(numero, mensaje) {
+async function enviarMensaje(numero, mensaje, phoneId) {
   if (!mensaje?.trim()) return;
+  const pid = phoneId || PHONE_NUMBER_ID;
   try {
     await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v18.0/${pid}/messages`,
       { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: mensaje } },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
     );
@@ -328,10 +329,11 @@ async function enviarMensaje(numero, mensaje) {
   } catch (err) { console.error(`Error: ${err.response?.data?.error?.message || err.message}`); }
 }
 
-async function enviarImagen(numero, url, caption) {
+async function enviarImagen(numero, url, caption, phoneId) {
+  const pid = phoneId || PHONE_NUMBER_ID;
   try {
     await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v18.0/${pid}/messages`,
       { messaging_product: 'whatsapp', to: numero, type: 'image', image: { link: url, caption: caption || '' } },
       { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
     );
@@ -567,21 +569,34 @@ app.post('/webhook', async (req, res) => {
     const mensaje = value.messages[0];
     const numero = mensaje.from;
     const tipo = mensaje.type;
-    console.log(`Mensaje de ${numero} (${tipo})`);
+    const phoneNumberId = value.metadata?.phone_number_id;
+    console.log(`Mensaje de ${numero} (${tipo}) → phoneId: ${phoneNumberId}`);
 
     const negocios = cargarNegocios();
-    let negocioId = clienteNegocioMap.get(numero);
-    let negocio = negocios.find(n => n.id === negocioId && n.activo);
+    // Identificar negocio por su whatsapp_phone_id registrado
+    let negocio = negocios.find(n => n.activo && n.whatsapp_phone_id === phoneNumberId);
+    // Fallback: si no hay match por phoneId, usar mapa de clientes (compatibilidad)
+    if (!negocio) {
+      const negocioId = clienteNegocioMap.get(numero);
+      negocio = negocios.find(n => n.id === negocioId && n.activo);
+    }
     if (!negocio) {
       negocio = negocios.find(n => n.activo);
       if (negocio) { clienteNegocioMap.set(numero, negocio.id); guardarMapaClientes(); }
     }
-    if (!negocio) { await enviarMensaje(numero, 'Hola! No hay negocios disponibles ahora.'); return; }
+    if (!negocio) { await enviarMensaje(numero, 'Hola! No hay negocios disponibles ahora.', phoneNumberId); return; }
 
-    if (negocio.modo_vacaciones) { await enviarMensaje(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`); return; }
+    // Verificar si el bot está activo para este negocio
+    if (negocio.bot_activo === false) return;
+
+    const pid = negocio.whatsapp_phone_id || PHONE_NUMBER_ID;
+    // Wrapper local que usa siempre el phoneId del negocio correcto
+    const enviar = (dest, msg) => enviarMensaje(dest, msg, pid);
+
+    if (negocio.modo_vacaciones) { await enviar(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`); return; }
     if (!estaEnHorario()) {
       const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
-      await enviarMensaje(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nAtencion: ${HORARIO.dias.map(d => dias[d]).join(', ')}\n8:00 am - 6:00 pm`);
+      await enviar(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nAtencion: ${HORARIO.dias.map(d => dias[d]).join(', ')}\n8:00 am - 6:00 pm`);
       return;
     }
 
@@ -594,7 +609,7 @@ app.post('/webhook', async (req, res) => {
       if (textoRef.toUpperCase().startsWith('REF')) {
         const dueno = procesarReferido(textoRef, numero);
         if (dueno) {
-          await enviarMensaje(dueno, `Alguien uso tu codigo de referido! Tienes un descuento de $5 para tu proximo pedido.`);
+          await enviar(dueno, `Alguien uso tu codigo de referido! Tienes un descuento de $5 para tu proximo pedido.`);
           actualizarCliente(numero, { codigo_referido_usado: textoRef });
         }
       }
@@ -603,7 +618,7 @@ app.post('/webhook', async (req, res) => {
     // IMAGEN
     if (tipo === 'image') {
       if (conv.esperando === 'boucher') {
-        await enviarMensaje(numero, 'Analizando tu comprobante...');
+        await enviar(numero, 'Analizando tu comprobante...');
         try {
           const mediaRes = await axios.get(`https://graph.facebook.com/v18.0/${mensaje.image.id}`, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
           const imgRes = await axios.get(mediaRes.data.url, { responseType: 'arraybuffer', headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } });
@@ -617,37 +632,37 @@ app.post('/webhook', async (req, res) => {
             const repartidor = conv.pedido.es_domicilio ? asignarRepartidor(negocio) : null;
             if (repartidor) {
               conv.pedido.repartidor = repartidor.nombre;
-              await enviarMensaje(repartidor.whatsapp, `Nuevo pedido!\nCliente: ${conv.pedido.nombre_cliente || numero}\nDireccion: ${conv.pedido.direccion}\nTotal: $${conv.pedido.total?.toFixed(2)}`);
+              await enviar(repartidor.whatsapp, `Nuevo pedido!\nCliente: ${conv.pedido.nombre_cliente || numero}\nDireccion: ${conv.pedido.direccion}\nTotal: $${conv.pedido.total?.toFixed(2)}`);
             }
             const msgConfirm = `Pago verificado! Tu pedido en ${negocio.nombre} esta confirmado!\n\n${repartidor ? `Repartidor: ${repartidor.nombre}\nTiempo estimado: ${negocio.tiempo_entrega || '30-45 min'}` : conv.pedido.es_domicilio ? `Tiempo estimado: ${negocio.tiempo_entrega || '30-45 min'}` : 'Puedes pasar a retirarlo cuando gustes.'}\n\nGanaste ${puntosGanados} puntos! Total: ${puntosActuales} pts${puntosActuales >= PUNTOS_PARA_REGALO ? '\n\nTienes puntos suficientes para un producto gratis! Escribe "canjear puntos" para reclamar.' : ''}\n\nGracias por tu compra!`;
-            await enviarMensaje(numero, msgConfirm);
+            await enviar(numero, msgConfirm);
             registrarPedido(numero, conv.pedido, negocio.nombre);
             await notificarDueno(conv, negocio);
           } else {
             conv.intentos_boucher++;
             if (conv.intentos_boucher >= 3) {
-              await enviarMensaje(numero, `No pudimos verificar tu pago. Contacta a ${negocio.nombre} directamente.`);
+              await enviar(numero, `No pudimos verificar tu pago. Contacta a ${negocio.nombre} directamente.`);
             } else {
-              await enviarMensaje(numero, `No pude verificar el comprobante.\nMotivo: ${resultado.motivo}\n\nEnvia el comprobante del ${negocio.banco} por $${conv.pedido.total?.toFixed(2)} (intento ${conv.intentos_boucher}/3)`);
+              await enviar(numero, `No pude verificar el comprobante.\nMotivo: ${resultado.motivo}\n\nEnvia el comprobante del ${negocio.banco} por $${conv.pedido.total?.toFixed(2)} (intento ${conv.intentos_boucher}/3)`);
             }
           }
-        } catch (e) { await enviarMensaje(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
+        } catch (e) { await enviar(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
       } else {
-        await enviarMensaje(numero, 'Gracias por la imagen! En que puedo ayudarte?');
+        await enviar(numero, 'Gracias por la imagen! En que puedo ayudarte?');
       }
       return;
     }
 
-    if (tipo === 'audio') { await enviarMensaje(numero, 'Solo puedo atenderte por texto. Que necesitas?'); return; }
+    if (tipo === 'audio') { await enviar(numero, 'Solo puedo atenderte por texto. Que necesitas?'); return; }
     if (tipo === 'document') {
-      if (conv.esperando === 'boucher') await enviarMensaje(numero, 'Necesito el comprobante como imagen (foto o captura).');
-      else await enviarMensaje(numero, 'Gracias! En que puedo ayudarte?');
+      if (conv.esperando === 'boucher') await enviar(numero, 'Necesito el comprobante como imagen (foto o captura).');
+      else await enviar(numero, 'Gracias! En que puedo ayudarte?');
       return;
     }
     if (tipo === 'location') {
       conv.pedido.direccion = `https://maps.google.com/?q=${mensaje.location.latitude},${mensaje.location.longitude}`;
       conv.pedido.es_domicilio = true; conv.esperando = null; conv.etapa = 'pago';
-      await enviarMensaje(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
+      await enviar(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
       if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
       return;
     }
@@ -666,7 +681,7 @@ app.post('/webhook', async (req, res) => {
       agregarResena(numero, negocio.nombre, calificacion, '', ultimoPedido.descripcion);
       ultimoPedido.esperando_resena = false;
       guardarJSON('./clientes.json', cargarClientes());
-      await enviarMensaje(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
+      await enviar(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
       return;
     }
@@ -676,23 +691,23 @@ app.post('/webhook', async (req, res) => {
       const termino = texto.replace(/^buscar?\s+/i, '').trim();
       const resultados = negocio.catalogo.filter(p => p.nombre.toLowerCase().includes(termino.toLowerCase()) || p.descripcion?.toLowerCase().includes(termino.toLowerCase()));
       if (resultados.length > 0) {
-        await enviarMensaje(numero, `Encontre ${resultados.length} producto(s) para "${termino}":`);
+        await enviar(numero, `Encontre ${resultados.length} producto(s) para "${termino}":`);
         for (const p of resultados) await enviarProducto(numero, p);
       } else {
-        await enviarMensaje(numero, `No encontre productos para "${termino}". Escribe "ver catalogo" para ver todos.`);
+        await enviar(numero, `No encontre productos para "${termino}". Escribe "ver catalogo" para ver todos.`);
       }
       return;
     }
 
     // Comandos
     if (['cancelar', 'cancel'].includes(textoLower)) {
-      if (conv.etapa === 'confirmado') { await enviarMensaje(numero, 'Tu pedido ya fue confirmado. Contacta al negocio si necesitas ayuda.'); }
-      else { conversaciones.delete(`${numero}:${negocio.id}`); await enviarMensaje(numero, 'Pedido cancelado. Escribe cuando necesites algo!'); }
+      if (conv.etapa === 'confirmado') { await enviar(numero, 'Tu pedido ya fue confirmado. Contacta al negocio si necesitas ayuda.'); }
+      else { conversaciones.delete(`${numero}:${negocio.id}`); await enviar(numero, 'Pedido cancelado. Escribe cuando necesites algo!'); }
       return;
     }
     if (textoLower === 'mi pedido' || textoLower === 'ver pedido') {
       if (conv.pedido.items?.length > 0) await enviarResumenPedido(numero, conv);
-      else await enviarMensaje(numero, 'No tienes productos aun. Que te gustaria ordenar?');
+      else await enviar(numero, 'No tienes productos aun. Que te gustaria ordenar?');
       return;
     }
     if (textoLower === 'mis compras' || textoLower === 'historial') {
@@ -701,31 +716,31 @@ app.post('/webhook', async (req, res) => {
         let hist = 'Tu historial:\n\n';
         c.historial_pedidos.slice(-5).forEach((p, i) => { hist += `${i + 1}. ${new Date(p.fecha).toLocaleDateString('es-EC')} - ${p.descripcion} ($${p.total})\n`; });
         hist += `\nTotal gastado: $${c.total_gastado?.toFixed(2) || '0.00'}\nTotal pedidos: ${c.total_pedidos}`;
-        await enviarMensaje(numero, hist);
-      } else { await enviarMensaje(numero, 'Aun no tienes pedidos. Animete a hacer tu primer pedido!'); }
+        await enviar(numero, hist);
+      } else { await enviar(numero, 'Aun no tienes pedidos. Animete a hacer tu primer pedido!'); }
       return;
     }
     if (textoLower === 'mis puntos' || textoLower === 'puntos') {
       const p = obtenerPuntos(numero);
-      await enviarMensaje(numero, `Tus puntos: ${p.total} pts\nTotal canjeados: ${p.canjeados} pts\n\nNecesitas ${PUNTOS_PARA_REGALO - p.total > 0 ? PUNTOS_PARA_REGALO - p.total : 0} puntos mas para un producto gratis!\n\nGanas ${PUNTOS_POR_DOLAR} puntos por cada $1 gastado.`);
+      await enviar(numero, `Tus puntos: ${p.total} pts\nTotal canjeados: ${p.canjeados} pts\n\nNecesitas ${PUNTOS_PARA_REGALO - p.total > 0 ? PUNTOS_PARA_REGALO - p.total : 0} puntos mas para un producto gratis!\n\nGanas ${PUNTOS_POR_DOLAR} puntos por cada $1 gastado.`);
       return;
     }
     if (textoLower === 'canjear puntos') {
       const p = obtenerPuntos(numero);
       if (p.total >= PUNTOS_PARA_REGALO) {
         if (canjearPuntos(numero, PUNTOS_PARA_REGALO)) {
-          await enviarMensaje(numero, `Felicidades! Canjeaste ${PUNTOS_PARA_REGALO} puntos por un producto gratis!\n\nDinos que producto del catalogo quieres y lo agregaremos a tu proximo pedido sin costo.`);
-          await enviarMensaje(negocio.whatsapp_dueno, `Cliente ${numero} canjeo ${PUNTOS_PARA_REGALO} puntos por producto gratis!`);
+          await enviar(numero, `Felicidades! Canjeaste ${PUNTOS_PARA_REGALO} puntos por un producto gratis!\n\nDinos que producto del catalogo quieres y lo agregaremos a tu proximo pedido sin costo.`);
+          await enviar(negocio.whatsapp_dueno, `Cliente ${numero} canjeo ${PUNTOS_PARA_REGALO} puntos por producto gratis!`);
         }
       } else {
-        await enviarMensaje(numero, `Aun no tienes suficientes puntos. Te faltan ${PUNTOS_PARA_REGALO - p.total} puntos.\n\nSigue comprando para acumular mas!`);
+        await enviar(numero, `Aun no tienes suficientes puntos. Te faltan ${PUNTOS_PARA_REGALO - p.total} puntos.\n\nSigue comprando para acumular mas!`);
       }
       return;
     }
     if (textoLower === 'mi referido' || textoLower === 'codigo referido') {
       const codigo = generarCodigoReferido(numero);
       const refs = cargarReferidos()[numero];
-      await enviarMensaje(numero, `Tu codigo de referido: ${codigo}\n\nComparte este codigo con tus amigos. Cuando hagan su primer pedido usando tu codigo, ganaras $5 de descuento!\n\nReferidos exitosos: ${refs?.referidos?.length || 0}\nDescuento ganado: $${refs?.descuento_ganado || 0}`);
+      await enviar(numero, `Tu codigo de referido: ${codigo}\n\nComparte este codigo con tus amigos. Cuando hagan su primer pedido usando tu codigo, ganaras $5 de descuento!\n\nReferidos exitosos: ${refs?.referidos?.length || 0}\nDescuento ganado: $${refs?.descuento_ganado || 0}`);
       return;
     }
     if (textoLower === 'promociones' || textoLower === 'ofertas') {
@@ -735,12 +750,12 @@ app.post('/webhook', async (req, res) => {
       if (fechaEsp) msg += `FECHA ESPECIAL: ${fechaEsp.nombre}\n${fechaEsp.descuento}% de descuento en todos los productos!\n\n`;
       if (promos.length > 0) { msg += 'Promociones disponibles:\n\n'; promos.forEach(p => { msg += `${p.emoji || ''} ${p.nombre}\n${p.descripcion}\n${p.descuento}\n\n`; }); }
       if (!msg) msg = 'No hay promociones activas en este momento.';
-      await enviarMensaje(numero, msg);
+      await enviar(numero, msg);
       return;
     }
-    if (textoLower === 'horario') { await enviarMensaje(numero, `Horario de ${negocio.nombre}:\n\nLunes a Sabado: 8am - 6pm\nDomingos: Cerrado`); return; }
+    if (textoLower === 'horario') { await enviar(numero, `Horario de ${negocio.nombre}:\n\nLunes a Sabado: 8am - 6pm\nDomingos: Cerrado`); return; }
     if (textoLower === 'devoluciones' || textoLower === 'politica de devoluciones') {
-      await enviarMensaje(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
+      await enviar(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
       return;
     }
 
@@ -748,12 +763,12 @@ app.post('/webhook', async (req, res) => {
     if (textoLower === 'cita' || textoLower === 'agendar' || textoLower === 'reservar' || textoLower.includes('quiero una cita') || textoLower.includes('hacer una cita')) {
       const config = negocio.citas_config;
       if (!config?.activo || !config.servicios?.length) {
-        await enviarMensaje(numero, `${negocio.nombre} no tiene sistema de citas activo. Contáctanos para más información.`);
+        await enviar(numero, `${negocio.nombre} no tiene sistema de citas activo. Contáctanos para más información.`);
       } else {
         const serviciosTexto = config.servicios.map((s, i) => `${i + 1}. ${s}`).join('\n');
         conv.esperando = 'cita_servicio';
         conv.citaTemp = {};
-        await enviarMensaje(numero, `Para agendar tu cita en ${negocio.nombre}, elige el servicio:\n\n${serviciosTexto}\n\nResponde con el número del servicio.`);
+        await enviar(numero, `Para agendar tu cita en ${negocio.nombre}, elige el servicio:\n\n${serviciosTexto}\n\nResponde con el número del servicio.`);
       }
       return;
     }
@@ -762,13 +777,13 @@ app.post('/webhook', async (req, res) => {
       const config = negocio.citas_config;
       const idx = parseInt(texto.trim()) - 1;
       if (isNaN(idx) || idx < 0 || idx >= config.servicios.length) {
-        await enviarMensaje(numero, 'Por favor responde con el número del servicio.');
+        await enviar(numero, 'Por favor responde con el número del servicio.');
         return;
       }
       conv.citaTemp.servicio = config.servicios[idx];
       conv.esperando = 'cita_fecha';
       const diasTexto = config.dias_disponibles?.join(', ') || 'Lunes a Viernes';
-      await enviarMensaje(numero, `Servicio: ${conv.citaTemp.servicio}\n\nDías disponibles: ${diasTexto}\n\nEscribe la fecha deseada (ej: 15/03/2025)`);
+      await enviar(numero, `Servicio: ${conv.citaTemp.servicio}\n\nDías disponibles: ${diasTexto}\n\nEscribe la fecha deseada (ej: 15/03/2025)`);
       return;
     }
 
@@ -776,7 +791,7 @@ app.post('/webhook', async (req, res) => {
       const config = negocio.citas_config;
       conv.citaTemp.fecha = texto.trim();
       conv.esperando = 'cita_hora';
-      await enviarMensaje(numero, `Fecha: ${conv.citaTemp.fecha}\n\nHorario disponible: ${config.hora_inicio || '09:00'} — ${config.hora_fin || '18:00'} (cada ${config.duracion || 30} minutos)\n\nEscribe la hora deseada (ej: 10:00)`);
+      await enviar(numero, `Fecha: ${conv.citaTemp.fecha}\n\nHorario disponible: ${config.hora_inicio || '09:00'} — ${config.hora_fin || '18:00'} (cada ${config.duracion || 30} minutos)\n\nEscribe la hora deseada (ej: 10:00)`);
       return;
     }
 
@@ -787,7 +802,7 @@ app.post('/webhook', async (req, res) => {
       const citas = cargarCitas();
       const ocupada = citas.some(c => c.negocio_id === negocio.id && c.fecha === conv.citaTemp.fecha && c.hora === conv.citaTemp.hora && c.estado !== 'cancelada');
       if (ocupada) {
-        await enviarMensaje(numero, `Lo siento, ese horario ya está ocupado. Por favor elige otra hora.`);
+        await enviar(numero, `Lo siento, ese horario ya está ocupado. Por favor elige otra hora.`);
         conv.esperando = 'cita_hora';
         return;
       }
@@ -806,8 +821,8 @@ app.post('/webhook', async (req, res) => {
       citas.push(cita);
       guardarCitas(citas);
       conv.citaTemp = {};
-      await enviarMensaje(numero, `✅ Cita agendada!\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n💆 Servicio: ${cita.servicio}\n\nTe esperamos en ${negocio.nombre}. Si necesitas cancelar escríbenos.`);
-      await enviarMensaje(negocio.whatsapp_dueno, `📅 Nueva cita!\n\nCliente: ${cita.cliente}\nWhatsApp: ${numero}\nServicio: ${cita.servicio}\nFecha: ${cita.fecha}\nHora: ${cita.hora}`);
+      await enviar(numero, `✅ Cita agendada!\n\n📅 Fecha: ${cita.fecha}\n⏰ Hora: ${cita.hora}\n💆 Servicio: ${cita.servicio}\n\nTe esperamos en ${negocio.nombre}. Si necesitas cancelar escríbenos.`);
+      await enviar(negocio.whatsapp_dueno, `📅 Nueva cita!\n\nCliente: ${cita.cliente}\nWhatsApp: ${numero}\nServicio: ${cita.servicio}\nFecha: ${cita.fecha}\nHora: ${cita.hora}`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_cita', cliente: cita.cliente, servicio: cita.servicio, fecha: cita.fecha, hora: cita.hora });
       return;
     }
@@ -824,18 +839,18 @@ app.post('/webhook', async (req, res) => {
         bienvenida = negocio.mensajes?.bienvenida || `Hola! Bienvenido/a a ${negocio.nombre}. En que puedo ayudarte?`;
       }
       if (fechaEsp) bienvenida += `\n\nEsta semana celebramos ${fechaEsp.nombre} con ${fechaEsp.descuento}% de descuento especial!`;
-      await enviarMensaje(numero, bienvenida);
+      await enviar(numero, bienvenida);
       conv.etapa = 'consultando';
       const saludos = ['hola', 'buenas', 'hi', 'buenos dias', 'buenas tardes', 'buenas noches', 'hey', 'ola'];
       if (!saludos.includes(textoLower) && texto.length > 6) {
         const { mensaje: r, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
-        if (r) await enviarMensaje(numero, r);
+        if (r) await enviar(numero, r);
         if (imagenesIds?.length > 0 && conv.etapa !== 'pago') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
       }
       return;
     }
 
-    if (conv.esperando === 'boucher') { await enviarMensaje(numero, `Estoy esperando tu comprobante. Envia una foto del ${negocio.banco} por $${conv.pedido.total?.toFixed(2) || '0.00'}`); return; }
+    if (conv.esperando === 'boucher') { await enviar(numero, `Estoy esperando tu comprobante. Envia una foto del ${negocio.banco} por $${conv.pedido.total?.toFixed(2) || '0.00'}`); return; }
 
     // Detectar pedido que viene del catálogo web
     if (texto.startsWith('Hola! Quiero hacer un pedido 🛒') || texto.startsWith('Hola! Quiero hacer un pedido')) {
@@ -873,7 +888,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     const { mensaje: respuesta, imagenesIds, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo } = await procesarConClaude(conv, negocio, texto, cliente);
-    if (respuesta) await enviarMensaje(numero, respuesta);
+    if (respuesta) await enviar(numero, respuesta);
 
     // Enviar link del catálogo web
     if (enviarCatalogo) {
@@ -881,7 +896,7 @@ app.post('/webhook', async (req, res) => {
       const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
       const linkCatalogo = `${dominio}/catalogo/${slug}`;
       await new Promise(r => setTimeout(r, 500));
-      await enviarMensaje(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${linkCatalogo}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
+      await enviar(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${linkCatalogo}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
     }
 
     // Si el cliente trae un pedido desde el catálogo, saltar a confirmar
@@ -896,13 +911,13 @@ app.post('/webhook', async (req, res) => {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
       await new Promise(r => setTimeout(r, 500));
-      await enviarMensaje(numero, generarMensajePago(conv, negocio));
+      await enviar(numero, generarMensajePago(conv, negocio));
       if (conv.pedido.metodo_pago === 'efectivo') {
         conv.etapa = 'confirmado';
         const puntosGanados = agregarPuntos(numero, conv.pedido.total, `Pedido en ${negocio.nombre}`);
         registrarPedido(numero, conv.pedido, negocio.nombre);
         await notificarDueno(conv, negocio);
-        await enviarMensaje(numero, `Ganaste ${puntosGanados} puntos! Total: ${obtenerPuntos(numero).total} pts`);
+        await enviar(numero, `Ganaste ${puntosGanados} puntos! Total: ${obtenerPuntos(numero).total} pts`);
       } else { conv.esperando = 'boucher'; }
     }
 
@@ -1071,6 +1086,16 @@ app.put('/panel/:slug/negocio', authPanel, (req, res) => {
   negocios[idx] = { ...negocios[idx], ...req.body };
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
+});
+
+app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].bot_activo = req.body.activo;
+  guardarJSON('./negocios.json', negocios);
+  console.log(`Bot ${req.body.activo ? 'activado' : 'desactivado'} para ${req.params.slug}`);
+  res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
 app.get('/panel/:slug/stats', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
