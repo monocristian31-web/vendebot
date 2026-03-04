@@ -1236,15 +1236,16 @@ async function guardarProducto() {
   };
   const stockVal = document.getElementById('p_stock').value;
   if (stockVal !== '') producto.stock = parseInt(stockVal);
-  const neg = negocioData;
-  if (!neg) return;
+  let neg = negocioData;
+  if (!neg) neg = await api(`/panel/${SLUG}/negocio`);
+  if (!neg) { alert('Error al cargar el negocio. Recarga la página.'); return; }
+  negocioData = neg;
   const idExistente = document.getElementById('p_id').value;
   if (idExistente) {
-    const idx = neg.catalogo.findIndex(p => p.id == idExistente);
+    const idx = neg.catalogo.findIndex(p => String(p.id) === String(idExistente));
     if (idx >= 0) neg.catalogo[idx] = { ...neg.catalogo[idx], ...producto };
   } else {
-    const nuevoId = 'prod_' + Date.now();
-    neg.catalogo.push({ id: nuevoId, ...producto });
+    neg.catalogo.push({ id: 'prod_' + Date.now(), ...producto });
   }
   await api('/panel/' + SLUG + '/negocio', { method: 'PUT', body: JSON.stringify({ catalogo: neg.catalogo }) });
   document.getElementById('formProducto').style.display = 'none';
