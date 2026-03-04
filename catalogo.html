@@ -208,6 +208,11 @@ body { font-family:var(--font); background:var(--bg); color:var(--black); min-he
 .opt-row:hover { border-color:var(--g200); background:#fafafa; }
 .opt-row.sel { border-color:var(--black); background:#f8f8f6; }
 .opt-row.sel .opt-ctrl { background:var(--black); border-color:var(--black); color:#fff; }
+.opt-right-wrap { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.opt-qty-ctrl { display:flex; align-items:center; gap:6px; background:var(--black); border-radius:var(--r-full); padding:3px 6px; }
+.oq-btn { width:22px; height:22px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1; transition:background 0.15s; }
+.oq-btn:hover { background:rgba(255,255,255,0.3); }
+.oq-num { color:#fff; font-size:13px; font-weight:700; min-width:14px; text-align:center; }
 .opt-left { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
 .opt-ctrl { width:19px; height:19px; border-radius:50%; border:2px solid var(--g200); display:flex; align-items:center; justify-content:center; font-size:10px; color:transparent; transition:var(--ease); flex-shrink:0; }
 .opt-ctrl.sq { border-radius:4px; }
@@ -559,6 +564,7 @@ function abrirProd(id) {
   prod = neg.catalogo.find(x => x.id === id);
   if (!prod) return;
   sels = {}; qty = 1; mitadSels = { 1: null, 2: null };
+  // sels[gi] = para único: { oi, qty } | null  — para múltiple: [{ oi, qty }]
   (prod.modificadores || []).forEach((g, i) => { sels[i] = g.tipo === 'unico' ? null : []; });
   renderSheet();
   document.getElementById('prodOverlay').classList.add('open');
@@ -604,11 +610,18 @@ function renderSheet() {
   mods.forEach((g, gi) => {
     html += '<div class="mod-group">';
     html += '<div class="mod-head"><div class="mod-title">' + g.nombre + (g.obligatorio ? '<span class="mod-req">Obligatorio</span>' : '') + '</div>';
-    html += '<div class="mod-sub">' + (g.tipo==='unico' ? 'Elige una opción' : 'Puedes elegir varias') + '</div></div>';
+    html += '<div class="mod-sub">' + (g.tipo==='unico' ? 'Elige una opción' : 'Puedes elegir varias y ajustar cantidad') + '</div></div>';
     g.opciones.forEach((op, oi) => {
       html += '<div class="opt-row" id="op-' + gi + '-' + oi + '" onclick="toggleOpt(' + gi + ',' + oi + ',\'' + g.tipo + '\')">';
       html += '<div class="opt-left"><div class="opt-ctrl' + (g.tipo==='unico'?'':' sq') + '" id="oc-' + gi + '-' + oi + '"></div><span class="opt-name">' + op.nombre + '</span></div>';
-      html += '<span class="opt-price">' + (op.precio > 0 ? '+$'+op.precio.toFixed(2) : op.precio < 0 ? '-$'+Math.abs(op.precio).toFixed(2) : 'Incluido') + '</span>';
+      html += '<div class="opt-right-wrap">';
+      html += '<div class="opt-qty-ctrl" id="oqc-' + gi + '-' + oi + '" style="display:none;" onclick="event.stopPropagation()">';
+      html += '<button class="oq-btn" onclick="cambiarQtyOpt(' + gi + ',' + oi + ',-1,\'' + g.tipo + '\')">−</button>';
+      html += '<span class="oq-num" id="oqn-' + gi + '-' + oi + '">1</span>';
+      html += '<button class="oq-btn" onclick="cambiarQtyOpt(' + gi + ',' + oi + ',1,\'' + g.tipo + '\')">+</button>';
+      html += '</div>';
+      html += '<span class="opt-price" id="opr-' + gi + '-' + oi + '">' + (op.precio > 0 ? '+$'+op.precio.toFixed(2) : op.precio < 0 ? '-$'+Math.abs(op.precio).toFixed(2) : 'Incluido') + '</span>';
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -623,27 +636,53 @@ function renderSheet() {
 function toggleOpt(gi, oi, tipo) {
   const g = prod.modificadores[gi];
   if (tipo === 'unico') {
-    g.opciones.forEach((_, i) => {
-      document.getElementById('op-' + gi + '-' + i)?.classList.remove('sel');
-      const c = document.getElementById('oc-' + gi + '-' + i);
-      if (c) c.textContent = '';
-    });
-    sels[gi] = oi;
-    document.getElementById('op-' + gi + '-' + oi).classList.add('sel');
-    document.getElementById('oc-' + gi + '-' + oi).textContent = '✓';
+    // Deseleccionar el anterior
+    if (sels[gi] !== null) {
+      const prev = sels[gi].oi;
+      document.getElementById('op-' + gi + '-' + prev)?.classList.remove('sel');
+      document.getElementById('oc-' + gi + '-' + prev) && (document.getElementById('oc-' + gi + '-' + prev).textContent = '');
+      document.getElementById('oqc-' + gi + '-' + prev) && (document.getElementById('oqc-' + gi + '-' + prev).style.display = 'none');
+      document.getElementById('opr-' + gi + '-' + prev) && (document.getElementById('opr-' + gi + '-' + prev).style.display = '');
+    }
+    // Si clic en el mismo, deseleccionar
+    if (sels[gi] !== null && sels[gi].oi === oi) {
+      sels[gi] = null;
+    } else {
+      sels[gi] = { oi, qty: 1 };
+      document.getElementById('op-' + gi + '-' + oi).classList.add('sel');
+      document.getElementById('oc-' + gi + '-' + oi).textContent = '✓';
+      document.getElementById('oqc-' + gi + '-' + oi).style.display = 'flex';
+      document.getElementById('opr-' + gi + '-' + oi).style.display = 'none';
+      document.getElementById('oqn-' + gi + '-' + oi).textContent = '1';
+    }
   } else {
     if (!Array.isArray(sels[gi])) sels[gi] = [];
-    const idx = sels[gi].indexOf(oi);
+    const idx = sels[gi].findIndex(s => s.oi === oi);
     if (idx >= 0) {
+      // Deseleccionar
       sels[gi].splice(idx, 1);
       document.getElementById('op-' + gi + '-' + oi).classList.remove('sel');
       document.getElementById('oc-' + gi + '-' + oi).textContent = '';
+      document.getElementById('oqc-' + gi + '-' + oi).style.display = 'none';
+      document.getElementById('opr-' + gi + '-' + oi).style.display = '';
     } else {
-      sels[gi].push(oi);
+      // Seleccionar
+      sels[gi].push({ oi, qty: 1 });
       document.getElementById('op-' + gi + '-' + oi).classList.add('sel');
       document.getElementById('oc-' + gi + '-' + oi).textContent = '✓';
+      document.getElementById('oqc-' + gi + '-' + oi).style.display = 'flex';
+      document.getElementById('opr-' + gi + '-' + oi).style.display = 'none';
+      document.getElementById('oqn-' + gi + '-' + oi).textContent = '1';
     }
   }
+  actualizarPrecioSheet();
+}
+
+function cambiarQtyOpt(gi, oi, delta, tipo) {
+  let entry = tipo === 'unico' ? sels[gi] : (sels[gi] || []).find(s => s.oi === oi);
+  if (!entry) return;
+  entry.qty = Math.max(1, entry.qty + delta);
+  document.getElementById('oqn-' + gi + '-' + oi).textContent = entry.qty;
   actualizarPrecioSheet();
 }
 
@@ -651,8 +690,11 @@ function calcExtra() {
   let e = 0;
   (prod.modificadores || []).forEach((g, gi) => {
     const s = sels[gi];
-    if (g.tipo === 'unico' && s != null) e += g.opciones[s]?.precio || 0;
-    else if (Array.isArray(s)) s.forEach(oi => { e += g.opciones[oi]?.precio || 0; });
+    if (g.tipo === 'unico' && s !== null) {
+      e += (g.opciones[s.oi]?.precio || 0) * s.qty;
+    } else if (Array.isArray(s)) {
+      s.forEach(({ oi, qty }) => { e += (g.opciones[oi]?.precio || 0) * qty; });
+    }
   });
   return e;
 }
@@ -704,7 +746,16 @@ function agregarAlCarrito() {
   }
   mods.forEach((g, gi) => {
     const s = sels[gi];
-    const ops = g.tipo === 'unico' && s != null ? [g.opciones[s].nombre] : Array.isArray(s) ? s.map(oi => g.opciones[oi].nombre) : [];
+    let ops = [];
+    if (g.tipo === 'unico' && s !== null) {
+      const nombre = g.opciones[s.oi].nombre;
+      ops = [s.qty > 1 ? nombre + ' x' + s.qty : nombre];
+    } else if (Array.isArray(s)) {
+      ops = s.map(({ oi, qty }) => {
+        const nombre = g.opciones[oi].nombre;
+        return qty > 1 ? nombre + ' x' + qty : nombre;
+      });
+    }
     if (ops.length) modsGuardados.push({ grupo: g.nombre, opciones: ops });
   });
   cart.push({ uid: Date.now() + Math.random(), id: prod.id, nombre: prod.nombre, precio: prod.precio + extra, emoji: prod.emoji||'🍕', imagen: prod.imagen||'', cantidad: qty, modificadores: modsGuardados });
