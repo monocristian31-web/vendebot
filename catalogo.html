@@ -850,7 +850,7 @@ function confirmarPedido() {
   let msg = 'Hola! Quiero hacer un pedido 🛒\n\n' + lineas.join('\n\n') + '\n\n💰 Total: $' + subtotal.toFixed(2);
   if (notas.trim()) msg += '\n\n📝 Notas: ' + notas.trim();
   msg += '\n\n_(Pedido desde el catálogo web)_';
-  const wa = (neg.whatsapp_dueno || '').replace(/\D/g, '');
+  const wa = (neg.whatsapp_numero || neg.whatsapp_dueno || '').replace(/\D/g, '');
   if (!wa) { toast('Sin número de WhatsApp configurado'); return; }
   window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(msg), '_blank');
 }
