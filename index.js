@@ -947,7 +947,7 @@ app.post('/admin/negocios', (req, res) => {
   const negocios = cargarNegocios();
   const nuevo = { id: 'negocio_' + Date.now(), activo: true, catalogo: [], modo_vacaciones: false, tiempo_entrega: '30-45 minutos', politica_devoluciones: '', mensajes: { bienvenida: 'Hola! Bienvenido/a. En que puedo ayudarte?', tono: 'amigable' }, ...req.body };
   negocios.push(nuevo);
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true, negocio: nuevo });
 });
 app.put('/admin/negocios/:id', (req, res) => {
@@ -955,12 +955,12 @@ app.put('/admin/negocios/:id', (req, res) => {
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 app.delete('/admin/negocios/:id', (req, res) => {
   const negocios = cargarNegocios().filter(n => n.id !== req.params.id);
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 app.put('/admin/negocios/:id/vacaciones', (req, res) => {
@@ -969,7 +969,7 @@ app.put('/admin/negocios/:id/vacaciones', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].modo_vacaciones = req.body.activo;
   negocios[idx].mensaje_vacaciones = req.body.mensaje || '';
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 app.get('/admin/clientes', (req, res) => res.json(cargarClientes()));
@@ -1103,7 +1103,7 @@ app.put('/panel/:slug/negocio', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
 
@@ -1112,7 +1112,7 @@ app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].bot_activo = req.body.activo;
-  guardarNegociosSync(negocios);
+  guardarJSON('./negocios.json', negocios);
   console.log(`Bot ${req.body.activo ? 'activado' : 'desactivado'} para ${req.params.slug}`);
   res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
@@ -1242,7 +1242,7 @@ setInterval(async () => {
       if (p.stock === 0 && p.activo !== false) { p.activo = false; cambios = true; }
       if (p.stock > 0 && p.activo === false) { p.activo = true; cambios = true; }
     });
-    if (cambios) guardarNegociosSync(negocios);
+    if (cambios) guardarJSON('./negocios.json', negocios);
   }
 }, 60 * 60 * 1000);
 
