@@ -208,7 +208,7 @@ function getOrCreateConversacion(numero, negocio) {
   if (!conversaciones.has(key)) {
     conversaciones.set(key, {
       numero, negocio_id: negocio.id, historial: [], etapa: 'inicio',
-      pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '', cupon: null, descuento: 0 },
+      pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '', cupon: null, descuento: 0, cambio_solicitado: 0 },
       esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(), citaTemp: {},
     });
   }
@@ -375,9 +375,19 @@ async function enviarResumenPedido(numero, conv) {
 
 function generarMensajePago(conv, negocio) {
   if (conv.pedido.metodo_pago === 'efectivo') {
-    return `Perfecto! Pagaras en efectivo al momento de la entrega.\nTotal: $${conv.pedido.total?.toFixed(2) || '0.00'}\n\nTu pedido esta confirmado! Te avisaremos cuando el repartidor este en camino.`;
+    const total = conv.pedido.total?.toFixed(2) || '0.00';
+    const billete = conv.pedido.cambio_solicitado || 0;
+    const cambio = billete > 0 ? (billete - parseFloat(total)).toFixed(2) : null;
+    let msg = `Perfecto! Pagarás en efectivo al momento de la entrega.\nTotal a pagar: $${total}`;
+    if (cambio !== null && parseFloat(cambio) >= 0) {
+      msg += `\nBillete: $${billete.toFixed(2)}\nCambio que recibirás: $${cambio}`;
+    } else if (billete > 0) {
+      msg += `\nNota: El billete de $${billete.toFixed(2)} no cubre el total. Por favor prepara el monto exacto o un billete mayor.`;
+    }
+    msg += `\n\n¡Tu pedido está confirmado! Te avisaremos cuando el repartidor esté en camino. 🛵`;
+    return msg;
   }
-  return `Datos para el pago:\n\nBanco: ${negocio.banco}\nCuenta: ${negocio.numero_cuenta}\nTitular: ${negocio.titular_cuenta}\nMonto exacto: $${conv.pedido.total?.toFixed(2) || '0.00'}\n\nEnviame el comprobante (foto) para confirmar.`;
+  return `Datos para el pago:\n\nBanco: ${negocio.banco}\nCuenta: ${negocio.numero_cuenta}\nTitular: ${negocio.titular_cuenta}\nMonto exacto: $${conv.pedido.total?.toFixed(2) || '0.00'}\n\nEnvíame el comprobante (foto) para confirmar.`;
 }
 
 async function notificarDueno(conv, negocio) {
@@ -388,7 +398,12 @@ async function notificarDueno(conv, negocio) {
     if (i.mitad2) linea += `\n     Mitad 2: ${i.mitad2}`;
     return linea;
   }).join('\n') || '';
-  const msg = `NUEVO PEDIDO - ${negocio.nombre}\n\nCliente: ${p.nombre_cliente || conv.numero}\nWhatsApp: ${conv.numero}\n\nDetalle:\n${items}\n${p.descuento > 0 ? `Descuento: -$${p.descuento.toFixed(2)}\n` : ''}Total: $${p.total?.toFixed(2) || '0.00'}\n${p.es_domicilio ? `Direccion: ${p.direccion}` : 'Retira en tienda'}${p.fecha_entrega ? `\nEntrega: ${p.fecha_entrega} ${p.hora_entrega || ''}` : ''}${p.notas ? `\nNotas: ${p.notas}` : ''}\nPago: ${p.metodo_pago === 'efectivo' ? 'Efectivo' : 'Transferencia verificada'}`;
+  let infoPago = p.metodo_pago === 'efectivo' ? 'Efectivo' : 'Transferencia verificada';
+  if (p.metodo_pago === 'efectivo' && p.cambio_solicitado > 0) {
+    const cambio = (p.cambio_solicitado - (p.total || 0)).toFixed(2);
+    infoPago += `\n💵 El cliente paga con $${p.cambio_solicitado.toFixed(2)} — llevar cambio de $${cambio}`;
+  }
+  const msg = `NUEVO PEDIDO - ${negocio.nombre}\n\nCliente: ${p.nombre_cliente || conv.numero}\nWhatsApp: ${conv.numero}\n\nDetalle:\n${items}\n${p.descuento > 0 ? `Descuento: -$${p.descuento.toFixed(2)}\n` : ''}Total: $${p.total?.toFixed(2) || '0.00'}\n${p.es_domicilio ? `Direccion: ${p.direccion}` : 'Retira en tienda'}${p.fecha_entrega ? `\nEntrega: ${p.fecha_entrega} ${p.hora_entrega || ''}` : ''}${p.notas ? `\nNotas: ${p.notas}` : ''}\nPago: ${infoPago}`;
   await enviarMensaje(negocio.whatsapp_dueno, msg);
 }
 
@@ -466,8 +481,8 @@ REGLAS:
 3. Si el cliente ya viene CON un pedido armado desde el catalogo (el mensaje empieza con "Hola! Quiero hacer un pedido 🛒"): NO mandes el catalogo, procesa directamente el pedido que trae en el mensaje y pon PEDIDO_DESDE_CATALOGO: true.
 4. Si hay fecha especial activa, mencionala con entusiasmo.
 5. Si el cliente tiene muchos puntos, sugieres que puede canjearlos.
-6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro, metodo pago.
-7. Si elige efectivo, solo para domicilio.
+6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro. Luego pregunta el metodo de pago SOLO mostrando los metodos que el negocio tiene activos: ${(negocio.metodos_pago || ['transferencia']).join(', ')}.
+7. Si el negocio acepta efectivo y el cliente elige efectivo: preguntale "¿De cuánto billete necesitas cambio?" y espera su respuesta antes de poner MOSTRAR_PAGO: true. Guarda el monto del billete en el PEDIDO_JSON como cambio_solicitado. Si elige transferencia, procede directo a MOSTRAR_PAGO: true.
 8. Si el cliente menciona un cupon, valida con APLICAR_CUPON: [codigo]
 9. Si el cliente quiere su codigo de referido, dimelo.
 10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
@@ -480,7 +495,7 @@ REGLAS:
 
 Al FINAL escribe:
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
-PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia","descuento":0}
+PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia","descuento":0,"cambio_solicitado":0}
 ENVIAR_IMAGENES: []
 MOSTRAR_PAGO: false
 APLICAR_CUPON: 
