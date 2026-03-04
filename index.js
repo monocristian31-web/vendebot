@@ -859,30 +859,42 @@ app.post('/webhook', async (req, res) => {
       const items = [];
       let itemActual = null;
       lineas.forEach(l => {
-        const match = l.match(/^•\s+(.+?)\s+x(\d+)\s+—\s+\$[\d.]+/);
+        // Capturar precio real del mensaje (incluye modificadores)
+        const match = l.match(/^•\s+(.+?)\s+x(\d+)\s+—\s+\$([\d.]+)/);
         if (match) {
           if (itemActual) items.push(itemActual);
           const nombre = match[1].trim();
           const cantidad = parseInt(match[2]);
+          const precioTotal = parseFloat(match[3]);
           const prod = negocio.catalogo.find(p => p.nombre === nombre);
           if (prod) {
-            itemActual = { id: prod.id, nombre: prod.nombre, precio: prod.precio, cantidad, emoji: prod.emoji || '📦', notas_item: '' };
+            itemActual = { id: prod.id, nombre: prod.nombre, precio: precioTotal / cantidad, cantidad, emoji: prod.emoji || '📦', notas_item: '' };
           } else {
-            itemActual = null;
+            itemActual = { nombre, precio: precioTotal / cantidad, cantidad, emoji: '📦', notas_item: '' };
           }
         } else if (itemActual) {
-          // Capturar líneas de modificadores (incluyendo mitades)
           const mitad1 = l.match(/Mitad 1:\s*(.+)/i);
           const mitad2 = l.match(/Mitad 2:\s*(.+)/i);
+          const modMatch = l.match(/^\s+(.+?):\s+(.+)/);
           if (mitad1) itemActual.mitad1 = mitad1[1].trim();
-          if (mitad2) itemActual.mitad2 = mitad2[1].trim();
+          else if (mitad2) itemActual.mitad2 = mitad2[1].trim();
+          else if (modMatch) {
+            if (!itemActual.modificadores) itemActual.modificadores = [];
+            itemActual.modificadores.push({ grupo: modMatch[1].trim(), opciones: [modMatch[2].trim()] });
+          }
         }
       });
       if (itemActual) items.push(itemActual);
+
+      // Extraer total real del mensaje
+      const totalMatch = texto.match(/💰 Total: \$([\d.]+)/);
+      const notasMatch = texto.match(/📝 Notas: (.+)/);
+
       if (items.length > 0) {
         conv.pedido.items = items;
-        conv.pedido.subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+        conv.pedido.subtotal = totalMatch ? parseFloat(totalMatch[1]) : items.reduce((s, i) => s + i.precio * i.cantidad, 0);
         conv.pedido.total = conv.pedido.subtotal;
+        if (notasMatch) conv.pedido.notas = notasMatch[1].trim();
         conv.etapa = 'confirmando';
       }
     }
@@ -899,10 +911,13 @@ app.post('/webhook', async (req, res) => {
       await enviar(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${linkCatalogo}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
     }
 
-    // Si el cliente trae un pedido desde el catálogo, saltar a confirmar
+    // Si el cliente trae un pedido desde el catálogo, mostrar resumen y pedir datos
     if (pedidoDesdeCatalogo && conv.pedido.items?.length > 0) {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
+      await new Promise(r => setTimeout(r, 500));
+      await enviar(numero, `Para completar tu pedido necesito algunos datos:\n\n1️⃣ ¿Cuál es tu nombre?\n2️⃣ ¿Es para delivery o retiras en tienda?\n3️⃣ ¿Cuándo lo necesitas?`);
+      conv.etapa = 'confirmando';
     }
 
     if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
