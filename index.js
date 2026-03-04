@@ -594,9 +594,16 @@ app.post('/webhook', async (req, res) => {
     const enviar = (dest, msg) => enviarMensaje(dest, msg, pid);
 
     if (negocio.modo_vacaciones) { await enviar(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`); return; }
-    if (!estaEnHorario()) {
-      const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
-      await enviar(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nAtencion: ${HORARIO.dias.map(d => dias[d]).join(', ')}\n8:00 am - 6:00 pm`);
+    if (!estaAbiertoAhora(negocio)) {
+      const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      let horarioTexto = 'No configurado';
+      if (negocio.horarios) {
+        const lineas = Object.entries(negocio.horarios)
+          .filter(([,h]) => h.abierto)
+          .map(([d,h]) => `${d}: ${h.desde} - ${h.hasta}`);
+        if (lineas.length) horarioTexto = lineas.join('\n');
+      }
+      await enviar(numero, `Hola! ${negocio.nombre} está fuera de horario en este momento.\n\nHorario de atención:\n${horarioTexto}`);
       return;
     }
 
@@ -753,7 +760,17 @@ app.post('/webhook', async (req, res) => {
       await enviar(numero, msg);
       return;
     }
-    if (textoLower === 'horario') { await enviar(numero, `Horario de ${negocio.nombre}:\n\nLunes a Sabado: 8am - 6pm\nDomingos: Cerrado`); return; }
+    if (textoLower === 'horario') {
+      let horarioTexto = 'No configurado';
+      if (negocio.horarios) {
+        const lineas = Object.entries(negocio.horarios)
+          .filter(([,h]) => h.abierto)
+          .map(([d,h]) => `${d}: ${h.desde} - ${h.hasta}`);
+        if (lineas.length) horarioTexto = lineas.join('\n');
+      }
+      await enviar(numero, `Horario de atención de ${negocio.nombre}:\n\n${horarioTexto}`);
+      return;
+    }
     if (textoLower === 'devoluciones' || textoLower === 'politica de devoluciones') {
       await enviar(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
       return;
