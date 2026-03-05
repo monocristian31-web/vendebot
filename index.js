@@ -1470,11 +1470,10 @@ function estaAbiertoAhora(negocio) {
 
 // CATÁLOGO PÚBLICO — sirve el HTML del e-commerce
 app.get('/catalogo/:slug', (req, res) => {
-  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
-  if (!negocio) return res.status(404).send('<h1>Negocio no encontrado</h1>');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   res.sendFile('catalogo.html', { root: '.' });
 });
-
 // API de datos del catálogo (usada por catalogo.html via JS)
 app.get('/catalogo-data/:slug', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
