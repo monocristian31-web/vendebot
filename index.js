@@ -489,7 +489,7 @@ REGLAS:
 9. Si el cliente quiere su codigo de referido, dimelo.
 10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
 11. Si producto con stock 0, sugiere alternativas.
-12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'No configurado'}.
+12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sabado 8am-6pm'}.
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
 15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
@@ -594,16 +594,9 @@ app.post('/webhook', async (req, res) => {
     const enviar = (dest, msg) => enviarMensaje(dest, msg, pid);
 
     if (negocio.modo_vacaciones) { await enviar(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`); return; }
-    if (!estaAbiertoAhora(negocio)) {
-      const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-      let horarioTexto = 'No configurado';
-      if (negocio.horarios) {
-        const lineas = Object.entries(negocio.horarios)
-          .filter(([,h]) => h.abierto)
-          .map(([d,h]) => `${d}: ${h.desde} - ${h.hasta}`);
-        if (lineas.length) horarioTexto = lineas.join('\n');
-      }
-      await enviar(numero, `Hola! ${negocio.nombre} está fuera de horario en este momento.\n\nHorario de atención:\n${horarioTexto}`);
+    if (!estaEnHorario()) {
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+      await enviar(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nAtencion: ${HORARIO.dias.map(d => dias[d]).join(', ')}\n8:00 am - 6:00 pm`);
       return;
     }
 
@@ -655,7 +648,7 @@ app.post('/webhook', async (req, res) => {
           }
         } catch (e) { await enviar(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
       } else {
-        await enviar(numero, negocio.mensajes?.respuesta_imagen || 'Gracias por la imagen! En que puedo ayudarte?');
+        await enviar(numero, 'Gracias por la imagen! En que puedo ayudarte?');
       }
       return;
     }
@@ -663,7 +656,7 @@ app.post('/webhook', async (req, res) => {
     if (tipo === 'audio') { await enviar(numero, 'Solo puedo atenderte por texto. Que necesitas?'); return; }
     if (tipo === 'document') {
       if (conv.esperando === 'boucher') await enviar(numero, 'Necesito el comprobante como imagen (foto o captura).');
-      else await enviar(numero, negocio.mensajes?.bienvenida ? `${negocio.mensajes.bienvenida}` : 'Gracias! En que puedo ayudarte?');
+      else await enviar(numero, 'Gracias! En que puedo ayudarte?');
       return;
     }
     if (tipo === 'location') {
@@ -760,19 +753,9 @@ app.post('/webhook', async (req, res) => {
       await enviar(numero, msg);
       return;
     }
-    if (textoLower === 'horario') {
-      let horarioTexto = 'No configurado';
-      if (negocio.horarios) {
-        const lineas = Object.entries(negocio.horarios)
-          .filter(([,h]) => h.abierto)
-          .map(([d,h]) => `${d}: ${h.desde} - ${h.hasta}`);
-        if (lineas.length) horarioTexto = lineas.join('\n');
-      }
-      await enviar(numero, `Horario de atención de ${negocio.nombre}:\n\n${horarioTexto}`);
-      return;
-    }
+    if (textoLower === 'horario') { await enviar(numero, `Horario de ${negocio.nombre}:\n\nLunes a Sabado: 8am - 6pm\nDomingos: Cerrado`); return; }
     if (textoLower === 'devoluciones' || textoLower === 'politica de devoluciones') {
-      await enviar(numero, negocio.politica_devoluciones || `No tenemos una política de devoluciones registrada. Contáctanos directamente para ayudarte.`);
+      await enviar(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
       return;
     }
 
@@ -799,7 +782,7 @@ app.post('/webhook', async (req, res) => {
       }
       conv.citaTemp.servicio = config.servicios[idx];
       conv.esperando = 'cita_fecha';
-      const diasTexto = config.dias_disponibles?.length ? config.dias_disponibles.join(', ') : 'Consultar disponibilidad';
+      const diasTexto = config.dias_disponibles?.join(', ') || 'Lunes a Viernes';
       await enviar(numero, `Servicio: ${conv.citaTemp.servicio}\n\nDías disponibles: ${diasTexto}\n\nEscribe la fecha deseada (ej: 15/03/2025)`);
       return;
     }
@@ -1466,20 +1449,20 @@ app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
 // ─── FUNCIÓN HORARIO DINÁMICO ──────────────────────────────────────────────────
 function estaAbiertoAhora(negocio) {
   if (negocio.modo_vacaciones) return false;
+  const zona = 'America/Guayaquil';
+  const ahoraEC = new Date(new Date().toLocaleString('en-US', { timeZone: zona }));
   const horarios = negocio.horarios;
   if (!horarios) {
-    // fallback al hardcoded si no hay horarios configurados
-    const h = new Date().getHours();
+    const h = ahoraEC.getHours();
     return h >= 8 && h < 18;
   }
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  const hoy = dias[new Date().getDay()];
+  const hoy = dias[ahoraEC.getDay()];
   const horario = horarios[hoy];
   if (!horario || !horario.abierto || !horario.desde || !horario.hasta) return false;
-  const ahora = new Date();
   const [dH, dM] = horario.desde.split(':').map(Number);
   const [hH, hM] = horario.hasta.split(':').map(Number);
-  const minActual = ahora.getHours() * 60 + ahora.getMinutes();
+  const minActual = ahoraEC.getHours() * 60 + ahoraEC.getMinutes();
   const minDesde = dH * 60 + dM;
   const minHasta = hH * 60 + hM;
   return minActual >= minDesde && minActual < minHasta;
