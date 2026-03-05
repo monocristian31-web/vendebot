@@ -489,7 +489,7 @@ REGLAS:
 9. Si el cliente quiere su codigo de referido, dimelo.
 10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
 11. Si producto con stock 0, sugiere alternativas.
-12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sabado 8am-6pm'}.
+12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'No configurado'}.
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
 15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
@@ -655,7 +655,7 @@ app.post('/webhook', async (req, res) => {
           }
         } catch (e) { await enviar(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
       } else {
-        await enviar(numero, 'Gracias por la imagen! En que puedo ayudarte?');
+        await enviar(numero, negocio.mensajes?.respuesta_imagen || 'Gracias por la imagen! En que puedo ayudarte?');
       }
       return;
     }
@@ -663,7 +663,7 @@ app.post('/webhook', async (req, res) => {
     if (tipo === 'audio') { await enviar(numero, 'Solo puedo atenderte por texto. Que necesitas?'); return; }
     if (tipo === 'document') {
       if (conv.esperando === 'boucher') await enviar(numero, 'Necesito el comprobante como imagen (foto o captura).');
-      else await enviar(numero, 'Gracias! En que puedo ayudarte?');
+      else await enviar(numero, negocio.mensajes?.bienvenida ? `${negocio.mensajes.bienvenida}` : 'Gracias! En que puedo ayudarte?');
       return;
     }
     if (tipo === 'location') {
@@ -772,7 +772,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
     if (textoLower === 'devoluciones' || textoLower === 'politica de devoluciones') {
-      await enviar(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
+      await enviar(numero, negocio.politica_devoluciones || `No tenemos una política de devoluciones registrada. Contáctanos directamente para ayudarte.`);
       return;
     }
 
@@ -799,7 +799,7 @@ app.post('/webhook', async (req, res) => {
       }
       conv.citaTemp.servicio = config.servicios[idx];
       conv.esperando = 'cita_fecha';
-      const diasTexto = config.dias_disponibles?.join(', ') || 'Lunes a Viernes';
+      const diasTexto = config.dias_disponibles?.length ? config.dias_disponibles.join(', ') : 'Consultar disponibilidad';
       await enviar(numero, `Servicio: ${conv.citaTemp.servicio}\n\nDías disponibles: ${diasTexto}\n\nEscribe la fecha deseada (ej: 15/03/2025)`);
       return;
     }
