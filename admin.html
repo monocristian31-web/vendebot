@@ -119,14 +119,19 @@ input::placeholder{color:var(--text3);}
   <div class="login-card">
     <div class="login-logo">VendeBot</div>
     <div class="login-sub">Panel de administración</div>
-    <div id="loginErr"></div>
-    <input type="password" id="adminPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')loginAdmin()">
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;" onclick="loginAdmin()">Entrar →</button>
+    <div id="loginError"></div>
+    <input type="password" id="loginPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;" onclick="login()">Entrar →</button>
   </div>
 </div>
 
-<div id="adminScreen" style="display:none;">
+<div id="app" style="display:none;">
   <div class="admin-wrap">
+    <!-- Stats ocultos para JS -->
+    <span id="statTotal" style="display:none"></span>
+    <span id="statActivos" style="display:none"></span>
+    <span id="statBots" style="display:none"></span>
+
     <div class="admin-header">
       <div>
         <div class="admin-logo">VendeBot</div>

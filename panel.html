@@ -2115,7 +2115,7 @@ function actualizarVisibilidadMitadMitad() {
 function actualizarSwitchBot(activo) {
   const toggle = document.getElementById('botToggle');
   const dot = document.getElementById('botDot');
-  const label = document.getElementById('botStatusLabel');
+  const label = document.getElementById('botStatusText');
   if (!toggle) return;
   toggle.checked = activo;
   if (dot) { dot.className = 'bot-status-dot' + (activo ? '' : ' off'); }
