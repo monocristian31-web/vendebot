@@ -1380,3 +1380,4 @@ app.get('/privacidad', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v10.0 iniciado en puerto ${PORT}`));
+ 
