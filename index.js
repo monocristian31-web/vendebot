@@ -3,10 +3,20 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
 const fs = require('fs');
+const crypto = require('crypto');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const app = express();
 app.use(express.json());
-app.use(express.static('.'));
+// FIX PRINCIPAL: no servir archivos .html como estáticos — pasan por las rutas de Express
+app.use(express.static('.', { extensions: [], index: false }));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
@@ -44,8 +54,8 @@ function cargarPuntos() { return cargarJSON('./puntos.json', {}); }
 function guardarPuntos(p) { guardarJSON('./puntos.json', p); }
 
 // ─── SISTEMA DE PUNTOS ────────────────────────────────────────────────────────
-const PUNTOS_POR_DOLAR = 10; // 10 puntos por cada $1 gastado
-const PUNTOS_PARA_REGALO = 500; // 500 puntos = producto gratis
+const PUNTOS_POR_DOLAR = 10;
+const PUNTOS_PARA_REGALO = 500;
 
 function obtenerPuntos(numero) {
   const puntos = cargarPuntos();
@@ -81,11 +91,9 @@ function validarCupon(codigo, subtotal) {
   if (cupon.usos_maximos && cupon.usos_actuales >= cupon.usos_maximos) return { valido: false, motivo: 'Cupon agotado' };
   if (cupon.fecha_expiracion && new Date(cupon.fecha_expiracion) < new Date()) return { valido: false, motivo: 'Cupon expirado' };
   if (cupon.monto_minimo && subtotal < cupon.monto_minimo) return { valido: false, motivo: `Monto minimo requerido: $${cupon.monto_minimo}` };
-  
   let descuento = 0;
   if (cupon.tipo === 'porcentaje') descuento = subtotal * (cupon.valor / 100);
   else if (cupon.tipo === 'fijo') descuento = cupon.valor;
-  
   return { valido: true, descuento: Math.min(descuento, subtotal), cupon };
 }
 
@@ -117,18 +125,11 @@ function procesarReferido(codigoRef, numeroNuevo) {
   if (!dueno || dueno.numero === numeroNuevo) return false;
   if (!dueno.referidos.includes(numeroNuevo)) {
     dueno.referidos.push(numeroNuevo);
-    dueno.descuento_ganado += 5; // $5 de descuento por referido
+    dueno.descuento_ganado += 5;
     referidos[dueno.numero] = dueno;
     guardarJSON('./referidos.json', referidos);
-    // Crear cupon automatico para el que refirio
     const cupones = cargarCupones();
-    cupones.push({
-      codigo: 'REFER' + Date.now(),
-      tipo: 'fijo', valor: 5,
-      activo: true, usos_maximos: 1, usos_actuales: 0,
-      descripcion: 'Descuento por referido',
-      para_numero: dueno.numero,
-    });
+    cupones.push({ codigo: 'REFER' + Date.now(), tipo: 'fijo', valor: 5, activo: true, usos_maximos: 1, usos_actuales: 0, descripcion: 'Descuento por referido', para_numero: dueno.numero });
     guardarJSON('./cupones.json', cupones);
     return dueno.numero;
   }
@@ -140,7 +141,6 @@ function obtenerFechaEspecial() {
   const ahora = horaActual();
   const mes = ahora.getMonth() + 1;
   const dia = ahora.getDate();
-  
   if (mes === 2 && dia >= 12 && dia <= 14) return { nombre: 'San Valentin', emoji: 'cupid', descuento: 15 };
   if (mes === 5 && dia >= 8 && dia <= 12) return { nombre: 'Dia de la Madre', emoji: 'rose', descuento: 10 };
   if (mes === 6 && dia >= 14 && dia <= 17) return { nombre: 'Dia del Padre', emoji: 'necktie', descuento: 10 };
@@ -173,18 +173,7 @@ function registrarPedido(numero, pedido, negocioNombre) {
   c.total_gastado = (c.total_gastado || 0) + (pedido.total || 0);
   c.ultima_visita = new Date().toISOString();
   if (!c.historial_pedidos) c.historial_pedidos = [];
-  c.historial_pedidos.push({
-    id: 'PED-' + Date.now(),
-    fecha: new Date().toISOString(),
-    negocio: negocioNombre,
-    items: pedido.items,
-    total: pedido.total,
-    descripcion: pedido.items?.map(i => `${i.nombre} x${i.cantidad}`).join(', '),
-    estado: 'confirmado',
-    es_domicilio: pedido.es_domicilio,
-    direccion: pedido.direccion,
-    seguimiento_enviado: false,
-  });
+  c.historial_pedidos.push({ id: 'PED-' + Date.now(), fecha: new Date().toISOString(), negocio: negocioNombre, items: pedido.items, total: pedido.total, descripcion: pedido.items?.map(i => `${i.nombre} x${i.cantidad}`).join(', '), estado: 'confirmado', es_domicilio: pedido.es_domicilio, direccion: pedido.direccion, seguimiento_enviado: false });
   if (c.historial_pedidos.length > 20) c.historial_pedidos = c.historial_pedidos.slice(-20);
   if (c.total_pedidos >= 3) c.es_frecuente = true;
   clientes[numero] = c;
@@ -206,11 +195,7 @@ function guardarMapaClientes() { guardarJSON('./cliente_negocio_map.json', Objec
 function getOrCreateConversacion(numero, negocio) {
   const key = `${numero}:${negocio.id}`;
   if (!conversaciones.has(key)) {
-    conversaciones.set(key, {
-      numero, negocio_id: negocio.id, historial: [], etapa: 'inicio',
-      pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '', cupon: null, descuento: 0, cambio_solicitado: 0 },
-      esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(), citaTemp: {},
-    });
+    conversaciones.set(key, { numero, negocio_id: negocio.id, historial: [], etapa: 'inicio', pedido: { items: [], subtotal: 0, total: 0, es_domicilio: false, direccion: '', nombre_cliente: '', notas: '', metodo_pago: 'transferencia', fecha_entrega: '', hora_entrega: '', repartidor: '', cupon: null, descuento: 0, cambio_solicitado: 0 }, esperando: null, intentos_boucher: 0, ultimo_mensaje: Date.now(), citaTemp: {} });
   }
   const conv = conversaciones.get(key);
   conv.ultimo_mensaje = Date.now();
@@ -225,7 +210,6 @@ setInterval(() => {
 }, 30 * 60 * 1000);
 
 // ─── TAREAS AUTOMÁTICAS ───────────────────────────────────────────────────────
-// Recordatorio pago (30 min)
 setInterval(async () => {
   if (!estaEnHorario()) return;
   const ahora = Date.now();
@@ -237,7 +221,6 @@ setInterval(async () => {
   }
 }, 30 * 60 * 1000);
 
-// Recordatorio dia entrega (cada hora)
 setInterval(async () => {
   if (!estaEnHorario()) return;
   const pendientes = cargarPedidosPendientes();
@@ -252,7 +235,6 @@ setInterval(async () => {
   if (cambios) guardarPedidosPendientes(pendientes);
 }, 60 * 60 * 1000);
 
-// Resumen diario 6pm
 setInterval(async () => {
   const ahora = horaActual();
   if (ahora.getHours() === 18 && ahora.getMinutes() < 5) {
@@ -267,7 +249,6 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000);
 
-// Reactivacion clientes inactivos (cada dia a las 10am)
 setInterval(async () => {
   const ahora = horaActual();
   if (ahora.getHours() === 10 && ahora.getMinutes() < 5) {
@@ -282,7 +263,6 @@ setInterval(async () => {
           await enviarMensaje(numero, `Hola ${cliente.nombre || ''}! Te extrañamos en ${negocio.nombre}. Ha pasado un tiempo y queremos ofrecerte un descuento especial del 10% en tu proximo pedido. Usa el codigo: VUELVE10`);
           cliente.reactivacion_enviada = true;
           clientes[numero] = cliente;
-          // Crear cupon
           const cupones = cargarCupones();
           if (!cupones.find(c => c.codigo === 'VUELVE10' && c.para_numero === numero)) {
             cupones.push({ codigo: 'VUELVE10_' + numero.slice(-4), tipo: 'porcentaje', valor: 10, activo: true, usos_maximos: 1, usos_actuales: 0, para_numero: numero, descripcion: 'Descuento reactivacion' });
@@ -295,7 +275,6 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000);
 
-// Seguimiento post-venta
 setInterval(async () => {
   if (!estaEnHorario()) return;
   const clientes = cargarClientes();
@@ -320,11 +299,7 @@ async function enviarMensaje(numero, mensaje, phoneId) {
   if (!mensaje?.trim()) return;
   const pid = phoneId || PHONE_NUMBER_ID;
   try {
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${pid}/messages`,
-      { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: mensaje } },
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
-    );
+    await axios.post(`https://graph.facebook.com/v18.0/${pid}/messages`, { messaging_product: 'whatsapp', to: numero, type: 'text', text: { body: mensaje } }, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } });
     console.log(`Enviado [${numero}] ${mensaje.substring(0, 60)}`);
   } catch (err) { console.error(`Error: ${err.response?.data?.error?.message || err.message}`); }
 }
@@ -332,11 +307,7 @@ async function enviarMensaje(numero, mensaje, phoneId) {
 async function enviarImagen(numero, url, caption, phoneId) {
   const pid = phoneId || PHONE_NUMBER_ID;
   try {
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${pid}/messages`,
-      { messaging_product: 'whatsapp', to: numero, type: 'image', image: { link: url, caption: caption || '' } },
-      { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } }
-    );
+    await axios.post(`https://graph.facebook.com/v18.0/${pid}/messages`, { messaging_product: 'whatsapp', to: numero, type: 'image', image: { link: url, caption: caption || '' } }, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' } });
   } catch (err) { console.error(`Error imagen: ${err.response?.data?.error?.message || err.message}`); }
 }
 
@@ -345,7 +316,6 @@ async function enviarProducto(numero, producto, negocio) {
   const caption = `${producto.emoji || ''} ${producto.nombre}\nPrecio: $${producto.precio.toFixed(2)}\n${producto.descripcion || ''}${stockInfo}`;
   if (producto.imagen) await enviarImagen(numero, producto.imagen, caption);
   else await enviarMensaje(numero, caption);
-  // Si tiene modificadores, mandar link de personalización
   if (producto.modificadores?.length > 0 && negocio) {
     const slug = negocio.slug || negocio.id;
     const numeroLimpio = numero.replace(/\D/g, '');
@@ -381,11 +351,8 @@ function generarMensajePago(conv, negocio) {
     const billete = conv.pedido.cambio_solicitado || 0;
     const cambio = billete > 0 ? (billete - parseFloat(total)).toFixed(2) : null;
     let msg = `Perfecto! Pagarás en efectivo al momento de la entrega.\nTotal a pagar: $${total}`;
-    if (cambio !== null && parseFloat(cambio) >= 0) {
-      msg += `\nBillete: $${billete.toFixed(2)}\nCambio que recibirás: $${cambio}`;
-    } else if (billete > 0) {
-      msg += `\nNota: El billete de $${billete.toFixed(2)} no cubre el total. Por favor prepara el monto exacto o un billete mayor.`;
-    }
+    if (cambio !== null && parseFloat(cambio) >= 0) msg += `\nBillete: $${billete.toFixed(2)}\nCambio que recibirás: $${cambio}`;
+    else if (billete > 0) msg += `\nNota: El billete de $${billete.toFixed(2)} no cubre el total. Por favor prepara el monto exacto o un billete mayor.`;
     msg += `\n\n¡Tu pedido está confirmado! Te avisaremos cuando el repartidor esté en camino. 🛵`;
     return msg;
   }
@@ -416,18 +383,11 @@ function asignarRepartidor(negocio) {
 
 async function validarBoucher(b64, mediaType, monto) {
   try {
-    const r = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 300,
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-        { type: 'text', text: `Es comprobante bancario real y reciente por $${monto}? Solo JSON: {"valido":true,"motivo":""}` }
-      ]}]
-    });
+    const r = await anthropic.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } }, { type: 'text', text: `Es comprobante bancario real y reciente por $${monto}? Solo JSON: {"valido":true,"motivo":""}` }] }] });
     return JSON.parse(r.content[0].text.trim().replace(/```json|```/g, ''));
   } catch { return { valido: false, motivo: 'No se pudo analizar' }; }
 }
 
-// ─── CLAUDE ───────────────────────────────────────────────────────────────────
 // ─── SUGERENCIAS PERSONALIZADAS ───────────────────────────────
 function generarSugerencias(numero, catalogo) {
   const cliente = cargarClientes()[numero];
@@ -442,7 +402,6 @@ async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
     const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
     return `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo} | ${p.descripcion}`;
   }).join('\n');
-
   const promociones = cargarPromociones().filter(p => p.activa);
   const fechaEspecial = obtenerFechaEspecial();
   const promo_texto = promociones.length > 0 ? '\nPROMOCIONES:\n' + promociones.map(p => `  ${p.nombre}: ${p.descripcion} - ${p.descuento}`).join('\n') : '';
@@ -450,7 +409,6 @@ async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const pedidoActual = conv.pedido.items?.length > 0 ? conv.pedido.items.map(i => `${i.nombre} x${i.cantidad}`).join(', ') : 'vacio';
   const puntos = obtenerPuntos(conv.numero);
   const codigoReferido = generarCodigoReferido(conv.numero);
-
   const sugerencias = generarSugerencias(conv.numero, negocio.catalogo);
   const sugerenciasTexto = sugerencias.length > 0 ? '\nPRODUCTOS SUGERIDOS PARA ESTE CLIENTE (no los ha comprado antes):\n' + sugerencias.map(p => `  - ${p.emoji || ''} ${p.nombre} $${p.precio.toFixed(2)}`).join('\n') : '';
 
@@ -532,7 +490,6 @@ NOMBRE_CLIENTE: `;
     }
   }
 
-  // Aplicar cupon si existe
   if (aplicarCupon && aplicarCupon.length > 2) {
     const resultCupon = validarCupon(aplicarCupon, conv.pedido.subtotal);
     if (resultCupon.valido) {
@@ -573,9 +530,7 @@ app.post('/webhook', async (req, res) => {
     console.log(`Mensaje de ${numero} (${tipo}) → phoneId: ${phoneNumberId}`);
 
     const negocios = cargarNegocios();
-    // Identificar negocio por su whatsapp_phone_id registrado
     let negocio = negocios.find(n => n.activo && n.whatsapp_phone_id === phoneNumberId);
-    // Fallback: si no hay match por phoneId, usar mapa de clientes (compatibilidad)
     if (!negocio) {
       const negocioId = clienteNegocioMap.get(numero);
       negocio = negocios.find(n => n.id === negocioId && n.activo);
@@ -586,11 +541,9 @@ app.post('/webhook', async (req, res) => {
     }
     if (!negocio) { await enviarMensaje(numero, 'Hola! No hay negocios disponibles ahora.', phoneNumberId); return; }
 
-    // Verificar si el bot está activo para este negocio
     if (negocio.bot_activo === false) return;
 
     const pid = negocio.whatsapp_phone_id || PHONE_NUMBER_ID;
-    // Wrapper local que usa siempre el phoneId del negocio correcto
     const enviar = (dest, msg) => enviarMensaje(dest, msg, pid);
 
     if (negocio.modo_vacaciones) { await enviar(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`); return; }
@@ -603,7 +556,6 @@ app.post('/webhook', async (req, res) => {
     const conv = getOrCreateConversacion(numero, negocio);
     const cliente = obtenerCliente(numero);
 
-    // Detectar codigo de referido en primer mensaje
     if (conv.etapa === 'inicio' && conv.historial.length === 0) {
       const textoRef = mensaje.text?.body?.trim() || '';
       if (textoRef.toUpperCase().startsWith('REF')) {
@@ -615,7 +567,6 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // IMAGEN
     if (tipo === 'image') {
       if (conv.esperando === 'boucher') {
         await enviar(numero, 'Analizando tu comprobante...');
@@ -672,7 +623,6 @@ app.post('/webhook', async (req, res) => {
     if (!texto) return;
     const textoLower = texto.toLowerCase();
 
-    // Verificar si cliente está esperando dar reseña
     const clienteData = cargarClientes()[numero];
     const ultimoPedido = clienteData?.historial_pedidos?.[clienteData.historial_pedidos.length - 1];
     if (ultimoPedido?.esperando_resena && /^[1-5]$/.test(texto.trim())) {
@@ -680,13 +630,15 @@ app.post('/webhook', async (req, res) => {
       const estrellas = '⭐'.repeat(calificacion);
       agregarResena(numero, negocio.nombre, calificacion, '', ultimoPedido.descripcion);
       ultimoPedido.esperando_resena = false;
-      guardarJSON('./clientes.json', cargarClientes());
+      // FIX: guardar clienteData actualizado en memoria, no recargar del disco
+      const todosClientes = cargarClientes();
+      todosClientes[numero] = clienteData;
+      guardarJSON('./clientes.json', todosClientes);
       await enviar(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
       return;
     }
 
-    // Busqueda de productos
     if (textoLower.startsWith('buscar ') || textoLower.startsWith('busca ')) {
       const termino = texto.replace(/^buscar?\s+/i, '').trim();
       const resultados = negocio.catalogo.filter(p => p.nombre.toLowerCase().includes(termino.toLowerCase()) || p.descripcion?.toLowerCase().includes(termino.toLowerCase()));
@@ -699,7 +651,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Comandos
     if (['cancelar', 'cancel'].includes(textoLower)) {
       if (conv.etapa === 'confirmado') { await enviar(numero, 'Tu pedido ya fue confirmado. Contacta al negocio si necesitas ayuda.'); }
       else { conversaciones.delete(`${numero}:${negocio.id}`); await enviar(numero, 'Pedido cancelado. Escribe cuando necesites algo!'); }
@@ -759,7 +710,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // CITAS POR WHATSAPP
     if (textoLower === 'cita' || textoLower === 'agendar' || textoLower === 'reservar' || textoLower.includes('quiero una cita') || textoLower.includes('hacer una cita')) {
       const config = negocio.citas_config;
       if (!config?.activo || !config.servicios?.length) {
@@ -776,10 +726,7 @@ app.post('/webhook', async (req, res) => {
     if (conv.esperando === 'cita_servicio') {
       const config = negocio.citas_config;
       const idx = parseInt(texto.trim()) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= config.servicios.length) {
-        await enviar(numero, 'Por favor responde con el número del servicio.');
-        return;
-      }
+      if (isNaN(idx) || idx < 0 || idx >= config.servicios.length) { await enviar(numero, 'Por favor responde con el número del servicio.'); return; }
       conv.citaTemp.servicio = config.servicios[idx];
       conv.esperando = 'cita_fecha';
       const diasTexto = config.dias_disponibles?.join(', ') || 'Lunes a Viernes';
@@ -798,26 +745,10 @@ app.post('/webhook', async (req, res) => {
     if (conv.esperando === 'cita_hora') {
       conv.citaTemp.hora = texto.trim();
       conv.esperando = null;
-      // Verificar si el horario está disponible
       const citas = cargarCitas();
       const ocupada = citas.some(c => c.negocio_id === negocio.id && c.fecha === conv.citaTemp.fecha && c.hora === conv.citaTemp.hora && c.estado !== 'cancelada');
-      if (ocupada) {
-        await enviar(numero, `Lo siento, ese horario ya está ocupado. Por favor elige otra hora.`);
-        conv.esperando = 'cita_hora';
-        return;
-      }
-      // Guardar la cita
-      const cita = {
-        id: 'cita_' + Date.now(),
-        negocio_id: negocio.id,
-        numero,
-        cliente: cliente.nombre || numero.slice(-6),
-        servicio: conv.citaTemp.servicio,
-        fecha: conv.citaTemp.fecha,
-        hora: conv.citaTemp.hora,
-        estado: 'pendiente',
-        fecha_creacion: new Date().toISOString(),
-      };
+      if (ocupada) { await enviar(numero, `Lo siento, ese horario ya está ocupado. Por favor elige otra hora.`); conv.esperando = 'cita_hora'; return; }
+      const cita = { id: 'cita_' + Date.now(), negocio_id: negocio.id, numero, cliente: cliente.nombre || numero.slice(-6), servicio: conv.citaTemp.servicio, fecha: conv.citaTemp.fecha, hora: conv.citaTemp.hora, estado: 'pendiente', fecha_creacion: new Date().toISOString() };
       citas.push(cita);
       guardarCitas(citas);
       conv.citaTemp = {};
@@ -826,7 +757,6 @@ app.post('/webhook', async (req, res) => {
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_cita', cliente: cita.cliente, servicio: cita.servicio, fecha: cita.fecha, hora: cita.hora });
       return;
     }
-
 
     if (conv.etapa === 'inicio' && conv.historial.length === 0) {
       let bienvenida = '';
@@ -852,14 +782,11 @@ app.post('/webhook', async (req, res) => {
 
     if (conv.esperando === 'boucher') { await enviar(numero, `Estoy esperando tu comprobante. Envia una foto del ${negocio.banco} por $${conv.pedido.total?.toFixed(2) || '0.00'}`); return; }
 
-    // Detectar pedido que viene del catálogo web
     if (texto.startsWith('Hola! Quiero hacer un pedido 🛒') || texto.startsWith('Hola! Quiero hacer un pedido')) {
-      // Parsear las líneas del pedido para armar conv.pedido.items
       const lineas = texto.split('\n');
       const items = [];
       let itemActual = null;
       lineas.forEach(l => {
-        // Capturar precio real del mensaje (incluye modificadores)
         const match = l.match(/^•\s+(.+?)\s+x(\d+)\s+—\s+\$([\d.]+)/);
         if (match) {
           if (itemActual) items.push(itemActual);
@@ -885,11 +812,8 @@ app.post('/webhook', async (req, res) => {
         }
       });
       if (itemActual) items.push(itemActual);
-
-      // Extraer total real del mensaje
       const totalMatch = texto.match(/💰 Total: \$([\d.]+)/);
       const notasMatch = texto.match(/📝 Notas: (.+)/);
-
       if (items.length > 0) {
         conv.pedido.items = items;
         conv.pedido.subtotal = totalMatch ? parseFloat(totalMatch[1]) : items.reduce((s, i) => s + i.precio * i.cantidad, 0);
@@ -902,7 +826,6 @@ app.post('/webhook', async (req, res) => {
     const { mensaje: respuesta, imagenesIds, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviar(numero, respuesta);
 
-    // Enviar link del catálogo web
     if (enviarCatalogo) {
       const slug = negocio.slug || negocio.id;
       const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
@@ -911,7 +834,6 @@ app.post('/webhook', async (req, res) => {
       await enviar(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${linkCatalogo}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
     }
 
-    // Si el cliente trae un pedido desde el catálogo, mostrar resumen y pedir datos
     if (pedidoDesdeCatalogo && conv.pedido.items?.length > 0) {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
@@ -1001,7 +923,6 @@ app.post('/admin/promociones', (req, res) => {
 });
 app.delete('/admin/promociones/:id', (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
 
-// Envío masivo
 app.post('/admin/masivo', async (req, res) => {
   const { mensaje, solo_frecuentes } = req.body;
   if (!mensaje) return res.status(400).json({ error: 'Mensaje requerido' });
@@ -1012,7 +933,7 @@ app.post('/admin/masivo', async (req, res) => {
   for (const cliente of lista) {
     await enviarMensaje(cliente.numero, mensaje);
     enviados++;
-    await new Promise(r => setTimeout(r, 1500)); // Evitar spam
+    await new Promise(r => setTimeout(r, 1500));
     if (enviados % 10 === 0) console.log(`Masivo: ${enviados}/${lista.length} enviados`);
   }
   console.log(`Envio masivo completado: ${enviados} mensajes`);
@@ -1024,22 +945,11 @@ app.get('/admin/stats', (req, res) => {
   const c = cargarClientes();
   const clientes = Object.values(c);
   const hoy = horaActual().toLocaleDateString('es-EC');
-  res.json({
-    negocios_activos: n.filter(x => x.activo).length,
-    conversaciones_activas: conversaciones.size,
-    total_clientes: clientes.length,
-    clientes_frecuentes: clientes.filter(c => c.es_frecuente).length,
-    pedidos_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length || 0), 0),
-    ventas_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total || 0), 0) || 0), 0),
-    total_puntos_activos: Object.values(cargarPuntos()).reduce((a, p) => a + p.total, 0),
-    cupones_activos: cargarCupones().filter(c => c.activo).length,
-  });
+  res.json({ negocios_activos: n.filter(x => x.activo).length, conversaciones_activas: conversaciones.size, total_clientes: clientes.length, clientes_frecuentes: clientes.filter(c => c.es_frecuente).length, pedidos_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length || 0), 0), ventas_hoy: clientes.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total || 0), 0) || 0), 0), total_puntos_activos: Object.values(cargarPuntos()).reduce((a, p) => a + p.total, 0), cupones_activos: cargarCupones().filter(c => c.activo).length });
 });
-app.get('/', (req, res) => res.json({ status: 'VendeBot v6.0 activo', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
-
+app.get('/', (req, res) => res.json({ status: 'VendeBot v10.0 activo', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
 
 // ─── AUTENTICACIÓN ────────────────────────────────────────────────────────────
-const crypto = require('crypto');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vendebot2024admin';
 const tokens = new Map();
 
@@ -1090,10 +1000,21 @@ function authPanel(req, res, next) {
 }
 
 // ─── RUTAS DE PANELES ─────────────────────────────────────────────────────────
-app.get('/admin', (req, res) => res.sendFile('admin.html', { root: '.' }));
-app.get('/panel/:slug', (req, res) => res.sendFile('panel.html', { root: '.' }));
+const HTML_NO_CACHE = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+  'Surrogate-Control': 'no-store',
+};
+app.get('/admin', (req, res) => {
+  res.set(HTML_NO_CACHE);
+  res.sendFile('admin.html', { root: '.' });
+});
+app.get('/panel/:slug', (req, res) => {
+  res.set(HTML_NO_CACHE);
+  res.sendFile('panel.html', { root: '.' });
+});
 
-// Panel routes
 app.get('/panel/:slug/negocio', authPanel, (req, res) => {
   const n = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   res.json(n || {});
@@ -1106,7 +1027,6 @@ app.put('/panel/:slug/negocio', authPanel, (req, res) => {
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
-
 app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
   const negocios = cargarNegocios();
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
@@ -1122,12 +1042,7 @@ app.get('/panel/:slug/stats', authPanel, (req, res) => {
   const clientes = cargarClientes();
   const todos = Object.values(clientes).filter(c => c.historial_pedidos?.some(p => p.negocio === negocio.nombre));
   const hoy = horaActual().toLocaleDateString('es-EC');
-  res.json({
-    ventas_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total||0), 0)||0), 0),
-    pedidos_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length||0), 0),
-    total_clientes: todos.length,
-    clientes_frecuentes: todos.filter(c => c.es_frecuente).length,
-  });
+  res.json({ ventas_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).reduce((s, p) => s + (p.total||0), 0)||0), 0), pedidos_hoy: todos.reduce((acc, c) => acc + (c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === hoy).length||0), 0), total_clientes: todos.length, clientes_frecuentes: todos.filter(c => c.es_frecuente).length });
 });
 app.get('/panel/:slug/clientes', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
@@ -1146,10 +1061,7 @@ app.post('/panel/:slug/promociones', authPanel, (req, res) => {
   guardarJSON('./promociones.json', promos);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => {
-  guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id));
-  res.json({ ok: true });
-});
+app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/panel/:slug/cupones', authPanel, (req, res) => res.json(cargarCupones()));
 app.post('/panel/:slug/cupones', authPanel, (req, res) => {
   const cupones = cargarCupones();
@@ -1157,10 +1069,7 @@ app.post('/panel/:slug/cupones', authPanel, (req, res) => {
   guardarJSON('./cupones.json', cupones);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => {
-  guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id));
-  res.json({ ok: true });
-});
+app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   res.json(cargarRepartidores().filter(r => r.negocio_id === negocio?.id));
@@ -1171,10 +1080,7 @@ app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
   guardarJSON('./repartidores.json', reps);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
-  guardarJSON('./repartidores.json', cargarRepartidores().filter(r => r.id !== req.params.id));
-  res.json({ ok: true });
-});
+app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => { guardarJSON('./repartidores.json', cargarRepartidores().filter(r => r.id !== req.params.id)); res.json({ ok: true }); });
 app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
@@ -1185,11 +1091,9 @@ app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
   res.json({ ok: true, total: lista.length });
   for (const c of lista) { await enviarMensaje(c.numero, mensaje); await new Promise(r => setTimeout(r, 1500)); }
 });
+
 // UPLOAD IMAGENES
-const multer = require('multer');
 const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-const cloudinary = require('cloudinary').v2;
-cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME, api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET });
 
 app.post('/panel/:slug/upload', uploadMiddleware.single('file'), async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -1199,11 +1103,9 @@ app.post('/panel/:slug/upload', uploadMiddleware.single('file'), async (req, res
       cloudinary.uploader.upload_stream({ folder: 'vendebot/' + req.params.slug, resource_type: 'image' }, (error, result) => error ? reject(error) : resolve(result)).end(req.file.buffer);
     });
     res.json({ url: resultado.secure_url });
-  } catch (e) {
-    console.error('Error Cloudinary:', e.message);
-    res.status(500).json({ error: 'Error al subir imagen' });
-  }
+  } catch (e) { console.error('Error Cloudinary:', e.message); res.status(500).json({ error: 'Error al subir imagen' }); }
 });
+
 // RENOVACION AUTOMATICA DE TOKEN
 async function renovarToken() {
   try {
@@ -1214,14 +1116,12 @@ async function renovarToken() {
     const nuevoToken = r.data.access_token;
     process.env.WHATSAPP_TOKEN = nuevoToken;
     console.log('Token renovado exitosamente');
-  } catch (e) {
-    console.error('Error renovando token:', e.response?.data?.error?.message || e.message);
-  }
+  } catch (e) { console.error('Error renovando token:', e.response?.data?.error?.message || e.message); }
 }
 
-// Renovar token cada 20 horas
 renovarToken();
 setInterval(renovarToken, 20 * 60 * 60 * 1000);
+
 // ─── ALERTAS DE STOCK BAJO ────────────────────────────────────
 const STOCK_MINIMO = 3;
 setInterval(async () => {
@@ -1320,29 +1220,17 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
   res.json({ negocio: negocio.nombre, pedidos, total_pedidos: pedidos.length, total_ventas: pedidos.reduce((s, p) => s + (p.total || 0), 0), generado: new Date().toLocaleString('es-EC') });
 });
 
-// ─── VENDEBOT v9.0 ───────────────────────────────────────────────────────────
-
-// RESEÑAS
+// ─── RESEÑAS ─────────────────────────────────────────────────
 function cargarResenas() { return cargarJSON('./resenas.json', []); }
 function guardarResenas(r) { guardarJSON('./resenas.json', r); }
 
 function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDesc) {
   const resenas = cargarResenas();
   const cliente = cargarClientes()[numero];
-  resenas.push({
-    id: 'res_' + Date.now(),
-    numero,
-    cliente: cliente?.nombre || numero.slice(-6),
-    negocio: negocioNombre,
-    calificacion,
-    comentario: comentario || '',
-    pedido: pedidoDesc || '',
-    fecha: new Date().toISOString(),
-  });
+  resenas.push({ id: 'res_' + Date.now(), numero, cliente: cliente?.nombre || numero.slice(-6), negocio: negocioNombre, calificacion, comentario: comentario || '', pedido: pedidoDesc || '', fecha: new Date().toISOString() });
   guardarResenas(resenas);
 }
 
-// Pedir reseña 2 horas después del pedido
 setInterval(async () => {
   if (!estaEnHorario()) return;
   const clientes = cargarClientes();
@@ -1364,7 +1252,6 @@ setInterval(async () => {
   if (cambios) guardarJSON('./clientes.json', clientes);
 }, 30 * 60 * 1000);
 
-// Ruta de reseñas para el panel
 app.get('/panel/:slug/resenas', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.json([]);
@@ -1372,46 +1259,25 @@ app.get('/panel/:slug/resenas', authPanel, (req, res) => {
   res.json(resenas);
 });
 
-// BÚSQUEDA DE PRODUCTOS (manejada en el webhook directamente por Claude)
-// Claude ya busca por nombre, pero agregamos búsqueda directa en el panel
 app.get('/panel/:slug/buscar', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.json([]);
   const q = (req.query.q || '').toLowerCase();
-  const resultados = negocio.catalogo.filter(p =>
-    p.nombre.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q)
-  );
+  const resultados = negocio.catalogo.filter(p => p.nombre.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
   res.json(resultados);
 });
 
-// PWA - manifest.json y service worker
+// PWA
 app.get('/manifest.json', (req, res) => {
-  res.json({
-    name: 'VendeBot Panel',
-    short_name: 'VendeBot',
-    start_url: '/panel/' + (req.query.slug || ''),
-    display: 'standalone',
-    background_color: '#f8f9fc',
-    theme_color: '#7c3aed',
-    icons: [
-      { src: 'https://i.imgur.com/placeholder.png', sizes: '192x192', type: 'image/png' },
-      { src: 'https://i.imgur.com/placeholder.png', sizes: '512x512', type: 'image/png' }
-    ]
-  });
+  res.json({ name: 'VendeBot Panel', short_name: 'VendeBot', start_url: '/panel/' + (req.query.slug || ''), display: 'standalone', background_color: '#f8f9fc', theme_color: '#7c3aed', icons: [{ src: 'https://i.imgur.com/placeholder.png', sizes: '192x192', type: 'image/png' }, { src: 'https://i.imgur.com/placeholder.png', sizes: '512x512', type: 'image/png' }] });
 });
 
 app.get('/sw.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
-  res.send(`
-self.addEventListener('install', e => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-self.addEventListener('fetch', e => { return; });
-  `);
+  res.send(`self.addEventListener('install', e => self.skipWaiting());\nself.addEventListener('activate', e => e.waitUntil(clients.claim()));\nself.addEventListener('fetch', e => { return; });`);
 });
 
-// ─── VENDEBOT v10.0 ──────────────────────────────────────────────────────────
-
-// CITAS
+// ─── CITAS ────────────────────────────────────────────────────
 function cargarCitas() { return cargarJSON('./citas.json', []); }
 function guardarCitas(c) { guardarJSON('./citas.json', c); }
 
@@ -1446,16 +1312,13 @@ app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── FUNCIÓN HORARIO DINÁMICO ──────────────────────────────────────────────────
+// ─── HORARIO DINÁMICO ─────────────────────────────────────────
 function estaAbiertoAhora(negocio) {
   if (negocio.modo_vacaciones) return false;
   const zona = 'America/Guayaquil';
   const ahoraEC = new Date(new Date().toLocaleString('en-US', { timeZone: zona }));
   const horarios = negocio.horarios;
-  if (!horarios) {
-    const h = ahoraEC.getHours();
-    return h >= 8 && h < 18;
-  }
+  if (!horarios) { const h = ahoraEC.getHours(); return h >= 8 && h < 18; }
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const hoy = dias[ahoraEC.getDay()];
   const horario = horarios[hoy];
@@ -1463,128 +1326,33 @@ function estaAbiertoAhora(negocio) {
   const [dH, dM] = horario.desde.split(':').map(Number);
   const [hH, hM] = horario.hasta.split(':').map(Number);
   const minActual = ahoraEC.getHours() * 60 + ahoraEC.getMinutes();
-  const minDesde = dH * 60 + dM;
-  const minHasta = hH * 60 + hM;
-  return minActual >= minDesde && minActual < minHasta;
+  return minActual >= dH * 60 + dM && minActual < hH * 60 + hM;
 }
 
-// CATÁLOGO PÚBLICO — sirve el HTML del e-commerce
+// ─── CATÁLOGO PÚBLICO ─────────────────────────────────────────
+// FIX PRINCIPAL: no-cache headers para que nunca sirva versión cacheada
 app.get('/catalogo/:slug', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
+  res.set(HTML_NO_CACHE);
   res.sendFile('catalogo.html', { root: '.' });
 });
-// API de datos del catálogo (usada por catalogo.html via JS)
+
+// API de datos del catálogo
 app.get('/catalogo-data/:slug', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
-  // Devolver negocio sin datos sensibles, con estado calculado
   const { password, ...pub } = negocio;
   pub.esta_abierto = estaAbiertoAhora(negocio);
   res.json(pub);
 });
 
-// PÁGINA DE PERSONALIZACIÓN DE PRODUCTO
+// PÁGINA DE PERSONALIZACIÓN
 app.get('/personalizar/:slug/:productoId', (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).send('<h1>No encontrado</h1>');
   const producto = negocio.catalogo.find(p => p.id == req.params.productoId);
   if (!producto) return res.status(404).send('<h1>Producto no encontrado</h1>');
   const modificadores = producto.modificadores || [];
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Personalizar — ${producto.nombre}</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',sans-serif;background:#f8f9fc;color:#1a1a2e;max-width:480px;margin:0 auto;}
-header{background:linear-gradient(135deg,#7c3aed,#00c47a);color:#fff;padding:16px 20px;}
-header h1{font-size:18px;font-weight:700;}
-.producto-header{background:#fff;padding:16px;display:flex;gap:14px;align-items:center;border-bottom:1px solid #e2e6ef;}
-.producto-img{width:80px;height:80px;border-radius:10px;object-fit:cover;background:#f1f3f8;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
-.producto-nombre{font-size:17px;font-weight:700;}
-.producto-precio{color:#7c3aed;font-size:16px;font-weight:700;margin-top:4px;}
-.grupo{background:#fff;margin-top:10px;padding:16px;}
-.grupo-titulo{font-weight:700;font-size:15px;margin-bottom:4px;}
-.grupo-sub{font-size:12px;color:#6b7280;margin-bottom:12px;}
-.opcion{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f3f8;}
-.opcion:last-child{border-bottom:none;}
-.opcion-label{display:flex;align-items:center;gap:10px;cursor:pointer;}
-.opcion-label input{width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;}
-.opcion-nombre{font-size:14px;}
-.opcion-precio{font-size:13px;font-weight:600;color:#7c3aed;}
-.footer{position:sticky;bottom:0;background:#fff;border-top:1px solid #e2e6ef;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
-.total{font-size:18px;font-weight:700;}
-.total span{color:#7c3aed;}
-.btn-agregar{background:#25D366;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;}
-.btn-agregar:active{opacity:0.85;}
-</style>
-</head>
-<body>
-<header><h1>Personaliza tu pedido</h1></header>
-<div class="producto-header">
-  ${producto.imagen ? `<img class="producto-img" src="${producto.imagen}" alt="${producto.nombre}">` : `<div class="producto-img">${producto.emoji || '📦'}</div>`}
-  <div>
-    <div class="producto-nombre">${producto.nombre}</div>
-    <div class="producto-precio" id="precioBase">$${producto.precio.toFixed(2)}</div>
-    ${producto.descripcion ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${producto.descripcion}</div>` : ''}
-  </div>
-</div>
-
-${modificadores.map((grupo, gi) => `
-<div class="grupo">
-  <div class="grupo-titulo">${grupo.nombre} ${grupo.obligatorio ? '<span style="color:#ef4444;font-size:11px;">*Obligatorio</span>' : ''}</div>
-  <div class="grupo-sub">${grupo.tipo === 'unico' ? 'Elige una opción' : 'Puedes elegir varias'}</div>
-  ${grupo.opciones.map((op, oi) => `
-  <div class="opcion">
-    <label class="opcion-label">
-      <input type="${grupo.tipo === 'unico' ? 'radio' : 'checkbox'}" name="grupo_${gi}" value="${op.precio || 0}" data-nombre="${op.nombre}" onchange="calcularTotal()">
-      <span class="opcion-nombre">${op.nombre}</span>
-    </label>
-    <span class="opcion-precio">${op.precio > 0 ? '+$' + op.precio.toFixed(2) : op.precio < 0 ? '-$' + Math.abs(op.precio).toFixed(2) : 'Incluido'}</span>
-  </div>`).join('')}
-</div>`).join('')}
-
-<div style="height:80px;"></div>
-<div class="footer">
-  <div class="total">Total: <span id="totalFinal">$${producto.precio.toFixed(2)}</span></div>
-  <button class="btn-agregar" onclick="agregarAlPedido()">Agregar al pedido →</button>
-</div>
-
-<script>
-const precioBase = ${producto.precio};
-const numero = new URLSearchParams(window.location.search).get('n') || '';
-const slug = '${req.params.slug}';
-
-function calcularTotal() {
-  let extra = 0;
-  document.querySelectorAll('input[type=checkbox]:checked, input[type=radio]:checked').forEach(input => {
-    extra += parseFloat(input.value) || 0;
-  });
-  document.getElementById('totalFinal').textContent = '$' + (precioBase + extra).toFixed(2);
-}
-
-function agregarAlPedido() {
-  const selecciones = [];
-  ${modificadores.map((grupo, gi) => `
-  const sel_${gi} = Array.from(document.querySelectorAll('input[name="grupo_${gi}"]:checked')).map(i => i.dataset.nombre);
-  if (${grupo.obligatorio} && sel_${gi}.length === 0) { alert('Por favor selecciona una opción en: ${grupo.nombre}'); return; }
-  if (sel_${gi}.length > 0) selecciones.push('${grupo.nombre}: ' + sel_${gi}.join(', '));
-  `).join('')}
-  
-  const total = document.getElementById('totalFinal').textContent;
-  const descripcion = '${producto.nombre}' + (selecciones.length > 0 ? ' (' + selecciones.join(' | ') + ')' : '');
-  const msg = encodeURIComponent('Quiero agregar a mi pedido:\\n' + descripcion + '\\nTotal: ' + total);
-  
-  if (numero) {
-    window.location.href = 'https://wa.me/' + numero + '?text=' + msg;
-  } else {
-    window.location.href = 'https://wa.me/${negocio.whatsapp_dueno?.replace(/\D/g,'')}?text=' + msg;
-  }
-}
-</script>
-</body></html>`;
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Personalizar — ${producto.nombre}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',sans-serif;background:#f8f9fc;color:#1a1a2e;max-width:480px;margin:0 auto;}header{background:linear-gradient(135deg,#7c3aed,#00c47a);color:#fff;padding:16px 20px;}header h1{font-size:18px;font-weight:700;}.producto-header{background:#fff;padding:16px;display:flex;gap:14px;align-items:center;border-bottom:1px solid #e2e6ef;}.producto-img{width:80px;height:80px;border-radius:10px;object-fit:cover;background:#f1f3f8;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}.producto-nombre{font-size:17px;font-weight:700;}.producto-precio{color:#7c3aed;font-size:16px;font-weight:700;margin-top:4px;}.grupo{background:#fff;margin-top:10px;padding:16px;}.grupo-titulo{font-weight:700;font-size:15px;margin-bottom:4px;}.grupo-sub{font-size:12px;color:#6b7280;margin-bottom:12px;}.opcion{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f3f8;}.opcion:last-child{border-bottom:none;}.opcion-label{display:flex;align-items:center;gap:10px;cursor:pointer;}.opcion-label input{width:18px;height:18px;cursor:pointer;accent-color:#7c3aed;}.opcion-nombre{font-size:14px;}.opcion-precio{font-size:13px;font-weight:600;color:#7c3aed;}.footer{position:sticky;bottom:0;background:#fff;border-top:1px solid #e2e6ef;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}.total{font-size:18px;font-weight:700;}.total span{color:#7c3aed;}.btn-agregar{background:#25D366;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;}</style></head><body><header><h1>Personaliza tu pedido</h1></header><div class="producto-header">${producto.imagen ? `<img class="producto-img" src="${producto.imagen}" alt="${producto.nombre}">` : `<div class="producto-img">${producto.emoji || '📦'}</div>`}<div><div class="producto-nombre">${producto.nombre}</div><div class="producto-precio" id="precioBase">$${producto.precio.toFixed(2)}</div>${producto.descripcion ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${producto.descripcion}</div>` : ''}</div></div>${modificadores.map((grupo, gi) => `<div class="grupo"><div class="grupo-titulo">${grupo.nombre} ${grupo.obligatorio ? '<span style="color:#ef4444;font-size:11px;">*Obligatorio</span>' : ''}</div><div class="grupo-sub">${grupo.tipo === 'unico' ? 'Elige una opción' : 'Puedes elegir varias'}</div>${grupo.opciones.map((op, oi) => `<div class="opcion"><label class="opcion-label"><input type="${grupo.tipo === 'unico' ? 'radio' : 'checkbox'}" name="grupo_${gi}" value="${op.precio || 0}" data-nombre="${op.nombre}" onchange="calcularTotal()"><span class="opcion-nombre">${op.nombre}</span></label><span class="opcion-precio">${op.precio > 0 ? '+$' + op.precio.toFixed(2) : op.precio < 0 ? '-$' + Math.abs(op.precio).toFixed(2) : 'Incluido'}</span></div>`).join('')}</div>`).join('')}<div style="height:80px;"></div><div class="footer"><div class="total">Total: <span id="totalFinal">$${producto.precio.toFixed(2)}</span></div><button class="btn-agregar" onclick="agregarAlPedido()">Agregar al pedido →</button></div><script>const precioBase=${producto.precio};const numero=new URLSearchParams(window.location.search).get('n')||'';function calcularTotal(){let extra=0;document.querySelectorAll('input[type=checkbox]:checked,input[type=radio]:checked').forEach(input=>{extra+=parseFloat(input.value)||0;});document.getElementById('totalFinal').textContent='$'+(precioBase+extra).toFixed(2);}function agregarAlPedido(){const selecciones=[];${modificadores.map((grupo, gi) => `const sel_${gi}=Array.from(document.querySelectorAll('input[name="grupo_${gi}"]:checked')).map(i=>i.dataset.nombre);if(${grupo.obligatorio}&&sel_${gi}.length===0){alert('Por favor selecciona una opción en: ${grupo.nombre}');return;}if(sel_${gi}.length>0)selecciones.push('${grupo.nombre}: '+sel_${gi}.join(', '));`).join('')}const total=document.getElementById('totalFinal').textContent;const descripcion='${producto.nombre}'+(selecciones.length>0?' ('+selecciones.join(' | ')+')':'');const msg=encodeURIComponent('Quiero agregar a mi pedido:\\n'+descripcion+'\\nTotal: '+total);if(numero){window.location.href='https://wa.me/'+numero+'?text='+msg;}else{window.location.href='https://wa.me/${negocio.whatsapp_dueno?.replace(/\D/g,'')}?text='+msg;}}</script></body></html>`;
   res.send(html);
 });
 
@@ -1598,9 +1366,7 @@ setInterval(async () => {
   const fechaAyer = ayer.toLocaleDateString('es-EC');
   for (const negocio of negocios) {
     const pedidosAyer = [];
-    Object.values(clientes).forEach(c => {
-      c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === fechaAyer).forEach(p => pedidosAyer.push({ ...p, cliente: c.nombre || c.numero }));
-    });
+    Object.values(clientes).forEach(c => { c.historial_pedidos?.filter(p => p.negocio === negocio.nombre && new Date(p.fecha).toLocaleDateString('es-EC') === fechaAyer).forEach(p => pedidosAyer.push({ ...p, cliente: c.nombre || c.numero })); });
     if (!pedidosAyer.length) continue;
     const total = pedidosAyer.reduce((s, p) => s + (p.total || 0), 0);
     const msg = `☀️ Buenos días! Resumen de ayer en ${negocio.nombre}:\n\n📦 Pedidos: ${pedidosAyer.length}\n💰 Total ventas: $${total.toFixed(2)}\n\n${pedidosAyer.map(p => `• ${p.cliente} — $${p.total}`).join('\n')}`;
@@ -1608,33 +1374,9 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000);
 
-const PORT = process.env.PORT || 3000;
 app.get('/privacidad', (req, res) => {
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><title>Política de Privacidad - VendeBot</title>
-<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}</style>
-</head>
-<body>
-<h1>Política de Privacidad</h1>
-<p><strong>Última actualización:</strong> Marzo 2025</p>
-
-<h2>1. Información que recopilamos</h2>
-<p>VendeBot recopila números de teléfono de WhatsApp y mensajes enviados por los usuarios con el único fin de procesar pedidos a través de negocios registrados en nuestra plataforma.</p>
-
-<h2>2. Uso de la información</h2>
-<p>La información recopilada se usa exclusivamente para: procesar pedidos, notificar al negocio correspondiente y mejorar la experiencia del usuario.</p>
-
-<h2>3. Compartir información</h2>
-<p>No vendemos ni compartimos datos personales con terceros. Los datos del pedido son compartidos únicamente con el negocio al que el usuario escribió.</p>
-
-<h2>4. Retención de datos</h2>
-<p>Los datos de conversación se almacenan temporalmente durante la sesión activa y no se guardan de forma permanente.</p>
-
-<h2>5. Contacto</h2>
-<p>Para cualquier consulta sobre privacidad escríbenos a: vendebot@contacto.com</p>
-</body>
-</html>`);
+  res.send(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Política de Privacidad - VendeBot</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}</style></head><body><h1>Política de Privacidad</h1><p><strong>Última actualización:</strong> Marzo 2025</p><h2>1. Información que recopilamos</h2><p>VendeBot recopila números de teléfono de WhatsApp y mensajes enviados por los usuarios con el único fin de procesar pedidos a través de negocios registrados en nuestra plataforma.</p><h2>2. Uso de la información</h2><p>La información recopilada se usa exclusivamente para: procesar pedidos, notificar al negocio correspondiente y mejorar la experiencia del usuario.</p><h2>3. Compartir información</h2><p>No vendemos ni compartimos datos personales con terceros. Los datos del pedido son compartidos únicamente con el negocio al que el usuario escribió.</p><h2>4. Retención de datos</h2><p>Los datos de conversación se almacenan temporalmente durante la sesión activa y no se guardan de forma permanente.</p><h2>5. Contacto</h2><p>Para cualquier consulta sobre privacidad escríbenos a: vendebot@contacto.com</p></body></html>`);
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`VendeBot v10.0 iniciado en puerto ${PORT}`));

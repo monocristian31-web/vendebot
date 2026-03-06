@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Menú</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── TOKENS ──────────────────────────────────────────────── */
 :root {
@@ -16,6 +16,7 @@
   --go:#1a7a4a;  --gold:#bf8c32;
   --r:10px; --r2:16px; --r3:22px; --r4:28px; --rfull:999px;
   --sans:"DM Sans",sans-serif; --serif:"Fraunces",serif;
+  --g400:#9ca3af;
   --t:.2s cubic-bezier(.4,0,.2,1); --spring:.42s cubic-bezier(.34,1.56,.64,1);
   --s1:0 1px 3px rgba(17,15,12,.05),0 2px 6px rgba(17,15,12,.04);
   --s2:0 3px 12px rgba(17,15,12,.09),0 1px 4px rgba(17,15,12,.05);
@@ -649,9 +650,9 @@ function renderHero() {
         '<div class="hero-grad"></div>' +
         '<div class="hero-info">' +
           '<div class="hero-name">' + neg.nombre + '</div>' +
-          '<div class="hero-chips">' +
-            '<div class="chip-glass"><div class="dot' + (ab?'':' off') + '"></div>' + (ab?'Abierto':'Cerrado') + '</div>' +
-            (neg.tipo ? '<div class="chip-glass">' + neg.tipo + '</div>' : '') + (obtenerHorarioHoy() ? '<div class="chip-glass">🕐 ' + obtenerHorarioHoy() + '</div>' : '') +
+          '<div class="hero-pills">' +
+            '<div class="pill-glass"><div class="dot' + (ab?'':' off') + '"></div>' + (ab?'Abierto':'Cerrado') + '</div>' +
+            (neg.tipo ? '<div class="pill-glass">' + neg.tipo + '</div>' : '') + (obtenerHorarioHoy() ? '<div class="pill-glass">🕐 ' + obtenerHorarioHoy() + '</div>' : '') +
           '</div>' +
         '</div>' +
       '</div>';
@@ -659,9 +660,9 @@ function renderHero() {
     w.innerHTML =
       '<div class="hero-plain">' +
         '<div class="hero-plain-name">' + (neg.emoji || '🛍️') + ' ' + neg.nombre + '</div>' +
-        '<div class="hero-plain-chips">' +
-          '<div class="chip ' + (ab?'open':'closed') + '"><div class="dot' + (ab?'':' off') + '"></div>' + (ab?'Abierto ahora':'Cerrado') + '</div>' +
-          (neg.tipo ? '<div class="chip">' + neg.tipo + '</div>' : '') +
+        '<div class="hero-plain-pills">' +
+          '<div class="pill ' + (ab?'open':'closed') + '"><div class="dot' + (ab?'':' off') + '"></div>' + (ab?'Abierto ahora':'Cerrado') + '</div>' +
+          (neg.tipo ? '<div class="pill">' + neg.tipo + '</div>' : '') +
         '</div>' +
       '</div>';
   }
