@@ -3,308 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VendeBot — Admin</title>
+<title>VendeBot Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080c10;--bg2:#0d1117;--surface:#111820;--surface2:#161e28;--surface3:#1c2735;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.14);
+  --text:#f0f6ff;--text2:#8b9ab0;--text3:#4a5568;
+  --accent:#00e5a0;--accent2:#00b87c;--glow:rgba(0,229,160,0.15);
+  --danger:#ff4757;--warning:#ffa502;
+  --font:'Plus Jakarta Sans',sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:14px;--radius-sm:8px;--t:0.2s cubic-bezier(0.4,0,0.2,1);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 40% at 5% 0%,rgba(0,229,160,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse 40% 30% at 95% 100%,rgba(0,229,160,0.03) 0%,transparent 60%);}
 
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c26;
-    --border: #2a2a38;
-    --accent: #7c3aed;
-    --accent2: #a78bfa;
-    --green: #10b981;
-    --red: #ef4444;
-    --yellow: #f59e0b;
-    --text: #f1f0ff;
-    --text2: #8b8aa8;
-    --mono: 'Space Mono', monospace;
-    --sans: 'DM Sans', sans-serif;
-    --r: 12px;
-  }
+/* LOGIN */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 36px;box-shadow:0 24px 64px rgba(0,0,0,0.6);position:relative;overflow:hidden;}
+.login-card::before{content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.login-logo{font-size:26px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+#loginErr{font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;}
+.login-card input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:10px;transition:border-color var(--t),box-shadow var(--t);}
+.login-card input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+/* LAYOUT */
+.admin-wrap{max-width:1100px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;}
+.admin-logo{font-size:22px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.admin-badge{font-size:11px;font-weight:700;padding:4px 10px;background:rgba(0,229,160,0.1);color:var(--accent);border:1px solid rgba(0,229,160,0.2);border-radius:100px;letter-spacing:0.06em;text-transform:uppercase;}
 
-  /* ── LOGIN ── */
-  #loginScreen {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse at 50% 0%, #1e0a4a 0%, var(--bg) 70%);
-  }
-  .login-box {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
-    padding: 48px 40px; width: 100%; max-width: 380px; text-align: center;
-    box-shadow: 0 0 80px rgba(124,58,237,0.15);
-  }
-  .login-logo { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent2); margin-bottom: 6px; }
-  .login-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
-  .login-box input {
-    width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--r);
-    color: var(--text); font-family: var(--mono); font-size: 14px; padding: 14px 16px;
-    outline: none; margin-bottom: 14px; transition: border-color .2s;
-  }
-  .login-box input:focus { border-color: var(--accent); }
-  .login-box button {
-    width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--r);
-    font-family: var(--sans); font-size: 15px; font-weight: 600; padding: 14px;
-    cursor: pointer; transition: opacity .2s;
-  }
-  .login-box button:hover { opacity: .85; }
-  .login-error { color: var(--red); font-size: 13px; margin-top: 10px; }
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px;transition:border-color var(--t);}
+.card:hover{border-color:var(--border-h);}
+.card-title{font-size:15px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
 
-  /* ── APP ── */
-  #app { display: none; }
-  .topbar {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 0 24px; height: 58px; display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-  .topbar-logo { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--accent2); }
-  .topbar-badge { font-size: 11px; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 20px; margin-left: 10px; font-weight: 600; }
-  .logout-btn { font-size: 13px; color: var(--text2); cursor: pointer; border: 1px solid var(--border); padding: 6px 14px; border-radius: 8px; font-family: var(--sans); background: transparent; transition: all .2s; }
-  .logout-btn:hover { color: var(--text); border-color: var(--text2); }
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid>div{display:flex;flex-direction:column;}
+label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
+input,select{padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color var(--t),box-shadow var(--t);width:100%;}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+input::placeholder{color:var(--text3);}
+.hint{font-size:11px;color:var(--text3);margin-top:5px;}
+.form-section{margin-top:22px;padding-top:22px;border-top:1px solid var(--border);}
+.form-section-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:14px;}
 
-  .main { max-width: 1000px; margin: 0 auto; padding: 32px 20px; }
-  .page-title { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent2); margin-bottom: 6px; }
-  .page-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; }
+/* BTN */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:all var(--t);position:relative;overflow:hidden;user-select:none;text-decoration:none;}
+.btn:active{transform:scale(0.96);}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 20px var(--glow);transform:translateY(-1px);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:rgba(255,71,87,0.1);color:var(--danger);border:1px solid rgba(255,71,87,0.2);}
+.btn-danger:hover{background:rgba(255,71,87,0.2);}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface3);}
+.btn-edit{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.2);}
+.btn-edit:hover{background:rgba(96,165,250,0.2);}
 
-  /* ── STATS ── */
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
-  .stat-val { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--accent2); }
-  .stat-lbl { font-size: 12px; color: var(--text2); margin-top: 4px; }
+/* NEG CARDS */
+.neg-grid{display:flex;flex-direction:column;gap:10px;}
+.neg-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:16px;transition:all var(--t);}
+.neg-card:hover{border-color:var(--border-h);transform:translateX(3px);}
+.neg-emoji{font-size:26px;flex-shrink:0;width:46px;height:46px;background:var(--surface3);border-radius:12px;display:flex;align-items:center;justify-content:center;}
+.neg-info{flex:1;min-width:0;}
+.neg-name{font-weight:700;font-size:15px;letter-spacing:-0.2px;margin-bottom:2px;}
+.neg-slug{font-size:11px;color:var(--accent);font-family:var(--mono);margin-bottom:4px;}
+.neg-meta{font-size:12px;color:var(--text2);margin-bottom:3px;}
+.neg-phone{font-size:12px;color:var(--text2);}
+.neg-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;align-items:center;}
 
-  /* ── FORM NUEVO NEGOCIO ── */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; margin-bottom: 24px; }
-  .card-title { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--accent2); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .form-full { grid-column: 1 / -1; }
-  label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-  input, select {
-    width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: var(--sans); font-size: 14px; padding: 10px 14px; outline: none; transition: border-color .2s;
-  }
-  input:focus, select:focus { border-color: var(--accent); }
-  select option { background: var(--surface); }
-  .hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;}
+.badge-on{background:rgba(0,229,160,0.12);color:#00e5a0;}
+.badge-off{background:rgba(255,71,87,0.12);color:#ff4757;}
+.badge-bot-on{background:rgba(167,139,250,0.12);color:#a78bfa;}
+.badge-bot-off{background:rgba(255,165,2,0.12);color:#ffa502;}
 
-  .btn { border: none; border-radius: 8px; font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 11px 22px; cursor: pointer; transition: all .2s; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #6d28d9; }
-  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); font-size: 12px; padding: 6px 12px; }
-  .btn-danger:hover { background: var(--red); color: #fff; }
-  .btn-sm { padding: 6px 14px; font-size: 12px; }
+/* SW toggle */
+.sw{position:relative;display:inline-flex;cursor:pointer;}
+.sw input{opacity:0;width:0;height:0;}
+.sw-track{width:36px;height:20px;background:var(--surface3);border-radius:100px;transition:background var(--t);border:1px solid var(--border);}
+.sw input:checked~.sw-track{background:var(--accent);border-color:var(--accent);}
+.sw-knob{position:absolute;width:14px;height:14px;background:var(--text2);border-radius:50%;top:3px;left:3px;transition:all var(--t);}
+.sw input:checked~.sw-knob{left:19px;background:#000;}
 
-  /* ── LISTA NEGOCIOS ── */
-  .neg-grid { display: flex; flex-direction: column; gap: 12px; }
-  .neg-card {
-    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r);
-    padding: 18px 20px; display: flex; align-items: center; gap: 16px; transition: border-color .2s;
-  }
-  .neg-card:hover { border-color: var(--accent); }
-  .neg-emoji { width: 44px; height: 44px; border-radius: 10px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-  .neg-info { flex: 1; min-width: 0; }
-  .neg-name { font-weight: 700; font-size: 15px; }
-  .neg-slug { font-family: var(--mono); font-size: 11px; color: var(--accent2); margin-top: 2px; }
-  .neg-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
-  .neg-phone { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-top: 3px; }
-  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
-  .badge-on { background: rgba(16,185,129,.15); color: var(--green); }
-  .badge-off { background: rgba(239,68,68,.1); color: var(--red); }
-  .badge-bot-on { background: rgba(124,58,237,.15); color: var(--accent2); }
-  .badge-bot-off { background: rgba(239,68,68,.08); color: var(--red); }
-  .neg-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--text2);}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:0.4;}
 
-  /* toggle switch */
-  .sw { position: relative; display: inline-block; width: 44px; height: 24px; cursor: pointer; flex-shrink: 0; }
-  .sw input { opacity: 0; width: 0; height: 0; }
-  .sw-track { position: absolute; inset: 0; border-radius: 34px; background: #2a2a38; transition: .3s; }
-  .sw input:checked + .sw-track { background: var(--green); }
-  .sw-knob { position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .3s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-  .sw input:checked ~ .sw-knob { transform: translateX(20px); }
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(6px);padding:24px;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.6);position:relative;}
+.modal::before{content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.modal-title{font-size:18px;font-weight:800;letter-spacing:-0.3px;margin-bottom:24px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
 
-  /* ── TOAST ── */
-  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 22px; border-radius: 10px; font-size: 14px; font-weight: 500; transition: transform .3s; z-index: 9999; pointer-events: none; }
-  #toast.on { transform: translateX(-50%) translateY(0); }
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast-msg{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);color:var(--text);padding:14px 20px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toastIn .3s cubic-bezier(0.4,0,0.2,1);}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
 
-  /* ── MODAL ── */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; padding: 28px; }
-  .modal-title { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--accent2); margin-bottom: 20px; }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-  .btn-edit { background: transparent; color: var(--accent2); border: 1px solid var(--accent); font-size: 12px; padding: 6px 12px; }
-  .btn-edit:hover { background: var(--accent); color: #fff; }
-
-  /* ── EMPTY ── */
-  .empty { text-align: center; padding: 48px 20px; color: var(--text2); }
-  .empty-icon { font-size: 40px; margin-bottom: 12px; }
-
-  @media (max-width: 600px) {
-    .form-grid, .form-grid.three, .stats-row { grid-template-columns: 1fr; }
-    .neg-card { flex-wrap: wrap; }
-  }
+@media(max-width:600px){.form-grid{grid-template-columns:1fr;}.neg-card{flex-wrap:wrap;}.admin-wrap{padding:16px;}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-box">
-    <div class="login-logo">🤖 VendeBot</div>
+<div id="loginScreen" style="display:flex;" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">VendeBot</div>
     <div class="login-sub">Panel de administración</div>
-    <input type="password" id="loginPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')login()">
-    <button onclick="login()">Entrar</button>
-    <div class="login-error" id="loginError"></div>
+    <div id="loginErr"></div>
+    <input type="password" id="adminPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')loginAdmin()">
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;" onclick="loginAdmin()">Entrar →</button>
   </div>
 </div>
 
-<!-- APP -->
-<div id="app">
-  <div class="topbar">
-    <div style="display:flex;align-items:center;">
-      <span class="topbar-logo">🤖 VendeBot</span>
-      <span class="topbar-badge">ADMIN</span>
-    </div>
-    <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
-  </div>
-
-  <div class="main">
-    <div class="page-title">Panel de control</div>
-    <div class="page-sub">Gestiona todos los negocios de tu SaaS</div>
-
-    <!-- STATS -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-val" id="statTotal">—</div>
-        <div class="stat-lbl">Negocios registrados</div>
+<div id="adminScreen" style="display:none;">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div>
+        <div class="admin-logo">VendeBot</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:2px;">Panel de administración</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-val" id="statActivos">—</div>
-        <div class="stat-lbl">Negocios activos</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-val" id="statBots">—</div>
-        <div class="stat-lbl">Bots encendidos</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="admin-badge">Super Admin</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarNegocios()">↻ Actualizar</button>
       </div>
     </div>
 
-    <!-- FORMULARIO NUEVO NEGOCIO -->
     <div class="card">
       <div class="card-title">➕ Registrar nuevo negocio</div>
       <div class="form-grid">
-        <div>
-          <label>Nombre del negocio *</label>
-          <input type="text" id="f_nombre" placeholder="Ej: Asadero Don Carlos">
-        </div>
-        <div>
-          <label>Slug (URL) *</label>
-          <input type="text" id="f_slug" placeholder="Ej: asaderodoncarlos" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')">
-          <div class="hint">Solo letras minúsculas y números, sin espacios</div>
-        </div>
-        <div>
-          <label>Tipo de negocio</label>
-          <input type="text" id="f_tipo" placeholder="Ej: Restaurante, Pizzería, Tienda">
-        </div>
-        <div>
-          <label>Emoji del negocio</label>
-          <input type="text" id="f_emoji" placeholder="🍗" maxlength="4">
-        </div>
-        <div>
-          <label>Contraseña del panel *</label>
-          <input type="text" id="f_password" placeholder="Contraseña que usará el dueño">
-        </div>
-        <div>
-          <label>WhatsApp del dueño *</label>
-          <input type="text" id="f_whatsapp_dueno" placeholder="593912345678">
-          <div class="hint">Con código de país, sin + ni espacios</div>
-        </div>
+        <div><label>Nombre del negocio *</label><input type="text" id="f_nombre" placeholder="Ej: Asadero Don Carlos"></div>
+        <div><label>Slug (URL) *</label><input type="text" id="f_slug" placeholder="Ej: asadero" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
+        <div><label>Tipo de negocio</label><input type="text" id="f_tipo" placeholder="Ej: Restaurante"></div>
+        <div><label>Emoji</label><input type="text" id="f_emoji" placeholder="🍗" maxlength="4"></div>
+        <div><label>Contraseña *</label><input type="text" id="f_password" placeholder="Para el dueño"></div>
+        <div><label>WhatsApp del dueño *</label><input type="text" id="f_whatsapp_dueno" placeholder="593912345678"><div class="hint">Con código de país, sin + ni espacios</div></div>
       </div>
-
-      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
-        <div class="card-title" style="margin-bottom:16px;">📱 Configuración WhatsApp Business</div>
+      <div class="form-section">
+        <div class="form-section-title">📱 WhatsApp Business</div>
         <div class="form-grid">
-          <div>
-            <label>WhatsApp Phone Number ID <span style="color:var(--text2);font-weight:400;font-size:11px;">(opcional — solo si usas API de Meta)</span></label>
-            <input type="text" id="f_phone_id" placeholder="Ej: 123456789012345">
-            <div class="hint">Solo si el cliente usa API oficial de Meta. Dejar vacío para usar Baileys (QR).</div>
-          </div>
-          <div>
-            <label>Número de WhatsApp del negocio</label>
-            <input type="text" id="f_whatsapp_numero" placeholder="Ej: 593987654321">
-            <div class="hint">El número donde los clientes escriben</div>
-          </div>
+          <div><label>Phone Number ID <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text3)">(opcional — API Meta)</span></label><input type="text" id="f_phone_id" placeholder="Solo si usa API de Meta"><div class="hint">Vacío = usar Baileys (escaneo QR)</div></div>
+          <div><label>Número WhatsApp del negocio</label><input type="text" id="f_whatsapp_numero" placeholder="Ej: 593987654321"><div class="hint">El número donde escriben los clientes</div></div>
         </div>
       </div>
-
-      <div style="margin-top:20px;">
-        <button class="btn btn-primary" onclick="crearNegocio()">✓ Registrar negocio</button>
-      </div>
+      <div style="margin-top:20px;"><button class="btn btn-primary" onclick="crearNegocio()">✓ Registrar negocio</button></div>
     </div>
 
-    <!-- LISTA NEGOCIOS -->
     <div class="card">
-      <div class="card-title" style="justify-content:space-between;">
-        <span>📋 Negocios registrados</span>
-        <button class="btn btn-sm" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="cargarNegocios()">↻ Actualizar</button>
-      </div>
-      <div class="neg-grid" id="negGrid">
-        <div class="empty"><div class="empty-icon">⏳</div>Cargando...</div>
-      </div>
+      <div class="card-title">📋 Negocios registrados</div>
+      <div class="neg-grid" id="negGrid"><div class="empty"><div class="empty-icon">⏳</div><p>Cargando...</p></div></div>
     </div>
   </div>
 </div>
 
-<!-- MODAL EDITAR NEGOCIO -->
 <div id="modalEditar" style="display:none;" class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
   <div class="modal">
     <div class="modal-title">✏️ Editar negocio</div>
     <input type="hidden" id="e_id">
     <div class="form-grid">
-      <div>
-        <label>Nombre del negocio *</label>
-        <input type="text" id="e_nombre" placeholder="Ej: Asadero Don Carlos">
-      </div>
-      <div>
-        <label>Slug (URL) *</label>
-        <input type="text" id="e_slug" placeholder="Ej: asadero" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')">
-      </div>
-      <div>
-        <label>Tipo de negocio</label>
-        <input type="text" id="e_tipo" placeholder="Ej: Restaurante">
-      </div>
-      <div>
-        <label>Emoji</label>
-        <input type="text" id="e_emoji" placeholder="🍗" maxlength="4">
-      </div>
-      <div>
-        <label>Contraseña del panel *</label>
-        <input type="text" id="e_password" placeholder="Contraseña del dueño">
-      </div>
-      <div>
-        <label>WhatsApp del dueño *</label>
-        <input type="text" id="e_whatsapp_dueno" placeholder="593912345678">
-      </div>
-      <div>
-        <label>WhatsApp Phone Number ID *</label>
-        <input type="text" id="e_phone_id" placeholder="Ej: 123456789012345">
-      </div>
-      <div>
-        <label>Número de WhatsApp del negocio</label>
-        <input type="text" id="e_whatsapp_numero" placeholder="Ej: 593987654321">
-      </div>
+      <div><label>Nombre *</label><input type="text" id="e_nombre"></div>
+      <div><label>Slug *</label><input type="text" id="e_slug" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
+      <div><label>Tipo</label><input type="text" id="e_tipo"></div>
+      <div><label>Emoji</label><input type="text" id="e_emoji" maxlength="4"></div>
+      <div><label>Contraseña *</label><input type="text" id="e_password"></div>
+      <div><label>WhatsApp dueño *</label><input type="text" id="e_whatsapp_dueno"></div>
+      <div><label>Phone Number ID <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text3)">(opcional)</span></label><input type="text" id="e_phone_id"></div>
+      <div><label>Número WhatsApp</label><input type="text" id="e_whatsapp_numero"></div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-sm" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-primary btn-sm" onclick="guardarEdicion()">✓ Guardar cambios</button>
+      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarEdicion()">✓ Guardar</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
-
 <script>
+
 const BASE = '';
 let TOKEN = sessionStorage.getItem('admin_token') || '';
 
@@ -513,6 +397,7 @@ function toast(txt) {
     mostrarApp();
   }
 })();
+
 </script>
 </body>
 </html>
