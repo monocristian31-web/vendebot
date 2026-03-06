@@ -666,7 +666,7 @@ textarea{resize:vertical;clip-path:none;border-radius:0;}
 <div id="notif"></div>
 
 <script>
-const BASE=window.location.origin;
+const BASE='https://vendebot-production.up.railway.app';
 const SLUG=window.location.pathname.split('/').pop();
 let TOKEN=sessionStorage.getItem('vb_panel_token_'+SLUG)||'';
 let negocioData=null;
