@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const { Pool } = require('pg');
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
 const fs = require('fs');
@@ -503,7 +504,7 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
       ultimoPedido.esperando_resena = false;
       const todosClientes = cargarClientes();
       todosClientes[numero] = clienteData;
-      guardarJSON('./clientes.json', todosClientes);
+      guardarJSON('clientes', todosClientes);
       await enviar(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
       return;
@@ -764,23 +765,100 @@ function horaActual() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: HORARIO.zona }));
 }
 
-// ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
-function cargarJSON(archivo, defecto) {
-  try { return JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch { return defecto; }
-}
-function guardarJSON(archivo, data) {
-  try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch (e) { console.error('Error guardando', archivo, e.message); }
+// ─── POSTGRESQL ───────────────────────────────────────────────────────────────
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
+});
+
+// Crear tablas si no existen
+async function iniciarDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS store (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  console.log('✅ Base de datos lista');
+
+  // Migrar archivos JSON existentes a la DB (solo si existen y la tabla está vacía)
+  const archivos = [
+    { key: 'negocios', file: 'negocios', def: [] },
+    { key: 'clientes', file: 'clientes', def: {} },
+    { key: 'promociones', file: 'promociones', def: [] },
+    { key: 'repartidores', file: 'repartidores', def: [] },
+    { key: 'pedidos_pendientes', file: 'pedidos_pendientes', def: [] },
+    { key: 'cupones', file: 'cupones', def: [] },
+    { key: 'puntos', file: 'puntos', def: {} },
+    { key: 'referidos', file: 'referidos', def: {} },
+    { key: 'resenas', file: 'resenas', def: [] },
+    { key: 'citas', file: 'citas', def: [] },
+    { key: 'cliente_negocio_map', file: 'cliente_negocio_map', def: {} },
+  ];
+  for (const { key, file, def } of archivos) {
+    const exists = await pool.query('SELECT 1 FROM store WHERE key=$1', [key]);
+    if (exists.rowCount === 0) {
+      let data = def;
+      try {
+        if (fs.existsSync(file)) data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch {}
+      await pool.query('INSERT INTO store(key,value) VALUES($1,$2)', [key, JSON.stringify(data)]);
+      console.log(`Migrado: ${key}`);
+    }
+  }
 }
 
-function cargarNegocios() { return cargarJSON('./negocios.json', []); }
-function cargarClientes() { return cargarJSON('./clientes.json', {}); }
-function cargarPromociones() { return cargarJSON('./promociones.json', []); }
-function cargarRepartidores() { return cargarJSON('./repartidores.json', []); }
-function cargarPedidosPendientes() { return cargarJSON('./pedidos_pendientes.json', []); }
-function guardarPedidosPendientes(p) { guardarJSON('./pedidos_pendientes.json', p); }
-function cargarCupones() { return cargarJSON('./cupones.json', []); }
-function cargarPuntos() { return cargarJSON('./puntos.json', {}); }
-function guardarPuntos(p) { guardarJSON('./puntos.json', p); }
+// Funciones de acceso sincrónicas simuladas con caché en memoria
+// (para no romper el código existente que las llama sin await)
+const dbCache = new Map();
+
+async function dbGet(key, def) {
+  try {
+    const r = await pool.query('SELECT value FROM store WHERE key=$1', [key]);
+    if (r.rowCount === 0) return def;
+    return r.rows[0].value;
+  } catch(e) { console.error('DB get error:', key, e.message); return def; }
+}
+
+async function dbSet(key, value) {
+  try {
+    await pool.query(
+      'INSERT INTO store(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(key) DO UPDATE SET value=$2, updated_at=NOW()',
+      [key, JSON.stringify(value)]
+    );
+    dbCache.set(key, value);
+  } catch(e) { console.error('DB set error:', key, e.message); }
+}
+
+// Versiones síncronas usando caché (se cargan al inicio)
+function cargarJSON(key, def) { return dbCache.get(key) ?? def; }
+function guardarJSON(key, data) {
+  dbCache.set(key, data);
+  dbSet(key, data).catch(e => console.error('guardarJSON async error:', key, e.message));
+}
+
+// Precargar todo en caché al arrancar
+async function precargarCache() {
+  const keys = ['negocios','clientes','promociones','repartidores','pedidos_pendientes',
+                 'cupones','puntos','referidos','resenas','citas','cliente_negocio_map'];
+  for (const key of keys) {
+    const def = ['clientes','puntos','referidos','cliente_negocio_map'].includes(key) ? {} : [];
+    const val = await dbGet(key, def);
+    dbCache.set(key, val);
+  }
+  console.log('✅ Caché cargada desde PostgreSQL');
+}
+
+function cargarNegocios() { return cargarJSON('negocios', []); }
+function cargarClientes() { return cargarJSON('clientes', {}); }
+function cargarPromociones() { return cargarJSON('promociones', []); }
+function cargarRepartidores() { return cargarJSON('repartidores', []); }
+function cargarPedidosPendientes() { return cargarJSON('pedidos_pendientes', []); }
+function guardarPedidosPendientes(p) { guardarJSON('pedidos_pendientes', p); }
+function cargarCupones() { return cargarJSON('cupones', []); }
+function cargarPuntos() { return cargarJSON('puntos', {}); }
+function guardarPuntos(p) { guardarJSON('puntos', p); }
 
 // ─── SISTEMA DE PUNTOS ────────────────────────────────────────────────────────
 const PUNTOS_POR_DOLAR = 10;
@@ -831,19 +909,19 @@ function usarCupon(codigo) {
   const idx = cupones.findIndex(c => c.codigo.toUpperCase() === codigo.toUpperCase());
   if (idx >= 0) {
     cupones[idx].usos_actuales = (cupones[idx].usos_actuales || 0) + 1;
-    guardarJSON('./cupones.json', cupones);
+    guardarJSON('cupones', cupones);
   }
 }
 
 // ─── SISTEMA DE REFERIDOS ─────────────────────────────────────────────────────
-function cargarReferidos() { return cargarJSON('./referidos.json', {}); }
+function cargarReferidos() { return cargarJSON('referidos', {}); }
 
 function generarCodigoReferido(numero) {
   const referidos = cargarReferidos();
   if (!referidos[numero]) {
     const codigo = 'REF' + numero.slice(-4) + Math.random().toString(36).substring(2, 5).toUpperCase();
     referidos[numero] = { codigo, numero, referidos: [], descuento_ganado: 0 };
-    guardarJSON('./referidos.json', referidos);
+    guardarJSON('referidos', referidos);
   }
   return referidos[numero].codigo;
 }
@@ -856,10 +934,10 @@ function procesarReferido(codigoRef, numeroNuevo) {
     dueno.referidos.push(numeroNuevo);
     dueno.descuento_ganado += 5;
     referidos[dueno.numero] = dueno;
-    guardarJSON('./referidos.json', referidos);
+    guardarJSON('referidos', referidos);
     const cupones = cargarCupones();
     cupones.push({ codigo: 'REFER' + Date.now(), tipo: 'fijo', valor: 5, activo: true, usos_maximos: 1, usos_actuales: 0, descripcion: 'Descuento por referido', para_numero: dueno.numero });
-    guardarJSON('./cupones.json', cupones);
+    guardarJSON('cupones', cupones);
     return dueno.numero;
   }
   return false;
@@ -883,7 +961,7 @@ function obtenerCliente(numero) {
   const clientes = cargarClientes();
   if (!clientes[numero]) {
     clientes[numero] = { numero, nombre: '', primera_visita: new Date().toISOString(), ultima_visita: new Date().toISOString(), total_pedidos: 0, total_gastado: 0, historial_pedidos: [], es_frecuente: false, codigo_referido_usado: '' };
-    guardarJSON('./clientes.json', clientes);
+    guardarJSON('clientes', clientes);
   }
   return clientes[numero];
 }
@@ -892,7 +970,7 @@ function actualizarCliente(numero, datos) {
   const clientes = cargarClientes();
   clientes[numero] = { ...(clientes[numero] || {}), ...datos, ultima_visita: new Date().toISOString() };
   if (clientes[numero].total_pedidos >= 3) clientes[numero].es_frecuente = true;
-  guardarJSON('./clientes.json', clientes);
+  guardarJSON('clientes', clientes);
 }
 
 function registrarPedido(numero, pedido, negocioNombre) {
@@ -906,7 +984,7 @@ function registrarPedido(numero, pedido, negocioNombre) {
   if (c.historial_pedidos.length > 20) c.historial_pedidos = c.historial_pedidos.slice(-20);
   if (c.total_pedidos >= 3) c.es_frecuente = true;
   clientes[numero] = c;
-  guardarJSON('./clientes.json', clientes);
+  guardarJSON('clientes', clientes);
   const pendientes = cargarPedidosPendientes();
   pendientes.push({ numero, negocio: negocioNombre, pedido, fecha: new Date().toISOString(), recordatorio_enviado: false, entrega_confirmada: false });
   guardarPedidosPendientes(pendientes);
@@ -916,10 +994,10 @@ function registrarPedido(numero, pedido, negocioNombre) {
 const conversaciones = new Map();
 const clienteNegocioMap = new Map();
 try {
-  const mapa = cargarJSON('./cliente_negocio_map.json', {});
+  const mapa = cargarJSON('cliente_negocio_map', {});
   for (const [k, v] of Object.entries(mapa)) clienteNegocioMap.set(k, v);
 } catch {}
-function guardarMapaClientes() { guardarJSON('./cliente_negocio_map.json', Object.fromEntries(clienteNegocioMap)); }
+function guardarMapaClientes() { guardarJSON('cliente_negocio_map', Object.fromEntries(clienteNegocioMap)); }
 
 function getOrCreateConversacion(numero, negocio) {
   const key = `${numero}:${negocio.id}`;
@@ -995,12 +1073,12 @@ setInterval(async () => {
           const cupones = cargarCupones();
           if (!cupones.find(c => c.codigo === 'VUELVE10' && c.para_numero === numero)) {
             cupones.push({ codigo: 'VUELVE10_' + numero.slice(-4), tipo: 'porcentaje', valor: 10, activo: true, usos_maximos: 1, usos_actuales: 0, para_numero: numero, descripcion: 'Descuento reactivacion' });
-            guardarJSON('./cupones.json', cupones);
+            guardarJSON('cupones', cupones);
           }
         }
       }
     }
-    guardarJSON('./clientes.json', clientes);
+    guardarJSON('clientes', clientes);
   }
 }, 5 * 60 * 1000);
 
@@ -1020,7 +1098,7 @@ setInterval(async () => {
       }
     }
   }
-  if (cambios) guardarJSON('./clientes.json', clientes);
+  if (cambios) guardarJSON('clientes', clientes);
 }, 60 * 60 * 1000);
 
 // ─── ENVÍO MENSAJES ───────────────────────────────────────────────────────────
@@ -1032,7 +1110,7 @@ app.post('/admin/negocios', (req, res) => {
   const negocios = cargarNegocios();
   const nuevo = { id: 'negocio_' + Date.now(), activo: true, catalogo: [], modo_vacaciones: false, tiempo_entrega: '30-45 minutos', politica_devoluciones: '', mensajes: { bienvenida: 'Hola! Bienvenido/a. En que puedo ayudarte?', tono: 'amigable' }, ...req.body };
   negocios.push(nuevo);
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true, negocio: nuevo });
 });
 app.put('/admin/negocios/:id', (req, res) => {
@@ -1040,12 +1118,12 @@ app.put('/admin/negocios/:id', (req, res) => {
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true });
 });
 app.delete('/admin/negocios/:id', (req, res) => {
   const negocios = cargarNegocios().filter(n => n.id !== req.params.id);
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true });
 });
 app.put('/admin/negocios/:id/vacaciones', (req, res) => {
@@ -1054,7 +1132,7 @@ app.put('/admin/negocios/:id/vacaciones', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].modo_vacaciones = req.body.activo;
   negocios[idx].mensaje_vacaciones = req.body.mensaje || '';
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true });
 });
 app.get('/admin/clientes', (req, res) => res.json(cargarClientes()));
@@ -1064,27 +1142,27 @@ app.post('/admin/cupones', (req, res) => {
   const cupones = cargarCupones();
   const nuevo = { id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body };
   cupones.push(nuevo);
-  guardarJSON('./cupones.json', cupones);
+  guardarJSON('cupones', cupones);
   res.json({ ok: true, cupon: nuevo });
 });
-app.delete('/admin/cupones/:id', (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/cupones/:id', (req, res) => { guardarJSON('cupones', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/admin/referidos', (req, res) => res.json(cargarReferidos()));
 app.get('/admin/repartidores', (req, res) => res.json(cargarRepartidores()));
 app.post('/admin/repartidores', (req, res) => {
   const reps = cargarRepartidores();
   const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
   reps.push(nuevo);
-  guardarJSON('./repartidores.json', reps);
+  guardarJSON('repartidores', reps);
   res.json({ ok: true });
 });
 app.get('/admin/promociones', (req, res) => res.json(cargarPromociones()));
 app.post('/admin/promociones', (req, res) => {
   const promos = cargarPromociones();
   promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
-  guardarJSON('./promociones.json', promos);
+  guardarJSON('promociones', promos);
   res.json({ ok: true });
 });
-app.delete('/admin/promociones/:id', (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/promociones/:id', (req, res) => { guardarJSON('promociones', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
 
 app.post('/admin/masivo', async (req, res) => {
   const { mensaje, solo_frecuentes } = req.body;
@@ -1187,7 +1265,7 @@ app.put('/panel/:slug/negocio', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true });
 });
 app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
@@ -1195,7 +1273,7 @@ app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].bot_activo = req.body.activo;
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   console.log(`Bot ${req.body.activo ? 'activado' : 'desactivado'} para ${req.params.slug}`);
   res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
@@ -1221,18 +1299,18 @@ app.get('/panel/:slug/promociones', authPanel, (req, res) => res.json(cargarProm
 app.post('/panel/:slug/promociones', authPanel, (req, res) => {
   const promos = cargarPromociones();
   promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
-  guardarJSON('./promociones.json', promos);
+  guardarJSON('promociones', promos);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => { guardarJSON('promociones', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/panel/:slug/cupones', authPanel, (req, res) => res.json(cargarCupones()));
 app.post('/panel/:slug/cupones', authPanel, (req, res) => {
   const cupones = cargarCupones();
   cupones.push({ id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body });
-  guardarJSON('./cupones.json', cupones);
+  guardarJSON('cupones', cupones);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => { guardarJSON('cupones', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   res.json(cargarRepartidores().filter(r => r.negocio_id === negocio?.id));
@@ -1240,10 +1318,10 @@ app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
 app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
   const reps = cargarRepartidores();
   reps.push({ id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body });
-  guardarJSON('./repartidores.json', reps);
+  guardarJSON('repartidores', reps);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => { guardarJSON('./repartidores.json', cargarRepartidores().filter(r => r.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => { guardarJSON('repartidores', cargarRepartidores().filter(r => r.id !== req.params.id)); res.json({ ok: true }); });
 app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
@@ -1289,7 +1367,7 @@ setInterval(async () => {
       if (p.stock === 0 && p.activo !== false) { p.activo = false; cambios = true; }
       if (p.stock > 0 && p.activo === false) { p.activo = true; cambios = true; }
     });
-    if (cambios) guardarJSON('./negocios.json', negocios);
+    if (cambios) guardarJSON('negocios', negocios);
   }
 }, 60 * 60 * 1000);
 
@@ -1368,8 +1446,8 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
 });
 
 // ─── RESEÑAS ─────────────────────────────────────────────────
-function cargarResenas() { return cargarJSON('./resenas.json', []); }
-function guardarResenas(r) { guardarJSON('./resenas.json', r); }
+function cargarResenas() { return cargarJSON('resenas', []); }
+function guardarResenas(r) { guardarJSON('resenas', r); }
 
 function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDesc) {
   const resenas = cargarResenas();
@@ -1396,7 +1474,7 @@ setInterval(async () => {
       }
     }
   }
-  if (cambios) guardarJSON('./clientes.json', clientes);
+  if (cambios) guardarJSON('clientes', clientes);
 }, 30 * 60 * 1000);
 
 app.get('/panel/:slug/resenas', authPanel, (req, res) => {
@@ -1425,8 +1503,8 @@ app.get('/sw.js', (req, res) => {
 });
 
 // ─── CITAS ────────────────────────────────────────────────────
-function cargarCitas() { return cargarJSON('./citas.json', []); }
-function guardarCitas(c) { guardarJSON('./citas.json', c); }
+function cargarCitas() { return cargarJSON('citas', []); }
+function guardarCitas(c) { guardarJSON('citas', c); }
 
 app.get('/panel/:slug/citas', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
@@ -1580,7 +1658,7 @@ app.post('/panel/:slug/lista-blanca', authPanel, (req, res) => {
   if (!negocios[idx].lista_blanca) negocios[idx].lista_blanca = [];
   if (!negocios[idx].lista_blanca.includes(numero)) {
     negocios[idx].lista_blanca.push(numero);
-    guardarJSON('./negocios.json', negocios);
+    guardarJSON('negocios', negocios);
   }
   res.json({ ok: true, lista_blanca: negocios[idx].lista_blanca });
 });
@@ -1592,7 +1670,7 @@ app.delete('/panel/:slug/lista-blanca/:numero', authPanel, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   const numero = req.params.numero.replace(/\D/g, '');
   negocios[idx].lista_blanca = (negocios[idx].lista_blanca || []).filter(n => n.replace(/\D/g, '') !== numero);
-  guardarJSON('./negocios.json', negocios);
+  guardarJSON('negocios', negocios);
   res.json({ ok: true, lista_blanca: negocios[idx].lista_blanca });
 });
 
@@ -1613,7 +1691,11 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`VendeBot v11.0 (Baileys) iniciado en puerto ${PORT}`);
-  // Iniciar sesiones WhatsApp de todos los negocios activos
+  // 1. Iniciar DB y crear tablas
+  await iniciarDB();
+  // 2. Precargar toda la data en caché desde PostgreSQL
+  await precargarCache();
+  // 3. Iniciar sesiones WhatsApp de todos los negocios activos
   await iniciarTodasLasSesiones();
 });
  
