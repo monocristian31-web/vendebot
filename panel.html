@@ -867,6 +867,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <button class="nav-btn" onclick="switchTab('resenas')"><span class="nav-icon">⭐</span> Reseñas</button>
 
       <div class="nav-group-label" style="margin-top:8px;">Sistema</div>
+      <button class="nav-btn" onclick="switchTab('whatsapp')"><span class="nav-icon">📱</span> WhatsApp</button>
       <button class="nav-btn" onclick="switchTab('config')"><span class="nav-icon">⚙️</span> Configuración</button>
     </nav>
 
@@ -1151,6 +1152,56 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 </div>
 
 <!-- ════ CONFIG ════ -->
+
+<div class="panel" id="tab-whatsapp">
+  <div class="section-title">📱 WhatsApp</div>
+
+  <!-- Estado de conexión -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Estado de conexión</div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="wa-dot" style="width:12px;height:12px;border-radius:50%;background:#6b7280;transition:background .3s;"></div>
+        <span id="wa-estado-txt" style="font-size:14px;font-weight:600;color:var(--text);">Verificando...</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="conectarWhatsApp()" id="btn-conectar">Conectar</button>
+        <button class="btn btn-danger btn-sm" onclick="desconectarWhatsApp()" id="btn-desconectar" style="display:none;">Desconectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR -->
+  <div class="card" id="card-qr" style="display:none;margin-bottom:16px;">
+    <div class="card-title">Escanea el código QR</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:16px;">
+      Abre WhatsApp en tu teléfono → Dispositivos vinculados → Vincular un dispositivo → Escanea este código
+    </p>
+    <div style="display:flex;justify-content:center;">
+      <img id="wa-qr-img" src="" alt="QR" style="width:220px;height:220px;border-radius:12px;border:2px solid var(--border);"/>
+    </div>
+    <p style="font-size:12px;color:var(--dim);text-align:center;margin-top:12px;">El QR se actualiza automáticamente si expira</p>
+  </div>
+
+  <!-- Lista blanca -->
+  <div class="card">
+    <div class="card-title">🛡️ Lista blanca — Números que el bot ignora</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:16px;">
+      Agrega aquí los números de amigos, familia o proveedores. El bot no les responderá nunca.
+    </p>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <input type="text" id="lb-numero" placeholder="593990000000 (sin + ni espacios)" style="flex:1;min-width:200px;">
+      <input type="text" id="lb-etiqueta" placeholder="Etiqueta (ej: Mamá)" style="width:140px;">
+      <button class="btn btn-primary btn-sm" onclick="agregarListaBlanca()">Agregar</button>
+    </div>
+
+    <div id="lb-lista">
+      <p style="color:var(--dim);font-size:13px;">Cargando...</p>
+    </div>
+  </div>
+</div>
+
 <div class="panel" id="tab-config">
   <div class="section-title">Configuración</div>
   <div class="alert" id="configAlert"></div>
@@ -1300,7 +1351,7 @@ const TAB_TITLES = {
   dashboard: 'Dashboard', catalogo: 'Catálogo', promociones: 'Promociones',
   repartidores: 'Repartidores', clientes: 'Clientes', masivo: 'Envío masivo',
   chat: 'Chat en vivo', reportes: 'Reportes', resenas: 'Reseñas',
-  citas: 'Citas', config: 'Configuración'
+  citas: 'Citas', config: 'Configuración', whatsapp: 'WhatsApp'
 };
 
 function switchTab(tab) {
@@ -1320,6 +1371,7 @@ function switchTab(tab) {
   if (tab === 'resenas') cargarResenas();
   if (tab === 'citas') cargarCitas();
   if (tab === 'config') cargarConfig();
+  if (tab === 'whatsapp') cargarWhatsApp();
 }
 
 async function api(url, opts = {}) {
@@ -2086,6 +2138,151 @@ if (TOKEN) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
+
+// ─── WHATSAPP ────────────────────────────────────────────────────────────────
+
+let waPollingInterval = null;
+
+async function cargarWhatsApp() {
+  await verificarEstadoWA();
+  await cargarListaBlanca();
+  // Polling cada 5s para actualizar QR y estado
+  if (waPollingInterval) clearInterval(waPollingInterval);
+  waPollingInterval = setInterval(verificarEstadoWA, 5000);
+}
+
+async function verificarEstadoWA() {
+  try {
+    const data = await api(`/panel/${SLUG}/whatsapp/estado`);
+    const dot = document.getElementById('wa-dot');
+    const txt = document.getElementById('wa-estado-txt');
+    const cardQr = document.getElementById('card-qr');
+    const btnConectar = document.getElementById('btn-conectar');
+    const btnDesconectar = document.getElementById('btn-desconectar');
+
+    if (data.estado === 'conectado') {
+      dot.style.background = '#22c55e';
+      txt.textContent = 'Conectado ✅';
+      cardQr.style.display = 'none';
+      btnConectar.style.display = 'none';
+      btnDesconectar.style.display = '';
+      clearInterval(waPollingInterval);
+    } else if (data.estado === 'esperando_qr' && data.qr) {
+      dot.style.background = '#f59e0b';
+      txt.textContent = 'Esperando escaneo del QR...';
+      cardQr.style.display = '';
+      btnConectar.style.display = 'none';
+      btnDesconectar.style.display = '';
+      document.getElementById('wa-qr-img').src = data.qr;
+    } else if (data.estado === 'conectando') {
+      dot.style.background = '#f59e0b';
+      txt.textContent = 'Conectando...';
+      cardQr.style.display = 'none';
+      btnConectar.style.display = 'none';
+      btnDesconectar.style.display = '';
+    } else {
+      dot.style.background = '#ef4444';
+      txt.textContent = 'Desconectado';
+      cardQr.style.display = 'none';
+      btnConectar.style.display = '';
+      btnDesconectar.style.display = 'none';
+    }
+  } catch(e) {
+    console.error('Error verificando estado WA:', e);
+  }
+}
+
+async function conectarWhatsApp() {
+  const btn = document.getElementById('btn-conectar');
+  btn.textContent = 'Conectando...';
+  btn.disabled = true;
+  try {
+    await api(`/panel/${SLUG}/whatsapp/conectar`, { method: 'POST' });
+    // Esperar un poco y actualizar estado
+    setTimeout(verificarEstadoWA, 2000);
+    if (!waPollingInterval) waPollingInterval = setInterval(verificarEstadoWA, 5000);
+  } catch(e) {
+    alert('Error al conectar. Intenta de nuevo.');
+  }
+  btn.textContent = 'Conectar';
+  btn.disabled = false;
+}
+
+async function desconectarWhatsApp() {
+  if (!confirm('¿Seguro que quieres desconectar WhatsApp? El bot dejará de funcionar hasta que vuelvas a escanear el QR.')) return;
+  try {
+    await api(`/panel/${SLUG}/whatsapp/desconectar`, { method: 'POST' });
+    clearInterval(waPollingInterval);
+    verificarEstadoWA();
+  } catch(e) {
+    alert('Error al desconectar.');
+  }
+}
+
+// ─── LISTA BLANCA ─────────────────────────────────────────────────────────────
+
+let listaBlancaData = [];
+
+async function cargarListaBlanca() {
+  try {
+    listaBlancaData = await api(`/panel/${SLUG}/lista-blanca`);
+    renderListaBlanca();
+  } catch(e) {
+    document.getElementById('lb-lista').innerHTML = '<p style="color:var(--dim);font-size:13px;">Error cargando lista.</p>';
+  }
+}
+
+function renderListaBlanca() {
+  const cont = document.getElementById('lb-lista');
+  if (!listaBlancaData.length) {
+    cont.innerHTML = '<p style="color:var(--dim);font-size:13px;">No hay números en la lista blanca todavía.</p>';
+    return;
+  }
+  cont.innerHTML = `
+    <table>
+      <thead><tr><th>Número</th><th></th></tr></thead>
+      <tbody>
+        ${listaBlancaData.map(n => `
+          <tr>
+            <td style="font-family:monospace;">${n}</td>
+            <td style="text-align:right;">
+              <button class="btn btn-danger btn-sm" onclick="eliminarListaBlanca('${n}')">✕ Eliminar</button>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+async function agregarListaBlanca() {
+  const numero = document.getElementById('lb-numero').value.trim().replace(/\D/g, '');
+  if (!numero || numero.length < 7) { alert('Ingresa un número válido (solo dígitos, ej: 593990000000)'); return; }
+  try {
+    const res = await api(`/panel/${SLUG}/lista-blanca`, {
+      method: 'POST',
+      body: JSON.stringify({ numero })
+    });
+    listaBlancaData = res.lista_blanca;
+    renderListaBlanca();
+    document.getElementById('lb-numero').value = '';
+    document.getElementById('lb-etiqueta').value = '';
+  } catch(e) {
+    alert('Error al agregar número.');
+  }
+}
+
+async function eliminarListaBlanca(numero) {
+  if (!confirm(`¿Eliminar ${numero} de la lista blanca? El bot volverá a responderle.`)) return;
+  try {
+    const res = await api(`/panel/${SLUG}/lista-blanca/${numero}`, { method: 'DELETE' });
+    listaBlancaData = res.lista_blanca;
+    renderListaBlanca();
+  } catch(e) {
+    alert('Error al eliminar número.');
+  }
+}
+
 </script>
 </body>
 </html>
