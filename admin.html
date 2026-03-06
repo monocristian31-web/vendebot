@@ -226,9 +226,9 @@
         <div class="card-title" style="margin-bottom:16px;">📱 Configuración WhatsApp Business</div>
         <div class="form-grid">
           <div>
-            <label>WhatsApp Phone Number ID *</label>
+            <label>WhatsApp Phone Number ID <span style="color:var(--text2);font-weight:400;font-size:11px;">(opcional — solo si usas API de Meta)</span></label>
             <input type="text" id="f_phone_id" placeholder="Ej: 123456789012345">
-            <div class="hint">Lo encuentras en Meta Business → WhatsApp → Configuración del número</div>
+            <div class="hint">Solo si el cliente usa API oficial de Meta. Dejar vacío para usar Baileys (QR).</div>
           </div>
           <div>
             <label>Número de WhatsApp del negocio</label>
@@ -369,7 +369,7 @@ async function cargarNegocios() {
         <div class="neg-name">${n.nombre}</div>
         <div class="neg-slug">/${n.slug || n.id}</div>
         <div class="neg-meta">${n.tipo || 'Negocio'}</div>
-        <div class="neg-phone">📱 ${n.whatsapp_dueno || '—'}${n.whatsapp_phone_id ? ' · Phone ID: ' + n.whatsapp_phone_id : ' · <span style="color:var(--yellow);">⚠ Sin Phone ID</span>'}</div>
+        <div class="neg-phone">📱 ${n.whatsapp_dueno || '—'} · ${n.whatsapp_phone_id ? '<span style="color:#a78bfa;">📡 API Meta</span>' : '<span style="color:#4ade80;">✅ Baileys (QR)</span>'}</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">
         <span class="badge ${n.activo ? 'badge-on' : 'badge-off'}">${n.activo ? '● Activo' : '● Inactivo'}</span>
@@ -400,7 +400,6 @@ async function crearNegocio() {
   const whatsapp_phone_id = document.getElementById('f_phone_id').value.trim();
 
   if (!nombre || !slug || !password || !whatsapp_dueno) { toast('⚠ Completa los campos obligatorios (*)'); return; }
-  if (!whatsapp_phone_id) { toast('⚠ El Phone Number ID es obligatorio para que el bot funcione'); return; }
 
   const negocio = {
     slug, nombre,
@@ -478,7 +477,6 @@ async function guardarEdicion() {
   const whatsapp_phone_id = document.getElementById('e_phone_id').value.trim();
 
   if (!nombre || !slug || !password || !whatsapp_dueno) { toast('⚠ Completa los campos obligatorios (*)'); return; }
-  if (!whatsapp_phone_id) { toast('⚠ El Phone Number ID es obligatorio'); return; }
 
   const res = await api(`/admin/negocios/${id}`, {
     method: 'PUT',

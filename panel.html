@@ -823,6 +823,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   line-height: 1.5;
 }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -901,8 +902,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   <div class="stats-grid" id="statsGrid"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
     <div class="card">
-      <div class="card-title">Ventas últimos 7 días</div>
-      <div class="bar-chart" id="barChart"></div>
+      <div class="card-title">📈 Ventas últimos 7 días</div>
+      <div style="position:relative;height:140px;">
+        <canvas id="barChart"></canvas>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">🏆 Más vendidos</div>
@@ -1414,7 +1417,33 @@ async function cargarDashboard() {
     semana.push({ dia: dias[d.getDay()], ventas, isHoy: i === 0 });
   }
   const maxV = Math.max(...semana.map(s => s.ventas), 1);
-  document.getElementById('barChart').innerHTML = semana.map(s => `<div class="bar-wrap"><div class="bar ${s.isHoy?'today':''}" style="height:${Math.max(s.ventas/maxV*90,4)}px"></div><div class="bar-label">${s.dia}</div></div>`).join('');
+  // Destruir chart anterior si existe
+  if (window._ventasChart) window._ventasChart.destroy();
+  const ctx = document.getElementById('barChart').getContext('2d');
+  window._ventasChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: semana.map(s => s.isHoy ? s.dia + ' ★' : s.dia),
+      datasets: [{
+        data: semana.map(s => s.ventas),
+        backgroundColor: semana.map(s => s.isHoy ? 'rgba(163,230,53,0.9)' : 'rgba(163,230,53,0.3)'),
+        borderColor: semana.map(s => s.isHoy ? '#a3e635' : 'rgba(163,230,53,0.5)'),
+        borderWidth: 1,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ' $' + ctx.raw.toFixed(2) }
+      }},
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 11 }, callback: v => '$' + v } }
+      }
+    }
+  });
   const conteo = {};
   todos.forEach(c => c.historial_pedidos?.forEach(p => p.items?.forEach(item => { if(!conteo[item.nombre]) conteo[item.nombre]=0; conteo[item.nombre]+=item.cantidad||1; })));
   const top = Object.entries(conteo).sort((a,b) => b[1]-a[1]).slice(0,4);
@@ -1819,7 +1848,23 @@ async function cargarChat() {
       const data = JSON.parse(e.data);
       if (data.tipo === 'nuevo_mensaje' || data.tipo === 'nuevo_pedido') {
         cargarChat();
-        if (data.tipo === 'nuevo_pedido') mostrarNotificacion('🛒 Nuevo pedido de ' + (data.cliente || 'un cliente'));
+        if (data.tipo === 'nuevo_pedido') {
+          mostrarNotificacion('🛒 Nuevo pedido de ' + (data.cliente || 'un cliente'));
+          try {
+            const ac = new (window.AudioContext || window.webkitAudioContext)();
+            [523, 659, 784].forEach((freq, i) => {
+              const osc = ac.createOscillator();
+              const gain = ac.createGain();
+              osc.connect(gain); gain.connect(ac.destination);
+              osc.frequency.value = freq;
+              osc.type = 'sine';
+              gain.gain.setValueAtTime(0.3, ac.currentTime + i * 0.12);
+              gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + i * 0.12 + 0.3);
+              osc.start(ac.currentTime + i * 0.12);
+              osc.stop(ac.currentTime + i * 0.12 + 0.3);
+            });
+          } catch(e) {}
+        }
         if (chatNumeroActual === data.numero) abrirChat(data.numero, data.nombre || data.numero);
       }
     };
