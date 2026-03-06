@@ -4,405 +4,339 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VendeBot Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#080c10;--bg2:#0d1117;--surface:#111820;--surface2:#161e28;--surface3:#1c2735;
-  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.14);
-  --text:#f0f6ff;--text2:#8b9ab0;--text3:#4a5568;
-  --accent:#00e5a0;--accent2:#00b87c;--glow:rgba(0,229,160,0.15);
-  --danger:#ff4757;--warning:#ffa502;
-  --font:'Plus Jakarta Sans',sans-serif;--mono:'JetBrains Mono',monospace;
-  --radius:14px;--radius-sm:8px;--t:0.2s cubic-bezier(0.4,0,0.2,1);
+  --bg:#020912;--bg2:#040e1c;--bg3:#06111e;
+  --s1:rgba(0,212,255,.04);--s2:rgba(0,212,255,.09);--s3:rgba(0,212,255,.14);
+  --b:rgba(0,212,255,.16);--bh:rgba(0,212,255,.45);
+  --tx:#b8e8ff;--t2:#3d7a99;--t3:#1a3f55;
+  --c:#00d4ff;--r:#ff1a4a;--g:#00ff88;--gold:#ffc200;
+  --f:'Rajdhani',sans-serif;--fh:'Orbitron',monospace;--fm:'Share Tech Mono',monospace;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse 60% 40% at 5% 0%,rgba(0,229,160,0.05) 0%,transparent 60%),
-             radial-gradient(ellipse 40% 30% at 95% 100%,rgba(0,229,160,0.03) 0%,transparent 60%);}
+html{-webkit-font-smoothing:antialiased;}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;font-weight:500;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 30% -5%,rgba(0,212,255,.08) 0%,transparent 55%),
+    radial-gradient(ellipse 40% 30% at 90% 100%,rgba(255,26,74,.06) 0%,transparent 50%);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);
+  background-size:50px 50px;}
 
-/* LOGIN */
-.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
-.login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 36px;box-shadow:0 24px 64px rgba(0,0,0,0.6);position:relative;overflow:hidden;}
-.login-card::before{content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
-.login-logo{font-size:26px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;}
-.login-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
-#loginErr{font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;}
-.login-card input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:10px;transition:border-color var(--t),box-shadow var(--t);}
-.login-card input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
+/* ── LOGIN ── */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;z-index:1;}
+.login-card{width:100%;max-width:380px;position:relative;}
+.login-card::before{content:'';position:absolute;inset:-1px;background:linear-gradient(135deg,rgba(0,212,255,.4),rgba(255,26,74,.3));clip-path:polygon(16px 0%,100% 0%,100% calc(100% - 16px),calc(100% - 16px) 100%,0% 100%,0% 16px);pointer-events:none;}
+.login-inner{background:var(--bg2);padding:44px 36px;position:relative;z-index:1;clip-path:polygon(16px 0%,100% 0%,100% calc(100% - 16px),calc(100% - 16px) 100%,0% 100%,0% 16px);}
+.login-inner::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c),var(--r),transparent);}
+.login-logo{font-family:var(--fh);font-size:26px;font-weight:800;letter-spacing:.12em;color:var(--c);text-shadow:0 0 24px rgba(0,212,255,.6);margin-bottom:5px;}
+.login-sub{font-family:var(--fm);font-size:10px;letter-spacing:.2em;color:var(--t3);text-transform:uppercase;margin-bottom:28px;}
+.login-err{font-family:var(--fm);font-size:11px;color:var(--r);min-height:18px;margin-bottom:8px;letter-spacing:.04em;}
+.login-inner input{width:100%;padding:11px 14px;background:var(--s1);border:1px solid var(--b);color:var(--tx);font-family:var(--f);font-size:14px;outline:none;margin-bottom:12px;transition:border-color .18s;clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);}
+.login-inner input:focus{border-color:var(--c);}
+.login-inner input::placeholder{color:var(--t3);}
 
-/* LAYOUT */
-.admin-wrap{max-width:1100px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+/* ── APP ── */
+#app{display:none;position:relative;z-index:1;}
+.admin-wrap{max-width:1100px;margin:0 auto;padding:28px 20px;}
 .admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;}
-.admin-logo{font-size:22px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.admin-badge{font-size:11px;font-weight:700;padding:4px 10px;background:rgba(0,229,160,0.1);color:var(--accent);border:1px solid rgba(0,229,160,0.2);border-radius:100px;letter-spacing:0.06em;text-transform:uppercase;}
+.admin-logo-wrap{display:flex;align-items:center;gap:14px;}
+.admin-logo{font-family:var(--fh);font-size:20px;font-weight:800;letter-spacing:.12em;color:var(--c);text-shadow:0 0 20px rgba(0,212,255,.5);}
+.admin-badge{font-family:var(--fm);font-size:9px;letter-spacing:.15em;text-transform:uppercase;padding:4px 12px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);color:var(--c);clip-path:polygon(5px 0%,100% 0%,calc(100% - 5px) 100%,0% 100%);}
+.header-right{display:flex;align-items:center;gap:10px;}
 
-/* CARD */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;margin-bottom:20px;transition:border-color var(--t);}
-.card:hover{border-color:var(--border-h);}
-.card-title{font-size:15px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:8px;}
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.stat-box{background:var(--s1);border:1px solid var(--b);padding:18px;position:relative;overflow:hidden;clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);}
+.stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--c),transparent);opacity:.6;}
+.stat-box::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 0% 0%,rgba(0,212,255,.04),transparent 60%);}
+.stat-box-label{font-family:var(--fm);font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--t3);margin-bottom:8px;}
+.stat-box-val{font-family:var(--fm);font-size:32px;color:var(--c);line-height:1;}
 
-/* FORM */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+/* ── CARD ── */
+.card{background:var(--s1);border:1px solid var(--b);padding:24px;margin-bottom:16px;position:relative;clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px);}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--c),transparent);opacity:.3;}
+.card-title{font-family:var(--fh);font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--c);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'//';font-family:var(--fm);color:var(--r);opacity:.8;}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .form-grid>div{display:flex;flex-direction:column;}
-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;}
-input,select{padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color var(--t),box-shadow var(--t);width:100%;}
-input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow);}
-input::placeholder{color:var(--text3);}
-.hint{font-size:11px;color:var(--text3);margin-top:5px;}
-.form-section{margin-top:22px;padding-top:22px;border-top:1px solid var(--border);}
-.form-section-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:14px;}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr;}}
+label{font-family:var(--fm);font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);margin-bottom:5px;}
+input,select{padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);font-family:var(--f);font-size:13px;outline:none;transition:border-color .18s;width:100%;clip-path:polygon(5px 0%,100% 0%,100% calc(100% - 5px),calc(100% - 5px) 100%,0% 100%,0% 5px);}
+input:focus,select:focus{border-color:var(--c);}
+input::placeholder{color:var(--t3);}
+select option{background:var(--bg2);}
 
-/* BTN */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:all var(--t);position:relative;overflow:hidden;user-select:none;text-decoration:none;}
-.btn:active{transform:scale(0.96);}
-.btn-primary{background:var(--accent);color:#000;}
-.btn-primary:hover{background:var(--accent2);box-shadow:0 4px 20px var(--glow);transform:translateY(-1px);}
-.btn-sm{padding:6px 12px;font-size:12px;}
-.btn-danger{background:rgba(255,71,87,0.1);color:var(--danger);border:1px solid rgba(255,71,87,0.2);}
-.btn-danger:hover{background:rgba(255,71,87,0.2);}
-.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
-.btn-ghost:hover{background:var(--surface3);}
-.btn-edit{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.2);}
-.btn-edit:hover{background:rgba(96,165,250,0.2);}
+/* ── BOTONES ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 20px;font-family:var(--fh);font-size:11px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:all .18s;border:1px solid;position:relative;overflow:hidden;clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);}
+.btn::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .18s;}
+.btn:hover::before{opacity:1;}
+.btn-sm{padding:6px 13px;font-size:10px;clip-path:polygon(5px 0%,100% 0%,100% calc(100% - 5px),calc(100% - 5px) 100%,0% 100%,0% 5px);}
+.btn-lg{padding:13px 28px;font-size:12px;}
+.btn-primary{background:rgba(0,212,255,.1);border-color:var(--c);color:var(--c);box-shadow:0 0 14px rgba(0,212,255,.12);}
+.btn-primary::before{background:rgba(0,212,255,.08);}
+.btn-primary:hover{box-shadow:0 0 26px rgba(0,212,255,.3);}
+.btn-secondary{background:var(--s1);border-color:var(--b);color:var(--t2);}
+.btn-secondary::before{background:var(--s2);}
+.btn-secondary:hover{border-color:rgba(0,212,255,.4);color:var(--c);}
+.btn-edit{background:rgba(255,194,0,.08);border-color:rgba(255,194,0,.35);color:var(--gold);}
+.btn-edit::before{background:rgba(255,194,0,.06);}
+.btn-edit:hover{box-shadow:0 0 20px rgba(255,194,0,.2);}
+.btn-danger{background:rgba(255,26,74,.08);border-color:rgba(255,26,74,.35);color:var(--r);}
+.btn-danger::before{background:rgba(255,26,74,.06);}
+.btn-danger:hover{box-shadow:0 0 20px rgba(255,26,74,.25);}
+.btn-logout{background:var(--s1);border-color:var(--b);color:var(--t2);}
 
-/* NEG CARDS */
-.neg-grid{display:flex;flex-direction:column;gap:10px;}
-.neg-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:16px;transition:all var(--t);}
-.neg-card:hover{border-color:var(--border-h);transform:translateX(3px);}
-.neg-emoji{font-size:26px;flex-shrink:0;width:46px;height:46px;background:var(--surface3);border-radius:12px;display:flex;align-items:center;justify-content:center;}
+/* ── NEG GRID ── */
+#negGrid{display:flex;flex-direction:column;gap:10px;}
+.neg-card{background:var(--s1);border:1px solid var(--b);padding:18px;display:flex;align-items:flex-start;gap:14px;transition:border-color .2s;position:relative;clip-path:polygon(10px 0%,100% 0%,100% calc(100% - 10px),calc(100% - 10px) 100%,0% 100%,0% 10px);}
+.neg-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--c),var(--r));opacity:0;transition:opacity .2s;}
+.neg-card:hover{border-color:rgba(0,212,255,.3);}
+.neg-card:hover::before{opacity:1;}
+.neg-emoji{font-size:32px;flex-shrink:0;width:50px;height:50px;background:var(--s2);border:1px solid var(--b);display:flex;align-items:center;justify-content:center;clip-path:polygon(5px 0%,100% 0%,100% calc(100% - 5px),calc(100% - 5px) 100%,0% 100%,0% 5px);}
 .neg-info{flex:1;min-width:0;}
-.neg-name{font-weight:700;font-size:15px;letter-spacing:-0.2px;margin-bottom:2px;}
-.neg-slug{font-size:11px;color:var(--accent);font-family:var(--mono);margin-bottom:4px;}
-.neg-meta{font-size:12px;color:var(--text2);margin-bottom:3px;}
-.neg-phone{font-size:12px;color:var(--text2);}
-.neg-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;align-items:center;}
+.neg-name{font-family:var(--fh);font-size:15px;font-weight:600;letter-spacing:.06em;color:var(--tx);margin-bottom:3px;}
+.neg-slug{font-family:var(--fm);font-size:11px;color:var(--c);margin-bottom:4px;}
+.neg-meta{font-size:12px;color:var(--t2);margin-bottom:4px;}
+.neg-phone{font-family:var(--fm);font-size:11px;color:var(--t3);}
+.neg-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;grid-column:1/-1;}
 
-/* BADGES */
-.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;}
-.badge-on{background:rgba(0,229,160,0.12);color:#00e5a0;}
-.badge-off{background:rgba(255,71,87,0.12);color:#ff4757;}
-.badge-bot-on{background:rgba(167,139,250,0.12);color:#a78bfa;}
-.badge-bot-off{background:rgba(255,165,2,0.12);color:#ffa502;}
+/* ── BADGES ── */
+.badge{font-family:var(--fm);font-size:9px;letter-spacing:.08em;padding:3px 10px;clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%);}
+.badge-on{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);color:var(--g);}
+.badge-off{background:rgba(255,26,74,.08);border:1px solid rgba(255,26,74,.25);color:var(--r);}
+.badge-bot-on{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.25);color:var(--c);}
+.badge-bot-off{background:rgba(255,194,0,.08);border:1px solid rgba(255,194,0,.25);color:var(--gold);}
 
-/* SW toggle */
-.sw{position:relative;display:inline-flex;cursor:pointer;}
-.sw input{opacity:0;width:0;height:0;}
-.sw-track{width:36px;height:20px;background:var(--surface3);border-radius:100px;transition:background var(--t);border:1px solid var(--border);}
-.sw input:checked~.sw-track{background:var(--accent);border-color:var(--accent);}
-.sw-knob{position:absolute;width:14px;height:14px;background:var(--text2);border-radius:50%;top:3px;left:3px;transition:all var(--t);}
-.sw input:checked~.sw-knob{left:19px;background:#000;}
+/* ── TOGGLE (switch) ── */
+.sw{position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:0;}
+.sw input{display:none;}
+.sw-track{width:36px;height:20px;background:var(--s2);border:1px solid var(--b);transition:all .2s;clip-path:polygon(3px 0%,100% 0%,calc(100% - 3px) 100%,0% 100%);display:block;}
+.sw-knob{position:absolute;left:3px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--t3);transition:all .2s;clip-path:polygon(2px 0%,100% 0%,calc(100% - 2px) 100%,0% 100%);}
+.sw input:checked~.sw-track{border-color:var(--c);background:rgba(0,212,255,.15);}
+.sw input:checked~.sw-knob{background:var(--c);left:calc(100% - 17px);box-shadow:0 0 8px rgba(0,212,255,.6);}
 
-/* EMPTY */
-.empty{text-align:center;padding:48px 24px;color:var(--text2);}
-.empty-icon{font-size:40px;margin-bottom:12px;opacity:0.4;}
+/* ── MODAL ── */
+.modal{position:fixed;inset:0;background:rgba(2,9,18,.9);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+.modal.open{display:flex;}
+.modal-box{background:var(--bg2);width:100%;max-width:580px;max-height:90vh;overflow-y:auto;position:relative;clip-path:polygon(14px 0%,100% 0%,100% calc(100% - 14px),calc(100% - 14px) 100%,0% 100%,0% 14px);}
+.modal-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c),var(--r),transparent);}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:var(--fh);font-size:13px;font-weight:600;letter-spacing:.12em;color:var(--c);}
+.modal-close{width:28px;height:28px;background:var(--s1);border:1px solid var(--b);cursor:pointer;font-size:12px;color:var(--t2);display:flex;align-items:center;justify-content:center;clip-path:polygon(4px 0%,100% 0%,100% calc(100% - 4px),calc(100% - 4px) 100%,0% 100%,0% 4px);transition:all .15s;}
+.modal-close:hover{border-color:var(--r);color:var(--r);}
+.modal-body{padding:24px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--b);display:flex;gap:10px;justify-content:flex-end;}
 
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(6px);padding:24px;}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 64px rgba(0,0,0,0.6);position:relative;}
-.modal::before{content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
-.modal-title{font-size:18px;font-weight:800;letter-spacing:-0.3px;margin-bottom:24px;}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+/* ── EMPTY ── */
+.empty{text-align:center;padding:60px 20px;}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.2;}
+.empty p{font-family:var(--fm);font-size:12px;color:var(--t3);}
 
-/* TOAST */
-#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
-.toast-msg{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);color:var(--text);padding:14px 20px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toastIn .3s cubic-bezier(0.4,0,0.2,1);}
-@keyframes toastIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--bg2);border:1px solid var(--b);border-left:2px solid var(--c);color:var(--tx);padding:10px 22px;font-family:var(--fm);font-size:12px;z-index:9999;opacity:0;pointer-events:none;transition:all .22s;white-space:nowrap;box-shadow:0 0 22px rgba(0,212,255,.15);clip-path:polygon(8px 0%,100% 0%,100% calc(100% - 8px),calc(100% - 8px) 100%,0% 100%,0% 8px);}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 
-@media(max-width:600px){.form-grid{grid-template-columns:1fr;}.neg-card{flex-wrap:wrap;}.admin-wrap{padding:16px;}}
+@media(max-width:640px){.stats-row{grid-template-columns:1fr 1fr;}.neg-card{flex-wrap:wrap;}.admin-header{flex-direction:column;align-items:flex-start;}}
 </style>
 </head>
 <body>
 
-<div id="loginScreen" style="display:flex;" class="login-screen">
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
   <div class="login-card">
-    <div class="login-logo">VendeBot</div>
-    <div class="login-sub">Panel de administración</div>
-    <div id="loginError"></div>
-    <input type="password" id="loginPass" placeholder="Contraseña admin" onkeydown="if(event.key==='Enter')login()">
-    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;" onclick="login()">Entrar →</button>
+    <div class="login-inner">
+      <div class="login-logo">VendeBot</div>
+      <div class="login-sub">// acceso de administrador</div>
+      <div class="login-err" id="loginError"></div>
+      <input type="password" id="loginPass" placeholder="CONTRASEÑA MAESTRA" onkeydown="if(event.key==='Enter')login()">
+      <button class="btn btn-primary btn-lg" onclick="login()" style="width:100%;margin-top:4px;">INGRESAR AL SISTEMA</button>
+    </div>
   </div>
 </div>
 
-<div id="app" style="display:none;">
+<!-- APP -->
+<div id="app">
   <div class="admin-wrap">
-    <!-- Stats ocultos para JS -->
-    <span id="statTotal" style="display:none"></span>
-    <span id="statActivos" style="display:none"></span>
-    <span id="statBots" style="display:none"></span>
 
     <div class="admin-header">
-      <div>
+      <div class="admin-logo-wrap">
         <div class="admin-logo">VendeBot</div>
-        <div style="font-size:13px;color:var(--text2);margin-top:2px;">Panel de administración</div>
+        <div class="admin-badge">ADMINISTRADOR</div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span class="admin-badge">Super Admin</span>
-        <button class="btn btn-ghost btn-sm" onclick="cargarNegocios()">↻ Actualizar</button>
+      <div class="header-right">
+        <button class="btn btn-logout btn-sm" onclick="logout()">⏻ Salir</button>
       </div>
     </div>
 
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-box-label">Negocios registrados</div><div class="stat-box-val" id="statTotal">—</div></div>
+      <div class="stat-box"><div class="stat-box-label">Negocios activos</div><div class="stat-box-val" id="statActivos">—</div></div>
+      <div class="stat-box"><div class="stat-box-label">Bots activos</div><div class="stat-box-val" id="statBots">—</div></div>
+    </div>
+
+    <!-- FORM NUEVO NEGOCIO -->
     <div class="card">
-      <div class="card-title">➕ Registrar nuevo negocio</div>
+      <div class="card-title">Registrar nuevo negocio</div>
       <div class="form-grid">
-        <div><label>Nombre del negocio *</label><input type="text" id="f_nombre" placeholder="Ej: Asadero Don Carlos"></div>
-        <div><label>Slug (URL) *</label><input type="text" id="f_slug" placeholder="Ej: asadero" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
-        <div><label>Tipo de negocio</label><input type="text" id="f_tipo" placeholder="Ej: Restaurante"></div>
-        <div><label>Emoji</label><input type="text" id="f_emoji" placeholder="🍗" maxlength="4"></div>
-        <div><label>Contraseña *</label><input type="text" id="f_password" placeholder="Para el dueño"></div>
-        <div><label>WhatsApp del dueño *</label><input type="text" id="f_whatsapp_dueno" placeholder="593912345678"><div class="hint">Con código de país, sin + ni espacios</div></div>
+        <div><label>Nombre *</label><input type="text" id="f_nombre" placeholder="Mi Negocio"></div>
+        <div><label>Slug * (URL)</label><input type="text" id="f_slug" placeholder="mi-negocio"></div>
+        <div><label>Tipo</label><input type="text" id="f_tipo" placeholder="Restaurante, Tienda..."></div>
+        <div><label>Emoji</label><input type="text" id="f_emoji" placeholder="🏪" maxlength="2"></div>
+        <div><label>Contraseña del panel *</label><input type="password" id="f_password" placeholder="••••••••"></div>
+        <div><label>WhatsApp dueño *</label><input type="text" id="f_whatsapp_dueno" placeholder="593912345678"></div>
+        <div><label>Phone ID (Meta API)</label><input type="text" id="f_phone_id" placeholder="Opcional - Baileys si vacío"></div>
+        <div><label>WhatsApp número</label><input type="text" id="f_whatsapp_numero" placeholder="593912345678"></div>
       </div>
-      <div class="form-section">
-        <div class="form-section-title">📱 WhatsApp Business</div>
-        <div class="form-grid">
-          <div><label>Phone Number ID <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text3)">(opcional — API Meta)</span></label><input type="text" id="f_phone_id" placeholder="Solo si usa API de Meta"><div class="hint">Vacío = usar Baileys (escaneo QR)</div></div>
-          <div><label>Número WhatsApp del negocio</label><input type="text" id="f_whatsapp_numero" placeholder="Ej: 593987654321"><div class="hint">El número donde escriben los clientes</div></div>
-        </div>
+      <div style="margin-top:6px;">
+        <button class="btn btn-primary" onclick="crearNegocio()">+ REGISTRAR NEGOCIO</button>
       </div>
-      <div style="margin-top:20px;"><button class="btn btn-primary" onclick="crearNegocio()">✓ Registrar negocio</button></div>
     </div>
 
+    <!-- LISTA DE NEGOCIOS -->
     <div class="card">
-      <div class="card-title">📋 Negocios registrados</div>
-      <div class="neg-grid" id="negGrid"><div class="empty"><div class="empty-icon">⏳</div><p>Cargando...</p></div></div>
+      <div class="card-title">Negocios registrados</div>
+      <div id="negGrid"><div class="empty"><div class="empty-icon">⌀</div><p>// Cargando negocios...</p></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal" id="modalEditar">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">// EDITAR NEGOCIO</span>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="e_id">
+      <div class="form-grid">
+        <div><label>Nombre *</label><input type="text" id="e_nombre"></div>
+        <div><label>Slug *</label><input type="text" id="e_slug"></div>
+        <div><label>Tipo</label><input type="text" id="e_tipo"></div>
+        <div><label>Emoji</label><input type="text" id="e_emoji" maxlength="2"></div>
+        <div><label>Contraseña *</label><input type="password" id="e_password"></div>
+        <div><label>WhatsApp dueño *</label><input type="text" id="e_whatsapp_dueno"></div>
+        <div><label>Phone ID (Meta)</label><input type="text" id="e_phone_id"></div>
+        <div><label>WhatsApp número</label><input type="text" id="e_whatsapp_numero"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicion()">GUARDAR CAMBIOS</button>
     </div>
   </div>
 </div>
 
-<div id="modalEditar" style="display:none;" class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
-  <div class="modal">
-    <div class="modal-title">✏️ Editar negocio</div>
-    <input type="hidden" id="e_id">
-    <div class="form-grid">
-      <div><label>Nombre *</label><input type="text" id="e_nombre"></div>
-      <div><label>Slug *</label><input type="text" id="e_slug" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')"></div>
-      <div><label>Tipo</label><input type="text" id="e_tipo"></div>
-      <div><label>Emoji</label><input type="text" id="e_emoji" maxlength="4"></div>
-      <div><label>Contraseña *</label><input type="text" id="e_password"></div>
-      <div><label>WhatsApp dueño *</label><input type="text" id="e_whatsapp_dueno"></div>
-      <div><label>Phone Number ID <span style="font-size:10px;font-weight:400;text-transform:none;color:var(--text3)">(opcional)</span></label><input type="text" id="e_phone_id"></div>
-      <div><label>Número WhatsApp</label><input type="text" id="e_whatsapp_numero"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost btn-sm" onclick="cerrarModal()">Cancelar</button>
-      <button class="btn btn-primary btn-sm" onclick="guardarEdicion()">✓ Guardar</button>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
-<div id="toast"></div>
 <script>
+let TOKEN=sessionStorage.getItem('admin_token')||'';
 
-const BASE = '';
-let TOKEN = sessionStorage.getItem('admin_token') || '';
-
-// ── AUTH ──
-async function login() {
-  const pass = document.getElementById('loginPass').value;
-  const res = await fetch('/auth/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) });
-  const data = await res.json();
-  if (data.ok) {
-    TOKEN = data.token;
-    sessionStorage.setItem('admin_token', TOKEN);
-    mostrarApp();
-  } else {
-    document.getElementById('loginError').textContent = 'Contraseña incorrecta';
-  }
+async function login(){
+  const pass=document.getElementById('loginPass').value;
+  const res=await fetch('/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
+  const data=await res.json();
+  if(data.ok){TOKEN=data.token;sessionStorage.setItem('admin_token',TOKEN);mostrarApp();}
+  else{document.getElementById('loginError').textContent='// ACCESO DENEGADO';document.getElementById('loginPass').value='';}
 }
 
-function logout() {
-  sessionStorage.removeItem('admin_token');
-  TOKEN = '';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-}
+function logout(){sessionStorage.removeItem('admin_token');TOKEN='';document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';}
 
-async function verificarToken() {
-  if (!TOKEN) return false;
-  const res = await fetch('/auth/verify', { headers: { Authorization: 'Bearer ' + TOKEN } });
-  const data = await res.json();
-  return data.ok;
-}
+async function verificarToken(){if(!TOKEN)return false;const res=await fetch('/auth/verify',{headers:{Authorization:'Bearer '+TOKEN}});const data=await res.json();return data.ok;}
 
-async function api(url, opts = {}) {
-  const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + TOKEN, ...(opts.headers || {}) } });
-  return res.json();
-}
+async function api(url,opts={}){const res=await fetch(url,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});return res.json();}
 
-async function mostrarApp() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-  cargarNegocios();
-}
+async function mostrarApp(){document.getElementById('loginScreen').style.display='none';document.getElementById('app').style.display='block';cargarNegocios();}
 
-// ── NEGOCIOS ──
-async function cargarNegocios() {
-  const negocios = await api('/admin/negocios');
-  if (!Array.isArray(negocios)) return;
-
-  document.getElementById('statTotal').textContent = negocios.length;
-  document.getElementById('statActivos').textContent = negocios.filter(n => n.activo).length;
-  document.getElementById('statBots').textContent = negocios.filter(n => n.activo && n.bot_activo !== false).length;
-
-  const grid = document.getElementById('negGrid');
-  if (!negocios.length) {
-    grid.innerHTML = '<div class="empty"><div class="empty-icon">🏪</div><div>No hay negocios registrados aún.<br>Usa el formulario de arriba para agregar el primero.</div></div>';
-    return;
-  }
-
-  grid.innerHTML = negocios.map(n => `
+async function cargarNegocios(){
+  const negocios=await api('/admin/negocios');
+  if(!Array.isArray(negocios))return;
+  document.getElementById('statTotal').textContent=negocios.length;
+  document.getElementById('statActivos').textContent=negocios.filter(n=>n.activo).length;
+  document.getElementById('statBots').textContent=negocios.filter(n=>n.activo&&n.bot_activo!==false).length;
+  const grid=document.getElementById('negGrid');
+  if(!negocios.length){grid.innerHTML='<div class="empty"><div class="empty-icon">⌀</div><p>// Sin negocios registrados. Crea el primero.</p></div>';return;}
+  grid.innerHTML=negocios.map(n=>`
     <div class="neg-card" id="nc-${n.id}">
-      <div class="neg-emoji">${n.emoji || '🏪'}</div>
+      <div class="neg-emoji">${n.emoji||'🏪'}</div>
       <div class="neg-info">
         <div class="neg-name">${n.nombre}</div>
-        <div class="neg-slug">/${n.slug || n.id}</div>
-        <div class="neg-meta">${n.tipo || 'Negocio'}</div>
-        <div class="neg-phone">📱 ${n.whatsapp_dueno || '—'} · ${n.whatsapp_phone_id ? '<span style="color:#a78bfa;">📡 API Meta</span>' : '<span style="color:#4ade80;">✅ Baileys (QR)</span>'}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0;">
-        <span class="badge ${n.activo ? 'badge-on' : 'badge-off'}">${n.activo ? '● Activo' : '● Inactivo'}</span>
-        <span class="badge ${n.bot_activo !== false ? 'badge-bot-on' : 'badge-bot-off'}">${n.bot_activo !== false ? '🤖 Bot ON' : '⏸ Bot OFF'}</span>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-          <span style="font-size:11px;color:var(--text2);">Negocio</span>
-          <label class="sw" title="${n.activo ? 'Desactivar negocio' : 'Activar negocio'}">
-            <input type="checkbox" ${n.activo ? 'checked' : ''} onchange="toggleActivo('${n.id}', this.checked)">
+        <div class="neg-slug">/${n.slug||n.id}</div>
+        <div class="neg-meta">${n.tipo||'Negocio'}</div>
+        <div class="neg-phone">📱 ${n.whatsapp_dueno||'—'} · ${n.whatsapp_phone_id?'<span style="color:#a78bfa;">📡 API Meta</span>':'<span style="color:var(--g);">✅ Baileys</span>'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <span class="badge ${n.activo?'badge-on':'badge-off'}">${n.activo?'● ACTIVO':'● INACTIVO'}</span>
+          <span class="badge ${n.bot_activo!==false?'badge-bot-on':'badge-bot-off'}">${n.bot_activo!==false?'🤖 BOT ON':'⏸ BOT OFF'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+          <span style="font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t3);">NEGOCIO</span>
+          <label class="sw" title="${n.activo?'Desactivar':'Activar'}">
+            <input type="checkbox" ${n.activo?'checked':''} onchange="toggleActivo('${n.id}',this.checked)">
             <span class="sw-track"></span>
             <span class="sw-knob"></span>
           </label>
         </div>
       </div>
       <div class="neg-actions">
-        <a href="/panel/${n.slug || n.id}" target="_blank" class="btn btn-sm" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);text-decoration:none;">Ver panel</a>
+        <a href="/panel/${n.slug||n.id}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;">Ver panel</a>
         <button class="btn btn-edit btn-sm" onclick="abrirEditar(${JSON.stringify(n).replace(/"/g,'&quot;')})">Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="eliminarNegocio('${n.id}', '${n.nombre}')">Eliminar</button>
+        <button class="btn btn-danger btn-sm" onclick="eliminarNegocio('${n.id}','${n.nombre}')">✕ Eliminar</button>
       </div>
     </div>
   `).join('');
 }
 
-async function crearNegocio() {
-  const nombre = document.getElementById('f_nombre').value.trim();
-  const slug = document.getElementById('f_slug').value.trim();
-  const password = document.getElementById('f_password').value.trim();
-  const whatsapp_dueno = document.getElementById('f_whatsapp_dueno').value.trim();
-  const whatsapp_phone_id = document.getElementById('f_phone_id').value.trim();
-
-  if (!nombre || !slug || !password || !whatsapp_dueno) { toast('⚠ Completa los campos obligatorios (*)'); return; }
-
-  const negocio = {
-    slug, nombre,
-    tipo: document.getElementById('f_tipo').value.trim() || 'Negocio',
-    emoji: document.getElementById('f_emoji').value.trim() || '🏪',
-    password, whatsapp_dueno, whatsapp_phone_id,
-    whatsapp_numero: document.getElementById('f_whatsapp_numero').value.trim(),
-    activo: true,
-    bot_activo: true,
-    catalogo: [],
-    metodos_pago: ['transferencia', 'efectivo'],
-    modo_vacaciones: false,
-    tiempo_entrega: '30-45 minutos',
-    politica_devoluciones: '',
-    mensajes: { bienvenida: '¡Hola! Bienvenido/a. ¿En qué puedo ayudarte?', tono: 'amigable' },
-    horarios: {
-      Lunes:    { abierto: true,  desde: '08:00', hasta: '20:00' },
-      Martes:   { abierto: true,  desde: '08:00', hasta: '20:00' },
-      Miercoles:{ abierto: true,  desde: '08:00', hasta: '20:00' },
-      Jueves:   { abierto: true,  desde: '08:00', hasta: '20:00' },
-      Viernes:  { abierto: true,  desde: '08:00', hasta: '20:00' },
-      Sabado:   { abierto: true,  desde: '08:00', hasta: '18:00' },
-      Domingo:  { abierto: false, desde: '09:00', hasta: '15:00' },
-    }
-  };
-
-  const res = await api('/admin/negocios', { method: 'POST', body: JSON.stringify(negocio) });
-  if (res.ok) {
-    toast('✅ Negocio registrado correctamente');
-    ['f_nombre','f_slug','f_tipo','f_emoji','f_password','f_whatsapp_dueno','f_phone_id','f_whatsapp_numero'].forEach(id => document.getElementById(id).value = '');
-    cargarNegocios();
-  } else {
-    toast('❌ Error al crear el negocio');
-  }
+async function crearNegocio(){
+  const nombre=document.getElementById('f_nombre').value.trim();
+  const slug=document.getElementById('f_slug').value.trim();
+  const password=document.getElementById('f_password').value.trim();
+  const whatsapp_dueno=document.getElementById('f_whatsapp_dueno').value.trim();
+  if(!nombre||!slug||!password||!whatsapp_dueno){toast('⚠ Completa los campos obligatorios (*)');return;}
+  const negocio={slug,nombre,tipo:document.getElementById('f_tipo').value.trim()||'Negocio',emoji:document.getElementById('f_emoji').value.trim()||'🏪',password,whatsapp_dueno,whatsapp_phone_id:document.getElementById('f_phone_id').value.trim(),whatsapp_numero:document.getElementById('f_whatsapp_numero').value.trim(),activo:true,bot_activo:true,catalogo:[],metodos_pago:['transferencia','efectivo'],modo_vacaciones:false,tiempo_entrega:'30-45 minutos',mensajes:{bienvenida:'¡Hola! Bienvenido/a. ¿En qué puedo ayudarte?',tono:'amigable'},horarios:{Lunes:{abierto:true,desde:'08:00',hasta:'20:00'},Martes:{abierto:true,desde:'08:00',hasta:'20:00'},Miercoles:{abierto:true,desde:'08:00',hasta:'20:00'},Jueves:{abierto:true,desde:'08:00',hasta:'20:00'},Viernes:{abierto:true,desde:'08:00',hasta:'20:00'},Sabado:{abierto:true,desde:'08:00',hasta:'18:00'},Domingo:{abierto:false,desde:'09:00',hasta:'15:00'}}};
+  const res=await api('/admin/negocios',{method:'POST',body:JSON.stringify(negocio)});
+  if(res.ok){toast('// Negocio registrado');['f_nombre','f_slug','f_tipo','f_emoji','f_password','f_whatsapp_dueno','f_phone_id','f_whatsapp_numero'].forEach(id=>document.getElementById(id).value='');cargarNegocios();}
+  else toast('// Error al crear el negocio');
 }
 
-async function toggleActivo(id, activo) {
-  const res = await api(`/admin/negocios/${id}`, { method: 'PUT', body: JSON.stringify({ activo }) });
-  if (res.ok) {
-    toast(activo ? '✅ Negocio activado' : '⏸ Negocio desactivado');
-    cargarNegocios();
-  }
+async function toggleActivo(id,activo){
+  const res=await api(`/admin/negocios/${id}`,{method:'PUT',body:JSON.stringify({activo})});
+  if(res.ok){toast(activo?'// Negocio activado':'// Negocio desactivado');cargarNegocios();}
 }
 
-async function eliminarNegocio(id, nombre) {
-  if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
-  const res = await api(`/admin/negocios/${id}`, { method: 'DELETE' });
-  if (res.ok) { toast('🗑 Negocio eliminado'); cargarNegocios(); }
+async function eliminarNegocio(id,nombre){
+  if(!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`))return;
+  const res=await api(`/admin/negocios/${id}`,{method:'DELETE'});
+  if(res.ok){toast('// Negocio eliminado');cargarNegocios();}
 }
 
-// ── EDITAR NEGOCIO ──
-function abrirEditar(n) {
-  document.getElementById('e_id').value = n.id;
-  document.getElementById('e_nombre').value = n.nombre || '';
-  document.getElementById('e_slug').value = n.slug || '';
-  document.getElementById('e_tipo').value = n.tipo || '';
-  document.getElementById('e_emoji').value = n.emoji || '';
-  document.getElementById('e_password').value = n.password || '';
-  document.getElementById('e_whatsapp_dueno').value = n.whatsapp_dueno || '';
-  document.getElementById('e_phone_id').value = n.whatsapp_phone_id || '';
-  document.getElementById('e_whatsapp_numero').value = n.whatsapp_numero || '';
-  document.getElementById('modalEditar').style.display = 'flex';
+function abrirEditar(n){
+  document.getElementById('e_id').value=n.id;document.getElementById('e_nombre').value=n.nombre||'';document.getElementById('e_slug').value=n.slug||'';document.getElementById('e_tipo').value=n.tipo||'';document.getElementById('e_emoji').value=n.emoji||'';document.getElementById('e_password').value=n.password||'';document.getElementById('e_whatsapp_dueno').value=n.whatsapp_dueno||'';document.getElementById('e_phone_id').value=n.whatsapp_phone_id||'';document.getElementById('e_whatsapp_numero').value=n.whatsapp_numero||'';
+  document.getElementById('modalEditar').classList.add('open');
 }
 
-function cerrarModal() {
-  document.getElementById('modalEditar').style.display = 'none';
+function cerrarModal(){document.getElementById('modalEditar').classList.remove('open');}
+
+async function guardarEdicion(){
+  const id=document.getElementById('e_id').value;
+  const nombre=document.getElementById('e_nombre').value.trim();
+  const slug=document.getElementById('e_slug').value.trim();
+  const password=document.getElementById('e_password').value.trim();
+  const whatsapp_dueno=document.getElementById('e_whatsapp_dueno').value.trim();
+  if(!nombre||!slug||!password||!whatsapp_dueno){toast('⚠ Completa los campos obligatorios');return;}
+  const res=await api(`/admin/negocios/${id}`,{method:'PUT',body:JSON.stringify({nombre,slug,tipo:document.getElementById('e_tipo').value.trim(),emoji:document.getElementById('e_emoji').value.trim(),password,whatsapp_dueno,whatsapp_phone_id:document.getElementById('e_phone_id').value.trim(),whatsapp_numero:document.getElementById('e_whatsapp_numero').value.trim()})});
+  if(res.ok){toast('// Negocio actualizado');cerrarModal();cargarNegocios();}
+  else toast('// Error al actualizar');
 }
 
-async function guardarEdicion() {
-  const id = document.getElementById('e_id').value;
-  const nombre = document.getElementById('e_nombre').value.trim();
-  const slug = document.getElementById('e_slug').value.trim();
-  const password = document.getElementById('e_password').value.trim();
-  const whatsapp_dueno = document.getElementById('e_whatsapp_dueno').value.trim();
-  const whatsapp_phone_id = document.getElementById('e_phone_id').value.trim();
-
-  if (!nombre || !slug || !password || !whatsapp_dueno) { toast('⚠ Completa los campos obligatorios (*)'); return; }
-
-  const res = await api(`/admin/negocios/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      nombre, slug,
-      tipo: document.getElementById('e_tipo').value.trim(),
-      emoji: document.getElementById('e_emoji').value.trim(),
-      password, whatsapp_dueno, whatsapp_phone_id,
-      whatsapp_numero: document.getElementById('e_whatsapp_numero').value.trim(),
-    })
-  });
-
-  if (res.ok) {
-    toast('✅ Negocio actualizado');
-    cerrarModal();
-    cargarNegocios();
-  } else {
-    toast('❌ Error al actualizar el negocio');
-  }
-}
-
-// ── TOAST ──
 let toastTimer;
-function toast(txt) {
-  const t = document.getElementById('toast');
-  t.textContent = txt; t.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('on'), 2800);
-}
+function toast(txt){const t=document.getElementById('toast');t.textContent=txt;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2800);}
 
-// ── INIT ──
-(async () => {
-  if (TOKEN && await verificarToken()) {
-    mostrarApp();
-  }
-})();
-
+(async()=>{if(TOKEN&&await verificarToken())mostrarApp();})();
 </script>
 </body>
 </html>
