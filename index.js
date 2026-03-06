@@ -400,7 +400,15 @@ function generarSugerencias(numero, catalogo) {
 async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const catalogoTexto = negocio.catalogo.map(p => {
     const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
-    return `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo} | ${p.descripcion}`;
+    let txt = `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo} | ${p.descripcion || ''}`;
+    if (p.modificadores?.length > 0) {
+      txt += '\n    EXTRAS/MODIFICADORES:';
+      p.modificadores.forEach(g => {
+        const ops = g.opciones.map(op => `"${op.nombre}"(+$${(op.precio||0).toFixed(2)})`).join(', ');
+        txt += `\n      - ${g.nombre}${g.obligatorio ? ' (obligatorio)' : ''}: ${ops}`;
+      });
+    }
+    return txt;
   }).join('\n');
   const promociones = cargarPromociones().filter(p => p.activa);
   const fechaEspecial = obtenerFechaEspecial();
@@ -451,11 +459,12 @@ REGLAS:
 13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
 14. Mencion puntos ganados despues de confirmar pedido.
 15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
-16. Si el pedido incluye una pizza con mitad y mitad, en el resumen siempre muestra claramente "Mitad 1: [ingrediente]" y "Mitad 2: [ingrediente]" para que el cliente confirme que está correcto.
+16. CRÍTICO: Cuando el cliente confirme su pedido, en el PEDIDO_JSON cada item debe tener: "precio" = precio base del producto, "extras_precio" = suma de precios de todos los modificadores/extras seleccionados, "modificadores_txt" = texto descriptivo de los extras (ej: "Con papas fritas, Sin cebolla"). El subtotal DEBE incluir los extras. Ejemplo: hamburguesa $3 + papas $1.50 = precio:3, extras_precio:1.50.
+17. Si el pedido incluye una pizza con mitad y mitad, en el resumen siempre muestra claramente "Mitad 1: [ingrediente]" y "Mitad 2: [ingrediente]" para que el cliente confirme que está correcto.
 
 Al FINAL escribe:
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
-PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia","descuento":0,"cambio_solicitado":0}
+PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":"","extras_precio":0,"modificadores_txt":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia","descuento":0,"cambio_solicitado":0}
 ENVIAR_IMAGENES: []
 MOSTRAR_PAGO: false
 APLICAR_CUPON: 
@@ -485,7 +494,11 @@ NOMBRE_CLIENTE: `;
   if (pedidoJSON) {
     conv.pedido = { ...conv.pedido, ...pedidoJSON };
     if (pedidoJSON.items?.length > 0) {
-      conv.pedido.subtotal = pedidoJSON.items.reduce((a, i) => a + (i.precio * i.cantidad), 0);
+      // FIX: sumar precio base + extras de modificadores
+      conv.pedido.subtotal = pedidoJSON.items.reduce((a, i) => {
+        const precioTotal = ((i.precio || 0) + (i.extras_precio || 0)) * i.cantidad;
+        return a + precioTotal;
+      }, 0);
       conv.pedido.total = conv.pedido.subtotal - (conv.pedido.descuento || 0) + (conv.pedido.costo_delivery || 0);
     }
   }
@@ -612,9 +625,28 @@ app.post('/webhook', async (req, res) => {
     }
     if (tipo === 'location') {
       conv.pedido.direccion = `https://maps.google.com/?q=${mensaje.location.latitude},${mensaje.location.longitude}`;
-      conv.pedido.es_domicilio = true; conv.esperando = null; conv.etapa = 'pago';
-      await enviar(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
-      if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
+      conv.pedido.es_domicilio = true;
+      conv.esperando = 'costo_delivery';
+      conv.etapa = 'delivery';
+      // Notificar al repartidor para que cotice el delivery
+      const reps = cargarRepartidores().filter(r => r.activo !== false && r.negocio_id === negocio.id);
+      if (reps.length > 0) {
+        const rep = reps[0];
+        conv.pedido.repartidor_whatsapp = rep.whatsapp;
+        conv.pedido.repartidor_nombre = rep.nombre;
+        const itemsResumen = (conv.pedido.items || []).map(i => `• ${i.nombre} x${i.cantidad}${i.modificadores_txt ? ' ('+i.modificadores_txt+')' : ''}`).join('\n');
+        await enviar(rep.whatsapp,
+          `🛵 *Nuevo pedido - Cotización delivery*\n\nNegocio: ${negocio.nombre}\nCliente: ${conv.pedido.nombre_cliente || numero}\n\nProductos:\n${itemsResumen}\n\nUbicación: ${conv.pedido.direccion}\n\nResponde con el costo exacto: *DELIVERY $X.XX*`
+        );
+        await enviar(numero, `📍 Ubicación recibida! Estamos cotizando el costo de delivery a tu zona, te avisamos en un momento. 🛵`);
+      } else {
+        // Sin repartidor registrado, ir directo a pago sin costo delivery
+        conv.pedido.costo_delivery = 0;
+        conv.esperando = null;
+        conv.etapa = 'pago';
+        await enviar(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
+        if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
+      }
       return;
     }
 
@@ -637,6 +669,28 @@ app.post('/webhook', async (req, res) => {
       await enviar(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
       return;
+    }
+
+    // ── Respuesta del repartidor con costo delivery ──
+    if (textoLower.startsWith('delivery $') || textoLower.startsWith('delivery$')) {
+      // Buscar la conversación del cliente que espera costo_delivery
+      const costoMatch = texto.match(/delivery\s*\$?([0-9]+(?:\.[0-9]+)?)/i);
+      if (costoMatch) {
+        const costoDelivery = parseFloat(costoMatch[1]);
+        // Encontrar cliente que tenga este repartidor asignado esperando costo
+        for (const [clienteNum, clienteConv] of conversaciones.entries()) {
+          if (clienteConv.pedido?.repartidor_whatsapp === numero && clienteConv.esperando === 'costo_delivery') {
+            clienteConv.pedido.costo_delivery = costoDelivery;
+            clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
+            clienteConv.esperando = null;
+            clienteConv.etapa = 'pago';
+            await enviar(clienteNum, `El costo del delivery a tu ubicación es $${costoDelivery.toFixed(2)} 🛵\n\n${generarMensajePago(clienteConv, negocio)}`);
+            if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
+            await enviar(numero, `✅ Costo enviado al cliente. Total del pedido: $${clienteConv.pedido.total.toFixed(2)}`);
+            return;
+          }
+        }
+      }
     }
 
     if (textoLower.startsWith('buscar ') || textoLower.startsWith('busca ')) {
