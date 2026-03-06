@@ -982,7 +982,13 @@ async function eliminarListaBlanca(num){await api(`/panel/${SLUG}/lista-blanca/$
 window.addEventListener('DOMContentLoaded',()=>{
   if(TOKEN){
     api(`/panel/${SLUG}/negocio`).then(neg=>{
-      if(neg&&!neg.error){document.getElementById('loginWrap').style.display='none';const mp=document.getElementById('mainPanel');mp.style.display='flex';mp.style.flexDirection='column';cargarTodo();}
+      if(neg&&!neg.error){
+        document.getElementById('loginWrap').style.display='none';
+        const mp=document.getElementById('mainPanel');
+        mp.style.display='flex';
+        mp.style.flexDirection='column';
+        requestAnimationFrame(()=>{ cargarTodo(); });
+      }
       else{TOKEN='';sessionStorage.removeItem('vb_panel_token_'+SLUG);}
     });
   }
