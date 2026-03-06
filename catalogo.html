@@ -365,7 +365,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <div class="toast" id="toast"></div>
 
 <script>
-const SLUG=window.location.pathname.split('/')[2];const BASE=window.location.origin;
+const SLUG=window.location.pathname.split('/')[2];const BASE='https://vendebot-production.up.railway.app';
 let neg=null,cart=[],prod=null,sels={},qty=1,notas='',searchOpen=false,mitadSels={1:null,2:null};
 async function init(){try{const r=await fetch(BASE+'/catalogo-data/'+SLUG);if(!r.ok){errLoader('NEGOCIO NO ENCONTRADO');return;}neg=await r.json();renderAll();fadeLoader();}catch(e){errLoader('ERROR DE CONEXIÓN');}}
 function fadeLoader(){const l=document.getElementById('loader');l.classList.add('out');setTimeout(()=>{l.style.display='none';document.getElementById('app').style.display='block';},500);}

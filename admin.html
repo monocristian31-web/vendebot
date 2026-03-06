@@ -235,11 +235,12 @@ select option{background:var(--bg2);}
 <div class="toast" id="toast"></div>
 
 <script>
+const BASE='https://vendebot-production.up.railway.app';
 let TOKEN=sessionStorage.getItem('admin_token')||'';
 
 async function login(){
   const pass=document.getElementById('loginPass').value;
-  const res=await fetch('/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
+  const res=await fetch(BASE+'/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
   const data=await res.json();
   if(data.ok){TOKEN=data.token;sessionStorage.setItem('admin_token',TOKEN);mostrarApp();}
   else{document.getElementById('loginError').textContent='// ACCESO DENEGADO';document.getElementById('loginPass').value='';}
@@ -247,9 +248,9 @@ async function login(){
 
 function logout(){sessionStorage.removeItem('admin_token');TOKEN='';document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';}
 
-async function verificarToken(){if(!TOKEN)return false;const res=await fetch('/auth/verify',{headers:{Authorization:'Bearer '+TOKEN}});const data=await res.json();return data.ok;}
+async function verificarToken(){if(!TOKEN)return false;const res=await fetch(BASE+'/auth/verify',{headers:{Authorization:'Bearer '+TOKEN}});const data=await res.json();return data.ok;}
 
-async function api(url,opts={}){const res=await fetch(url,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});return res.json();}
+async function api(url,opts={}){const res=await fetch(BASE+url,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});return res.json();}
 
 async function mostrarApp(){document.getElementById('loginScreen').style.display='none';document.getElementById('app').style.display='block';cargarNegocios();}
 
