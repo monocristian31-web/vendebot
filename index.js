@@ -37,6 +37,32 @@ async function inicializarDB() {
   console.log('✓ PostgreSQL conectado');
 }
 
+// Guardar tokens en DB cada 2 minutos para sobrevivir reinicios
+setInterval(async () => {
+  try {
+    const tokensObj = {};
+    for (const [k, v] of tokens.entries()) tokensObj[k] = v;
+    await guardarDB('_tokens', tokensObj);
+  } catch {}
+}, 2 * 60 * 1000);
+
+// Restaurar tokens desde DB
+async function restaurarTokens() {
+  try {
+    const r = await db.query("SELECT valor FROM datos WHERE clave = '_tokens'");
+    if (r.rows.length > 0) {
+      const tokensObj = r.rows[0].valor;
+      for (const [k, v] of Object.entries(tokensObj)) {
+        // Solo restaurar si no expiraron (7 días)
+        if (Date.now() - v.tiempo < 7 * 24 * 60 * 60 * 1000) {
+          tokens.set(k, v);
+        }
+      }
+      console.log('✓ Tokens restaurados:', tokens.size);
+    }
+  } catch {}
+}
+
 // Reemplaza cargarJSON — lee de Postgres, cae a archivo si falla
 async function cargarDB(clave, defecto) {
   try {
@@ -786,25 +812,49 @@ function horaActual() {
 }
 
 // ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
-// Compatibilidad síncrona — lee del archivo local como cache
+// ─── CACHE EN MEMORIA (se llena desde PostgreSQL al arrancar) ────────────────
+const cache = {
+  negocios: [],
+  clientes: {},
+  promociones: [],
+  repartidores: [],
+  pedidos_pendientes: [],
+  cupones: [],
+  puntos: {},
+  resenas: [],
+  citas: [],
+};
+
+// Leer desde cache (instantáneo)
 function cargarJSON(archivo, defecto) {
+  const clave = archivo.replace('./', '').replace('.json', '');
+  if (cache[clave] !== undefined) return cache[clave];
+  // Fallback a archivo si existe
   try { return JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch { return defecto; }
 }
-// guardarJSON ahora escribe en DB + archivo (async pero no bloqueante)
+
+// Guardar: actualiza cache + escribe en PostgreSQL inmediatamente
 function guardarJSON(archivo, data) {
   const clave = archivo.replace('./', '').replace('.json', '');
-  guardarDB(clave, data); // async, no esperamos — escribe en bg
+  // 1. Actualizar cache en memoria (instantáneo)
+  if (cache[clave] !== undefined) cache[clave] = data;
+  // 2. Guardar en PostgreSQL (permanente)
+  guardarDB(clave, data).catch(() => {
+    // Si falla, reintentar en 2 segundos
+    setTimeout(() => guardarDB(clave, data).catch(() => {}), 2000);
+  });
+  // 3. Archivo local como triple seguro
   try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch {}
 }
 
-function cargarNegocios() { return cargarJSON('./negocios.json', []); }
-function cargarClientes() { return cargarJSON('./clientes.json', {}); }
-function cargarPromociones() { return cargarJSON('./promociones.json', []); }
-function cargarRepartidores() { return cargarJSON('./repartidores.json', []); }
-function cargarPedidosPendientes() { return cargarJSON('./pedidos_pendientes.json', []); }
+function cargarNegocios() { return cache.negocios; }
+function cargarClientes() { return cache.clientes; }
+function cargarPromociones() { return cache.promociones; }
+function cargarRepartidores() { return cache.repartidores; }
+function cargarPedidosPendientes() { return cache.pedidos_pendientes; }
 function guardarPedidosPendientes(p) { guardarJSON('./pedidos_pendientes.json', p); }
-function cargarCupones() { return cargarJSON('./cupones.json', []); }
-function cargarPuntos() { return cargarJSON('./puntos.json', {}); }
+function cargarCupones() { return cache.cupones; }
+function cargarPuntos() { return cache.puntos; }
 function guardarPuntos(p) { guardarJSON('./puntos.json', p); }
 
 // ─── SISTEMA DE PUNTOS ────────────────────────────────────────────────────────
@@ -1113,7 +1163,7 @@ const tokens = new Map();
 
 function generarToken() { return crypto.randomBytes(32).toString('hex'); }
 function verificarToken(token) { return tokens.has(token) && Date.now() - tokens.get(token).tiempo < 24 * 60 * 60 * 1000; }
-function verificarTokenPanel(token, slug) { const t = tokens.get(token); return t && t.slug === slug && Date.now() - t.tiempo < 24 * 60 * 60 * 1000; }
+function verificarTokenPanel(token, slug) { const t = tokens.get(token); return t && t.slug === slug && Date.now() - t.tiempo < 7 * 24 * 60 * 60 * 1000; }
 
 app.post('/auth/admin', (req, res) => {
   if (req.body.password === ADMIN_PASSWORD) {
@@ -1489,7 +1539,7 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
 });
 
 // ─── RESEÑAS ─────────────────────────────────────────────────
-function cargarResenas() { return cargarJSON('./resenas.json', []); }
+function cargarResenas() { return cache.resenas; }
 function guardarResenas(r) { guardarJSON('./resenas.json', r); }
 
 function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDesc) {
@@ -1546,7 +1596,7 @@ app.get('/sw.js', (req, res) => {
 });
 
 // ─── CITAS ────────────────────────────────────────────────────
-function cargarCitas() { return cargarJSON('./citas.json', []); }
+function cargarCitas() { return cache.citas; }
 function guardarCitas(c) { guardarJSON('./citas.json', c); }
 
 app.get('/panel/:slug/citas', authPanel, (req, res) => {
@@ -1747,19 +1797,37 @@ async function restaurarDesdeDB() {
   const claves = ['negocios','clientes','cupones','puntos','pedidos_pendientes','promociones','repartidores','resenas','citas'];
   for (const clave of claves) {
     try {
-      const r = await db.query('SELECT valor FROM datos WHERE clave = ', [clave]);
+      const r = await db.query('SELECT valor FROM datos WHERE clave = $1', [clave]);
       if (r.rows.length > 0) {
-        fs.writeFileSync('./' + clave + '.json', JSON.stringify(r.rows[0].valor, null, 2));
-        console.log('✓ Restaurado:', clave + '.json');
+        const dataDB = r.rows[0].valor;
+        // Cargar en cache siempre (aunque esté vacío, es el estado real)
+        cache[clave] = dataDB;
+        // También escribir en archivo local como respaldo
+        try { fs.writeFileSync('./' + clave + '.json', JSON.stringify(dataDB, null, 2)); } catch {}
+        const cantidad = Array.isArray(dataDB) ? dataDB.length + ' registros' : Object.keys(dataDB).length + ' entradas';
+        console.log('✓ Cache cargado desde DB:', clave, '(' + cantidad + ')');
+      } else {
+        // No hay datos en DB todavía — intentar cargar desde archivo local
+        try {
+          const local = JSON.parse(fs.readFileSync('./' + clave + '.json', 'utf8'));
+          cache[clave] = local;
+          // Guardar en DB para que la próxima vez ya esté ahí
+          await guardarDB(clave, local);
+          console.log('✓ Cache cargado desde archivo local:', clave, '(migrado a DB)');
+        } catch {}
       }
-    } catch {}
+    } catch (e) {
+      console.error('Error cargando', clave, e.message);
+    }
   }
+  console.log('✓ Negocios en memoria:', cache.negocios.length);
 }
 
 app.listen(PORT, async () => {
   console.log('VendeBot v11.0 iniciado en puerto ' + PORT);
   await inicializarDB();
   await restaurarDesdeDB();
+  await restaurarTokens();
   // Iniciar sesiones WhatsApp de todos los negocios activos
   await iniciarTodasLasSesiones();
 });
