@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { Pool } = require('pg');
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
@@ -16,6 +17,48 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+
+// ─── POSTGRESQL ───────────────────────────────────────────────────────────────
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false,
+});
+
+// Crear tablas si no existen
+async function inicializarDB() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS datos (
+      clave TEXT PRIMARY KEY,
+      valor JSONB NOT NULL,
+      actualizado TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  console.log('✓ PostgreSQL conectado');
+}
+
+// Reemplaza cargarJSON — lee de Postgres, cae a archivo si falla
+async function cargarDB(clave, defecto) {
+  try {
+    const r = await db.query('SELECT valor FROM datos WHERE clave = ', [clave]);
+    if (r.rows.length > 0) return r.rows[0].valor;
+  } catch {}
+  // Fallback a archivo local
+  try { return JSON.parse(fs.readFileSync('./' + clave + '.json', 'utf8')); } catch {}
+  return defecto;
+}
+
+// Reemplaza guardarJSON — escribe en Postgres Y en archivo local (doble seguridad)
+async function guardarDB(clave, data) {
+  try {
+    await db.query(
+      'INSERT INTO datos (clave, valor) VALUES (, ) ON CONFLICT (clave) DO UPDATE SET valor = , actualizado = NOW()',
+      [clave, JSON.stringify(data)]
+    );
+  } catch (e) { console.error('Error guardando en DB:', e.message); }
+  // También guardar en archivo como backup
+  try { fs.writeFileSync('./' + clave + '.json', JSON.stringify(data, null, 2)); } catch {}
+}
 
 const app = express();
 app.use(express.json());
@@ -73,7 +116,8 @@ async function iniciarSesion(negocio) {
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : null;
-      const debeReconectar = statusCode !== DisconnectReason.loggedOut;
+      const QR_TIMEOUT = 408;
+      const debeReconectar = statusCode !== DisconnectReason.loggedOut && statusCode !== QR_TIMEOUT;
       console.log(`WhatsApp desconectado (${negocio.nombre}): código ${statusCode}`);
       sesiones.get(id).estado = 'desconectado';
       notificarPanel(negocio.slug || id, { tipo: 'whatsapp_desconectado' });
@@ -742,11 +786,15 @@ function horaActual() {
 }
 
 // ─── PERSISTENCIA ─────────────────────────────────────────────────────────────
+// Compatibilidad síncrona — lee del archivo local como cache
 function cargarJSON(archivo, defecto) {
   try { return JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch { return defecto; }
 }
+// guardarJSON ahora escribe en DB + archivo (async pero no bloqueante)
 function guardarJSON(archivo, data) {
-  try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch (e) { console.error('Error guardando', archivo, e.message); }
+  const clave = archivo.replace('./', '').replace('.json', '');
+  guardarDB(clave, data); // async, no esperamos — escribe en bg
+  try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch {}
 }
 
 function cargarNegocios() { return cargarJSON('./negocios.json', []); }
@@ -1204,7 +1252,7 @@ app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
 // UPLOAD IMAGENES
 const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-app.post('/panel/:slug/upload', uploadMiddleware.single('file'), async (req, res) => {
+app.post('/panel/:slug/upload', uploadMiddleware.single('imagen'), async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!verificarTokenPanel(token, req.params.slug)) return res.status(401).json({ error: 'No autorizado' });
   try {
@@ -1339,17 +1387,56 @@ app.put('/panel/:slug/catalogo/:id', authPanel, (req, res) => {
   res.json({ ok: true });
 });
 
+// Stock: acepta { stock } absoluto o { delta } relativo, y POST o PUT
 app.put('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
   const negocios = cargarNegocios();
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   const pIdx = negocios[idx].catalogo.findIndex(p => p.id == req.params.id);
   if (pIdx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
-  negocios[idx].catalogo[pIdx].stock = req.body.stock;
+  const actual = negocios[idx].catalogo[pIdx].stock ?? 0;
+  negocios[idx].catalogo[pIdx].stock = req.body.delta !== undefined
+    ? Math.max(0, actual + req.body.delta)
+    : req.body.stock;
   guardarJSON('./negocios.json', negocios);
-  res.json({ ok: true, stock: req.body.stock });
+  res.json({ ok: true, stock: negocios[idx].catalogo[pIdx].stock });
+});
+app.post('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  const pIdx = negocios[idx].catalogo.findIndex(p => p.id == req.params.id);
+  if (pIdx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
+  const actual = negocios[idx].catalogo[pIdx].stock ?? 0;
+  negocios[idx].catalogo[pIdx].stock = req.body.delta !== undefined
+    ? Math.max(0, actual + req.body.delta)
+    : req.body.stock;
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, stock: negocios[idx].catalogo[pIdx].stock });
 });
 
+
+// ─── CATÁLOGO — crear y eliminar ─────────────────────────────────────────────
+app.post('/panel/:slug/catalogo', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  if (!negocios[idx].catalogo) negocios[idx].catalogo = [];
+  const maxId = negocios[idx].catalogo.reduce((m, p) => Math.max(m, p.id || 0), 0);
+  const nuevo = { id: maxId + 1, activo: true, ...req.body };
+  negocios[idx].catalogo.push(nuevo);
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, id: nuevo.id, ...nuevo });
+});
+
+app.delete('/panel/:slug/catalogo/:id', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].catalogo = (negocios[idx].catalogo || []).filter(p => String(p.id) !== String(req.params.id));
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true });
+});
 // ─── CITAS CONFIG ─────────────────────────────────────────────────────────────
 app.get('/panel/:slug/citas/config', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
@@ -1379,33 +1466,7 @@ app.get('/panel/:slug/citas/proximas', authPanel, (req, res) => {
   res.json(proximas);
 });
 
-// ─── LISTA BLANCA ─────────────────────────────────────────────────────────────
-function cargarListaBlanca() { return cargarJSON('./lista_blanca.json', []); }
-function guardarListaBlanca(lb) { guardarJSON('./lista_blanca.json', lb); }
 
-app.get('/panel/:slug/lista-blanca', authPanel, (req, res) => {
-  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
-  if (!negocio) return res.json([]);
-  res.json(cargarListaBlanca().filter(e => e.negocio_id === negocio.id));
-});
-
-app.post('/panel/:slug/lista-blanca', authPanel, (req, res) => {
-  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
-  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
-  const lb = cargarListaBlanca();
-  const existe = lb.find(e => e.numero === req.body.numero && e.negocio_id === negocio.id);
-  if (existe) return res.json({ ok: true, ya_existe: true });
-  lb.push({ numero: req.body.numero, etiqueta: req.body.etiqueta || '', negocio_id: negocio.id, fecha: new Date().toISOString() });
-  guardarListaBlanca(lb);
-  res.json({ ok: true });
-});
-
-app.delete('/panel/:slug/lista-blanca/:numero', authPanel, (req, res) => {
-  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
-  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
-  guardarListaBlanca(cargarListaBlanca().filter(e => !(e.numero === req.params.numero && e.negocio_id === negocio.id)));
-  res.json({ ok: true });
-});
 
 // ─── REPORTES EXPORTABLES ─────────────────────────────────────
 app.get('/panel/:slug/reporte', authPanel, (req, res) => {
@@ -1517,7 +1578,17 @@ app.put('/panel/:slug/citas/:id', authPanel, (req, res) => {
     enviarMensaje(citas[idx].numero, `Tu cita del ${citas[idx].fecha} a las ${citas[idx].hora} ha sido cancelada. Contáctanos para reagendar.`);
   }
   res.json({ ok: true });
-});
+
+app.delete('/panel/:slug/citas/:id', authPanel, (req, res) => {
+  const citas = cargarCitas();
+  const idx = citas.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  citas[idx].estado = 'cancelada';
+  guardarCitas(citas);
+  if (negocio) enviarMensaje(citas[idx].numero, `Tu cita del ${citas[idx].fecha} a las ${citas[idx].hora} ha sido cancelada. Contáctanos para reagendar.`, negocio.id);
+  res.json({ ok: true });
+});});
 
 // ─── HORARIO DINÁMICO ─────────────────────────────────────────
 function estaAbiertoAhora(negocio) {
@@ -1671,8 +1742,24 @@ setInterval(async () => {
   }
 }, 30 * 60 * 1000);
 const PORT = process.env.PORT || 3000;
+// Restaurar JSONs desde PostgreSQL al arrancar (por si hubo redeploy)
+async function restaurarDesdeDB() {
+  const claves = ['negocios','clientes','cupones','puntos','pedidos_pendientes','promociones','repartidores','resenas','citas'];
+  for (const clave of claves) {
+    try {
+      const r = await db.query('SELECT valor FROM datos WHERE clave = ', [clave]);
+      if (r.rows.length > 0) {
+        fs.writeFileSync('./' + clave + '.json', JSON.stringify(r.rows[0].valor, null, 2));
+        console.log('✓ Restaurado:', clave + '.json');
+      }
+    } catch {}
+  }
+}
+
 app.listen(PORT, async () => {
-  console.log(`VendeBot v11.0 (Baileys) iniciado en puerto ${PORT}`);
+  console.log('VendeBot v11.0 iniciado en puerto ' + PORT);
+  await inicializarDB();
+  await restaurarDesdeDB();
   // Iniciar sesiones WhatsApp de todos los negocios activos
   await iniciarTodasLasSesiones();
 });
