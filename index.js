@@ -92,7 +92,8 @@ app.use(express.static('.', { extensions: [], index: false }));
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─── SESIONES BAILEYS (una por negocio) ───────────────────────────────────────
-const sesiones = new Map(); // negocioId → { sock, qr, estado }
+const sesiones = new Map();
+const mensajesProcesados = new Set(); // anti-duplicado // negocioId → { sock, qr, estado }
 
 function dirSesion(negocioId) {
   const d = path.join('./sessions', negocioId);
@@ -180,7 +181,12 @@ async function iniciarSesion(negocio) {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
-      if (msg.key.fromMe) continue; // ignorar mensajes enviados por nosotros
+      if (msg.key.fromMe) continue;
+      // Anti-duplicado: ignorar si ya procesamos este mensaje
+      const msgId = msg.key.id;
+      if (mensajesProcesados.has(msgId)) continue;
+      mensajesProcesados.add(msgId);
+      setTimeout(() => mensajesProcesados.delete(msgId), 60000); // limpiar en 1 min
       await procesarMensajeBaileys(msg, negocio, sock);
     }
   });
@@ -296,8 +302,13 @@ async function notificarDueno(conv, negocio) {
 }
 
 function asignarRepartidor(negocio) {
-  const reps = cargarRepartidores().filter(r => r.negocio_id === negocio.id && r.activo && r.disponible);
+  // Obtener repartidores del negocio (guardados dentro del negocio)
+  const reps = (negocio.repartidores || []).filter(r => r.activo !== false);
   return reps.length ? reps[Math.floor(Math.random() * reps.length)] : null;
+}
+
+function obtenerRepartidoreActivos(negocio) {
+  return (negocio.repartidores || []).filter(r => r.activo !== false);
 }
 
 async function validarBoucher(b64, mediaType, monto) {
@@ -490,14 +501,39 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
           if (resultado.valido) {
             conv.etapa = 'confirmado'; conv.esperando = null;
             if (conv.pedido.cupon) usarCupon(conv.pedido.cupon);
-            const puntosGanados = agregarPuntos(numero, conv.pedido.total, `Pedido en ${negocio.nombre}`);
+            const puntosGanados = agregarPuntos(numero, conv.pedido.total, 'Pedido en ' + negocio.nombre);
             const puntosActuales = obtenerPuntos(numero).total;
-            const repartidor = conv.pedido.es_domicilio ? asignarRepartidor(negocio) : null;
-            if (repartidor) {
-              conv.pedido.repartidor = repartidor.nombre;
-              await enviar(repartidor.whatsapp, `Nuevo pedido!\nCliente: ${conv.pedido.nombre_cliente || numero}\nDireccion: ${conv.pedido.direccion}\nTotal: $${conv.pedido.total?.toFixed(2)}`);
+            // Usar el repartidor ya asignado (cotizó el delivery), o asignar uno si no hay
+            let repWhatsapp = conv.pedido.repartidor_whatsapp;
+            let repNombre = conv.pedido.repartidor_nombre;
+            if (!repWhatsapp && conv.pedido.es_domicilio) {
+              const repAleatorio = asignarRepartidor(negocio);
+              if (repAleatorio) { repWhatsapp = repAleatorio.whatsapp; repNombre = repAleatorio.nombre; }
             }
-            const msgConfirm = `Pago verificado! Tu pedido en ${negocio.nombre} esta confirmado!\n\n${repartidor ? `Repartidor: ${repartidor.nombre}\nTiempo estimado: ${negocio.tiempo_entrega || '30-45 min'}` : conv.pedido.es_domicilio ? `Tiempo estimado: ${negocio.tiempo_entrega || '30-45 min'}` : 'Puedes pasar a retirarlo cuando gustes.'}\n\nGanaste ${puntosGanados} puntos! Total: ${puntosActuales} pts${puntosActuales >= PUNTOS_PARA_REGALO ? '\n\nTienes puntos suficientes para un producto gratis! Escribe "canjear puntos" para reclamar.' : ''}\n\nGracias por tu compra!`;
+            // Notificar al repartidor asignado con todos los detalles
+            if (repWhatsapp && conv.pedido.es_domicilio) {
+              conv.pedido.repartidor = repNombre;
+              const itemsRep = (conv.pedido.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad + (i.modificadores_txt ? ' (' + i.modificadores_txt + ')' : '')).join('\n');
+              const msgRep = '🟢 *PAGO CONFIRMADO — IR A RECOGER*\n\n' +
+                'Negocio: ' + negocio.nombre + '\n' +
+                'Cliente: ' + (conv.pedido.nombre_cliente || numero) + '\n' +
+                'WhatsApp cliente: ' + numero + '\n\n' +
+                'Pedido:\n' + itemsRep + '\n\n' +
+                'Total: $' + (conv.pedido.total || 0).toFixed(2) + '\n' +
+                'Pago: ' + (conv.pedido.metodo_pago === 'efectivo' ? 'Efectivo' : 'Transferencia verificada') + '\n' +
+                'Entrega: ' + (conv.pedido.fecha_entrega || 'Lo antes posible') + ' ' + (conv.pedido.hora_entrega || '') + '\n' +
+                'Direccion: ' + (conv.pedido.direccion || '') + '\n\n' +
+                (conv.pedido.notas ? 'Notas: ' + conv.pedido.notas + '\n\n' : '') +
+                'Responde *CONFIRMAR* para confirmar que lo entregaras.';
+              await enviarMensaje(repWhatsapp, msgRep, negocio.id);
+              conv.pedido.esperando_confirmacion_rep = true;
+              conv.pedido.confirmacion_rep_timestamp = Date.now();
+            }
+            const msgConfirm = 'Pago verificado! Tu pedido en ' + negocio.nombre + ' esta confirmado!\n\n' +
+              (repNombre ? 'Repartidor: ' + repNombre + '\nTiempo estimado: ' + (negocio.tiempo_entrega || '30-45 min') : conv.pedido.es_domicilio ? 'Tiempo estimado: ' + (negocio.tiempo_entrega || '30-45 min') : 'Puedes pasar a retirarlo cuando gustes.') +
+              '\n\nGanaste ' + puntosGanados + ' puntos! Total: ' + puntosActuales + ' pts' +
+              (puntosActuales >= PUNTOS_PARA_REGALO ? '\n\nTienes puntos suficientes para un producto gratis! Escribe "canjear puntos" para reclamar.' : '') +
+              '\n\nGracias por tu compra!';
             await enviar(numero, msgConfirm);
             registrarPedido(numero, conv.pedido, negocio.nombre);
             await notificarDueno(conv, negocio);
@@ -524,23 +560,26 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
     }
     if (tipo === 'location') {
       const loc = msg.message.locationMessage;
-      conv.pedido.direccion = `https://maps.google.com/?q=${loc.degreesLatitude},${loc.degreesLongitude}`;
+      conv.pedido.direccion = 'https://maps.google.com/?q=' + loc.degreesLatitude + ',' + loc.degreesLongitude;
       conv.pedido.es_domicilio = true;
       conv.esperando = 'costo_delivery';
       conv.etapa = 'delivery';
-      const reps = (negocio.repartidores || cargarRepartidores().filter(r => r.negocio_id === negocio.id)).filter(r => r.activo !== false);
+      const reps = obtenerRepartidoreActivos(negocio);
       if (reps.length > 0) {
-        const rep = reps[0];
-        conv.pedido.repartidor_whatsapp = rep.whatsapp;
-        conv.pedido.repartidor_nombre = rep.nombre;
-        const itemsResumen = (conv.pedido.items || []).map(i => `• ${i.nombre} x${i.cantidad}${i.modificadores_txt ? ' ('+i.modificadores_txt+')' : ''}`).join('\n');
-        await enviar(rep.whatsapp, `🛵 *Nuevo pedido - Cotización delivery*\n\nNegocio: ${negocio.nombre}\nCliente: ${conv.pedido.nombre_cliente || numero}\n\nProductos:\n${itemsResumen}\n\nUbicación: ${conv.pedido.direccion}\n\nResponde con el costo exacto: *DELIVERY $X.XX*`);
-        await enviar(numero, `📍 Ubicación recibida! Estamos cotizando el costo de delivery a tu zona, te avisamos en un momento. 🛵`);
+        // Enviar cotización a TODOS los repartidores activos
+        const itemsResumen = (conv.pedido.items || []).map(i => '• ' + i.nombre + ' x' + i.cantidad + (i.modificadores_txt ? ' (' + i.modificadores_txt + ')' : '')).join('\n');
+        conv.pedido.repartidores_contactados = reps.map(r => r.whatsapp); // guardar todos
+        conv.pedido.repartidor_whatsapp = null; // se asigna cuando responda
+        conv.pedido.repartidor_nombre = null;
+        for (const rep of reps) {
+          await enviarMensaje(rep.whatsapp, '🛵 *Nuevo pedido - Cotizacion delivery*\n\nNegocio: ' + negocio.nombre + '\nCliente: ' + (conv.pedido.nombre_cliente || numero) + '\n\nProductos:\n' + itemsResumen + '\n\nUbicacion del cliente:\n' + conv.pedido.direccion + '\n\nResponde con el costo exacto: *DELIVERY $X.XX*\n(El primero en responder queda asignado)', negocio.id);
+        }
+        await enviar(numero, '📍 Ubicación recibida! Estamos cotizando el costo de delivery, te avisamos en un momento. 🛵');
       } else {
         conv.pedido.costo_delivery = 0;
         conv.esperando = null;
         conv.etapa = 'pago';
-        await enviar(numero, `Ubicacion recibida!\n\n${generarMensajePago(conv, negocio)}`);
+        await enviar(numero, 'Ubicacion recibida!\n\n' + generarMensajePago(conv, negocio));
         if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
       }
       return;
@@ -568,21 +607,47 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
     }
 
     // ── Respuesta del repartidor con costo delivery ──
-    if (textoLower.startsWith('delivery $') || textoLower.startsWith('delivery$')) {
+    if (textoLower.startsWith('delivery $') || textoLower.startsWith('delivery$') || textoLower.match(/^delivery\s*\$/i)) {
       const costoMatch = texto.match(/delivery\s*\$?([0-9]+(?:\.[0-9]+)?)/i);
       if (costoMatch) {
         const costoDelivery = parseFloat(costoMatch[1]);
+        // Buscar conversacion donde este repartidor fue contactado y aun no hay asignado
         for (const [clienteNum, clienteConv] of conversaciones.entries()) {
-          if (clienteConv.pedido?.repartidor_whatsapp === numero && clienteConv.esperando === 'costo_delivery') {
+          const fueContactado = clienteConv.pedido?.repartidores_contactados?.includes(numero);
+          const yaAsignado = clienteConv.pedido?.repartidor_whatsapp;
+          if (fueContactado && !yaAsignado && clienteConv.esperando === 'costo_delivery') {
+            // Este repartidor es el primero en responder — queda asignado
+            clienteConv.pedido.repartidor_whatsapp = numero;
+            // Buscar nombre del repartidor
+            const repInfo = obtenerRepartidoreActivos(negocio).find(r => r.whatsapp === numero || r.whatsapp === numero.replace(/\D/g,''));
+            clienteConv.pedido.repartidor_nombre = repInfo ? repInfo.nombre : numero;
             clienteConv.pedido.costo_delivery = costoDelivery;
             clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
             clienteConv.esperando = null;
             clienteConv.etapa = 'pago';
-            await enviar(clienteNum, `El costo del delivery a tu ubicación es $${costoDelivery.toFixed(2)} 🛵\n\n${generarMensajePago(clienteConv, negocio)}`);
+            await enviarMensaje(clienteNum, 'El costo del delivery a tu ubicacion es $' + costoDelivery.toFixed(2) + ' 🛵\n\n' + generarMensajePago(clienteConv, negocio), negocio.id);
             if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
-            await enviar(numero, `✅ Costo enviado al cliente. Total del pedido: $${clienteConv.pedido.total.toFixed(2)}`);
+            await enviarMensaje(numero, '✅ Quedaste asignado! El cliente fue notificado.\nTotal del pedido: $' + clienteConv.pedido.total.toFixed(2) + '\nCliente: ' + (clienteConv.pedido.nombre_cliente || clienteNum), negocio.id);
+            // Avisar a los demas repartidores que ya fue asignado
+            for (const otroRep of (clienteConv.pedido.repartidores_contactados || [])) {
+              if (otroRep !== numero) {
+                await enviarMensaje(otroRep, 'Este pedido ya fue tomado por otro repartidor. Gracias!', negocio.id);
+              }
+            }
             return;
           }
+        }
+      }
+    }
+
+    // ── Repartidor confirma entrega ──
+    if (textoLower === 'confirmar' || textoLower === 'confirmado' || textoLower === 'si' || textoLower === 'sí' || textoLower === 'voy') {
+      for (const [clienteNum, clienteConv] of conversaciones.entries()) {
+        if (clienteConv.pedido?.repartidor_whatsapp === numero && clienteConv.pedido?.esperando_confirmacion_rep) {
+          clienteConv.pedido.esperando_confirmacion_rep = false;
+          clienteConv.pedido.confirmado_por_rep = true;
+          await enviarMensaje(numero, '✅ Confirmado! Estaras en camino a las ' + (clienteConv.pedido.hora_entrega || 'la hora acordada') + '.', negocio.id);
+          return;
         }
       }
     }
@@ -1101,13 +1166,104 @@ setInterval(async () => {
     if (!ultimo.seguimiento_enviado) {
       const diff = ahora - new Date(ultimo.fecha).getTime();
       if (diff > 23 * 60 * 60 * 1000 && diff < 25 * 60 * 60 * 1000) {
-        await enviarMensaje(numero, `Hola ${cliente.nombre || ''}! Esperamos que hayas disfrutado tu pedido. Como fue tu experiencia? Tu opinion nos ayuda a mejorar!`);
+        await enviarMensaje(numero, 'Hola ' + (cliente.nombre || '') + '! Esperamos que hayas disfrutado tu pedido. Como fue tu experiencia? Tu opinion nos ayuda a mejorar!');
         ultimo.seguimiento_enviado = true; cambios = true;
       }
     }
   }
   if (cambios) guardarJSON('./clientes.json', clientes);
 }, 60 * 60 * 1000);
+
+// ─── RECORDATORIO Y REASIGNACIÓN DE REPARTIDOR ────────────────────────────────
+// Cada 5 min: revisar pedidos confirmados que tienen hora de entrega próxima
+setInterval(async () => {
+  const ahora = Date.now();
+  const ahoraDt = horaActual();
+  const hoy = ahoraDt.toLocaleDateString('es-EC');
+
+  for (const [key, conv] of conversaciones.entries()) {
+    if (conv.etapa !== 'confirmado') continue;
+    if (!conv.pedido?.es_domicilio) continue;
+    if (!conv.pedido?.repartidor_whatsapp) continue;
+
+    const negocio = cargarNegocios().find(n => n.id === conv.negocio_id);
+    if (!negocio) continue;
+
+    // Calcular cuánto falta para la entrega
+    const fechaEntrega = conv.pedido.fecha_entrega; // ej: "15/03/2025"
+    const horaEntrega = conv.pedido.hora_entrega;   // ej: "18:00"
+    if (!fechaEntrega || !horaEntrega) continue;
+
+    // Parsear hora de entrega
+    const [h, m] = horaEntrega.split(':').map(Number);
+    const dtEntrega = new Date(ahoraDt);
+    dtEntrega.setHours(h, m, 0, 0);
+    const msParaEntrega = dtEntrega.getTime() - ahora;
+
+    // --- RECORDATORIO 20 MIN ANTES ---
+    if (msParaEntrega > 0 && msParaEntrega <= 20 * 60 * 1000 && !conv.pedido.recordatorio_rep_enviado) {
+      conv.pedido.recordatorio_rep_enviado = true;
+      conv.pedido.esperando_confirmacion_rep = true;
+      conv.pedido.confirmacion_rep_timestamp = ahora;
+      conv.pedido.confirmado_por_rep = false;
+      const itemsRep = (conv.pedido.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad).join('\n');
+      await enviarMensaje(conv.pedido.repartidor_whatsapp,
+        '⏰ *Recordatorio — Entrega en 20 minutos*\n\n' +
+        'Cliente: ' + (conv.pedido.nombre_cliente || conv.numero) + '\n' +
+        'Hora: ' + horaEntrega + '\n' +
+        'Direccion: ' + conv.pedido.direccion + '\n\n' +
+        'Pedido:\n' + itemsRep + '\n\n' +
+        'Total: $' + (conv.pedido.total || 0).toFixed(2) + '\n\n' +
+        'Responde *CONFIRMAR* para confirmar que vas a entregar.',
+        negocio.id);
+    }
+
+    // --- SI NO CONFIRMÓ EN 10 MIN → REASIGNAR AL SIGUIENTE REPARTIDOR ---
+    if (conv.pedido.esperando_confirmacion_rep && !conv.pedido.confirmado_por_rep) {
+      const tiempoEsperando = ahora - (conv.pedido.confirmacion_rep_timestamp || ahora);
+      if (tiempoEsperando >= 10 * 60 * 1000) {
+        // Buscar siguiente repartidor disponible
+        const todos = obtenerRepartidoreActivos(negocio);
+        const repActual = conv.pedido.repartidor_whatsapp;
+        const noConfirmados = conv.pedido.reps_no_confirmaron || [];
+        noConfirmados.push(repActual);
+        conv.pedido.reps_no_confirmaron = noConfirmados;
+        const siguiente = todos.find(r => !noConfirmados.includes(r.whatsapp) && r.whatsapp !== repActual);
+        if (siguiente) {
+          // Notificar al repartidor anterior que fue reasignado
+          await enviarMensaje(repActual, '⚠️ No confirmaste a tiempo. El pedido fue asignado a otro repartidor.', negocio.id);
+          // Asignar siguiente
+          conv.pedido.repartidor_whatsapp = siguiente.whatsapp;
+          conv.pedido.repartidor_nombre = siguiente.nombre;
+          conv.pedido.esperando_confirmacion_rep = true;
+          conv.pedido.confirmado_por_rep = false;
+          conv.pedido.confirmacion_rep_timestamp = ahora;
+          const itemsRep2 = (conv.pedido.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad).join('\n');
+          await enviarMensaje(siguiente.whatsapp,
+            '🔄 *Pedido reasignado a ti*\n\n' +
+            'El repartidor anterior no confirmó. Necesitamos que hagas esta entrega:\n\n' +
+            'Cliente: ' + (conv.pedido.nombre_cliente || conv.numero) + '\n' +
+            'Hora entrega: ' + horaEntrega + '\n' +
+            'Direccion: ' + conv.pedido.direccion + '\n\n' +
+            'Pedido:\n' + itemsRep2 + '\n\n' +
+            'Total: $' + (conv.pedido.total || 0).toFixed(2) + '\n\n' +
+            'Responde *CONFIRMAR* para aceptar.',
+            negocio.id);
+          // Notificar al dueño de la reasignación
+          await enviarMensaje(negocio.whatsapp_dueno,
+            '⚠️ Reasignacion de repartidor\n\nEl repartidor anterior no confirmó.\nNuevo repartidor: ' + siguiente.nombre + '\nCliente: ' + (conv.pedido.nombre_cliente || conv.numero),
+            negocio.id);
+        } else {
+          // No hay mas repartidores — avisar al dueño
+          conv.pedido.esperando_confirmacion_rep = false;
+          await enviarMensaje(negocio.whatsapp_dueno,
+            '🚨 Sin repartidores disponibles!\n\nNingun repartidor confirmó el pedido de ' + (conv.pedido.nombre_cliente || conv.numero) + '\nEntrega: ' + horaEntrega + '\nDireccion: ' + conv.pedido.direccion + '\n\nPor favor atiende este pedido manualmente.',
+            negocio.id);
+        }
+      }
+    }
+  }
+}, 5 * 60 * 1000); // revisar cada 5 minutos
 
 // ─── ENVÍO MENSAJES ───────────────────────────────────────────────────────────
 
