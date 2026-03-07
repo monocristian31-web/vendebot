@@ -947,7 +947,7 @@ function agregarGrupoModificador() {
   div.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
       '<span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ' + (idx+1) + '</span>' +
-      '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕ Eliminar grupo</button>' +
+      '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest(&quot;.mod-block&quot;).remove()">✕ Eliminar grupo</button>' +
     '</div>' +
     '<label>Nombre del grupo</label>' +
     '<input type="text" class="mod-nombre" placeholder="Ej: Salsas, Tamaño, Extras..." style="margin-bottom:10px;">' +
@@ -990,7 +990,7 @@ function renderModificadores(mods) {
     div.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
         '<span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ' + (gi+1) + '</span>' +
-        '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕ Eliminar grupo</button>' +
+        '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest(&quot;.mod-block&quot;).remove()">✕ Eliminar grupo</button>' +
       '</div>' +
       '<label>Nombre del grupo</label>' +
       '<input type="text" class="mod-nombre" placeholder="Ej: Salsas, Tamaño, Extras..." value="' + (g.nombre || '') + '" style="margin-bottom:10px;">' +
