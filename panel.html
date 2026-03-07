@@ -1174,16 +1174,39 @@ async function cancelarCita(id){if(!confirm('¿Cancelar cita?'))return;await api
 
 async function cargarWhatsApp(){verificarEstadoWA();}
 async function verificarEstadoWA(){
-  const r=await api(`/panel/${SLUG}/whatsapp/estado`);const dot=document.getElementById('wa-dot');const txt=document.getElementById('wa-estado-txt');const bc=document.getElementById('btn-conectar');const bd=document.getElementById('btn-desconectar');const cqr=document.getElementById('card-qr');
-  if(r?.conectado){dot.style.background='var(--g)';dot.style.boxShadow='0 0 8px var(--g)';txt.textContent='Conectado';bc.style.display='none';bd.style.display='';cqr.style.display='none';}
-  else if(r?.estado==='qr'){dot.style.background='var(--gold)';dot.style.boxShadow='0 0 8px var(--gold)';txt.textContent='Esperando QR';if(r.qr){cqr.style.display='block';document.getElementById('wa-qr-img').src=r.qr;}bc.style.display='';bd.style.display='none';}
-  else{dot.style.background='var(--r)';dot.style.boxShadow='0 0 8px var(--r)';txt.textContent='Desconectado';bc.style.display='';bd.style.display='none';cqr.style.display='none';}
-  if(r?.estado!=='conectado')setTimeout(verificarEstadoWA,4000);
+  const r=await api(`/panel/${SLUG}/whatsapp/estado`);
+  if(!r) { setTimeout(verificarEstadoWA, 4000); return; }
+  const dot=document.getElementById('wa-dot');
+  const txt=document.getElementById('wa-estado-txt');
+  const bc=document.getElementById('btn-conectar');
+  const bd=document.getElementById('btn-desconectar');
+  const cqr=document.getElementById('card-qr');
+  const estado = r.estado || 'desconectado';
+  if(estado === 'conectado'){
+    dot.style.background='var(--g)';dot.style.boxShadow='0 0 8px var(--g)';
+    txt.textContent='Conectado';bc.style.display='none';bd.style.display='';cqr.style.display='none';
+  } else if(estado === 'qr'){
+    dot.style.background='var(--gold)';dot.style.boxShadow='0 0 8px var(--gold)';
+    txt.textContent='Esperando QR...';bc.style.display='none';bd.style.display='none';
+    if(r.qr){ cqr.style.display='block'; document.getElementById('wa-qr-img').src=r.qr; }
+    setTimeout(verificarEstadoWA, 3000);
+  } else {
+    dot.style.background='var(--r)';dot.style.boxShadow='0 0 8px var(--r)';
+    txt.textContent='Desconectado';bc.style.display='';bd.style.display='none';cqr.style.display='none';
+    // No hacer polling cuando está desconectado — solo al conectar
+  }
 }
 async function conectarWhatsApp(){await api(`/panel/${SLUG}/whatsapp/conectar`,{method:'POST'});setTimeout(verificarEstadoWA,1500);}
 async function desconectarWhatsApp(){if(!confirm('¿Desconectar WhatsApp?'))return;await api(`/panel/${SLUG}/whatsapp/desconectar`,{method:'POST'});verificarEstadoWA();}
 async function cargarListaBlanca(){const r=await api(`/panel/${SLUG}/lista-blanca`);renderListaBlanca(r||[]);}
-function renderListaBlanca(lista){document.getElementById('lb-lista').innerHTML=lista.length?lista.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--b);"><div><div style="font-family:var(--fm);font-size:13px;color:var(--tx)">${e.numero}</div><div style="font-family:var(--fm);font-size:10px;color:var(--t3)">${e.etiqueta||''}</div></div><button class="btn btn-danger btn-sm" onclick="eliminarListaBlanca('${e.numero}')">✕</button></div>`).join(''):'<div style="font-family:var(--fm);font-size:11px;color:var(--t3);">Lista vacía</div>';}
+function renderListaBlanca(lista){
+  if(!Array.isArray(lista)) lista=[];
+  // Normalizar: acepta array de strings o array de objetos {numero, etiqueta}
+  const items = lista.map(e => typeof e === 'string' ? {numero:e, etiqueta:''} : e).filter(e => e && e.numero);
+  document.getElementById('lb-lista').innerHTML = items.length
+    ? items.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--b);"><div><div style="font-family:var(--fm);font-size:13px;color:var(--tx)">${e.numero}</div><div style="font-family:var(--fm);font-size:10px;color:var(--t3)">${e.etiqueta||''}</div></div><button class="btn btn-danger btn-sm" onclick="eliminarListaBlanca('${e.numero}')">✕</button></div>`).join('')
+    : '<div style="font-family:var(--fm);font-size:11px;color:var(--t3);">Lista vacía</div>';
+}
 async function agregarListaBlanca(){const num=document.getElementById('lb-numero').value.trim();if(!num)return;await api(`/panel/${SLUG}/lista-blanca`,{method:'POST',body:JSON.stringify({numero:num,etiqueta:document.getElementById('lb-etiqueta').value.trim()})});document.getElementById('lb-numero').value='';document.getElementById('lb-etiqueta').value='';cargarListaBlanca();}
 async function eliminarListaBlanca(num){await api(`/panel/${SLUG}/lista-blanca/${num}`,{method:'DELETE'});cargarListaBlanca();}
 
