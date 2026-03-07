@@ -30,8 +30,7 @@ async function inicializarDB() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS datos (
       clave TEXT PRIMARY KEY,
-      valor JSONB NOT NULL,
-      actualizado TIMESTAMPTZ DEFAULT NOW()
+      valor JSONB NOT NULL
     )
   `);
   console.log('✓ PostgreSQL conectado');
@@ -78,7 +77,7 @@ async function cargarDB(clave, defecto) {
 async function guardarDB(clave, data) {
   try {
     await db.query(
-      'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2, actualizado = NOW()',
+      'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2',
       [clave, JSON.stringify(data)]
     );
   } catch (e) { console.error('Error guardando en DB:', e.message); }
