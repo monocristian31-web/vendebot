@@ -911,23 +911,97 @@ async function cargarResenas(){
   document.getElementById('resenasList').innerHTML=arr.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map(r=>`<div class="resena-card"><div class="resena-stars">${'★'.repeat(r.rating||0)}${'☆'.repeat(5-(r.rating||0))}</div><div class="resena-text">${r.comentario||'Sin comentario'}</div><div class="resena-meta">// ${r.cliente||r.numero} · ${new Date(r.fecha).toLocaleDateString('es-EC')}</div></div>`).join('');
 }
 
-function agregarGrupoModificador(){
-  const c=document.getElementById('modificadoresContainer');
-  const idx=c.querySelectorAll('.mod-block').length;
-  const div=document.createElement('div');div.className='mod-block';div.style.cssText='border:1px solid var(--b);padding:14px;margin-bottom:12px;';
-  div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ${idx+1}</span><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕</button></div><label>Nombre del grupo</label><input type="text" class="mod-nombre" placeholder="Extras, Tamaño..."><label>Tipo</label><select class="mod-tipo"><option value="unico">Una opción (radio)</option><option value="multiple">Varias opciones</option></select><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal;cursor:pointer;"><input type="checkbox" class="mod-obligatorio" style="width:auto;clip-path:none;"> Obligatorio</label><label>Opciones (nombre:precio, una por línea)</label><textarea class="mod-opciones" rows="3" placeholder="Normal:0&#10;Extra queso:1.50&#10;Sin cebolla:-0.25"></textarea>`;
-  c.appendChild(div);
-  const neg=negocioData;if(neg?.catalogo?.some(p=>p.mitad_mitad)||neg?.tiene_mitad_mitad)document.getElementById('bloqueMitadMitad').style.display='block';
+function crearFilaOpcion(nombre, precio) {
+  nombre = nombre || '';
+  precio = precio !== undefined ? precio : 0;
+  const fila = document.createElement('div');
+  fila.className = 'mod-opcion-fila';
+  fila.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+  fila.innerHTML = '<input type="text" class="mod-op-nombre" placeholder="Ej: Salsa de tomate" style="flex:1;margin:0;" value="' + nombre + '">' +
+    '<input type="number" class="mod-op-precio" placeholder="0.00" step="0.01" style="width:90px;margin:0;" value="' + precio + '">' +
+    '<button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="flex-shrink:0;">✕</button>';
+  return fila;
 }
 
-function renderModificadores(mods){
-  const c=document.getElementById('modificadoresContainer');c.innerHTML='';
-  mods.forEach((g,idx)=>{
-    const div=document.createElement('div');div.className='mod-block';div.style.cssText='border:1px solid var(--b);padding:14px;margin-bottom:12px;';
-    div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ${idx+1}</span><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕</button></div><label>Nombre del grupo</label><input type="text" class="mod-nombre" placeholder="Extras, Tamaño..." value="${g.nombre||''}"><label>Tipo</label><select class="mod-tipo"><option value="unico" ${g.tipo==='unico'?'selected':''}>Una opción (radio)</option><option value="multiple" ${g.tipo==='multiple'?'selected':''}>Varias opciones</option></select><label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal;cursor:pointer;"><input type="checkbox" class="mod-obligatorio" style="width:auto;clip-path:none;" ${g.obligatorio?'checked':''}> Obligatorio</label><label>Opciones (nombre:precio)</label><textarea class="mod-opciones" rows="3" placeholder="Normal:0&#10;Extra queso:1.50">${(g.opciones||[]).map(o=>o.nombre+':'+(o.precio||0)).join('\n')}</textarea>`;
+function agregarGrupoModificador() {
+  const c = document.getElementById('modificadoresContainer');
+  const idx = c.querySelectorAll('.mod-block').length;
+  const div = document.createElement('div');
+  div.className = 'mod-block';
+  div.style.cssText = 'border:1px solid var(--b);border-radius:8px;padding:14px;margin-bottom:12px;background:var(--s1);';
+  div.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+      '<span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ' + (idx+1) + '</span>' +
+      '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕ Eliminar grupo</button>' +
+    '</div>' +
+    '<label>Nombre del grupo</label>' +
+    '<input type="text" class="mod-nombre" placeholder="Ej: Salsas, Tamaño, Extras..." style="margin-bottom:10px;">' +
+    '<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">' +
+      '<select class="mod-tipo" style="width:auto;margin:0;font-size:12px;">' +
+        '<option value="multiple">Múltiple (varias opciones)</option>' +
+        '<option value="unico">Único (una sola opción)</option>' +
+      '</select>' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:normal;font-size:13px;margin:0;">' +
+        '<input type="checkbox" class="mod-obligatorio" style="width:15px;height:15px;clip-path:none;accent-color:var(--c);"> Obligatorio' +
+      '</label>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:6px;">' +
+      '<span style="flex:1;font-size:11px;color:var(--t3);font-family:var(--fm);">Nombre de la opción</span>' +
+      '<span style="width:90px;font-size:11px;color:var(--t3);font-family:var(--fm);">Precio extra</span>' +
+      '<span style="width:32px;"></span>' +
+    '</div>' +
+    '<div class="mod-opciones-lista"></div>' +
+    '<button type="button" class="btn btn-secondary btn-sm" onclick="agregarOpcionAGrupo(this)" style="margin-top:6px;">+ Agregar opción</button>';
+  c.appendChild(div);
+  div.querySelector('.mod-opciones-lista').appendChild(crearFilaOpcion());
+  const neg = negocioData;
+  if (neg && neg.catalogo && (neg.catalogo.some(function(p){ return p.mitad_mitad; }) || neg.tiene_mitad_mitad)) {
+    document.getElementById('bloqueMitadMitad').style.display = 'block';
+  }
+}
+
+function agregarOpcionAGrupo(btn) {
+  btn.previousElementSibling.appendChild(crearFilaOpcion());
+}
+
+function renderModificadores(mods) {
+  const c = document.getElementById('modificadoresContainer');
+  c.innerHTML = '';
+  if (!mods || !mods.length) return;
+  mods.forEach(function(g, gi) {
+    const div = document.createElement('div');
+    div.className = 'mod-block';
+    div.style.cssText = 'border:1px solid var(--b);border-radius:8px;padding:14px;margin-bottom:12px;background:var(--s1);';
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<span style="font-family:var(--fh);font-size:11px;letter-spacing:.1em;color:var(--c)">// GRUPO ' + (gi+1) + '</span>' +
+        '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.mod-block').remove()">✕ Eliminar grupo</button>' +
+      '</div>' +
+      '<label>Nombre del grupo</label>' +
+      '<input type="text" class="mod-nombre" placeholder="Ej: Salsas, Tamaño, Extras..." value="' + (g.nombre || '') + '" style="margin-bottom:10px;">' +
+      '<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">' +
+        '<select class="mod-tipo" style="width:auto;margin:0;font-size:12px;">' +
+          '<option value="multiple"' + (g.tipo !== 'unico' ? ' selected' : '') + '>Múltiple (varias opciones)</option>' +
+          '<option value="unico"' + (g.tipo === 'unico' ? ' selected' : '') + '>Único (una sola opción)</option>' +
+        '</select>' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:normal;font-size:13px;margin:0;">' +
+          '<input type="checkbox" class="mod-obligatorio" style="width:15px;height:15px;clip-path:none;accent-color:var(--c);"' + (g.obligatorio ? ' checked' : '') + '> Obligatorio' +
+        '</label>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:6px;">' +
+        '<span style="flex:1;font-size:11px;color:var(--t3);font-family:var(--fm);">Nombre de la opción</span>' +
+        '<span style="width:90px;font-size:11px;color:var(--t3);font-family:var(--fm);">Precio extra</span>' +
+        '<span style="width:32px;"></span>' +
+      '</div>' +
+      '<div class="mod-opciones-lista"></div>' +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="agregarOpcionAGrupo(this)" style="margin-top:6px;">+ Agregar opción</button>';
     c.appendChild(div);
+    const lista = div.querySelector('.mod-opciones-lista');
+    (g.opciones || []).forEach(function(op) {
+      lista.appendChild(crearFilaOpcion(op.nombre, op.precio));
+    });
+    if (!g.opciones || !g.opciones.length) lista.appendChild(crearFilaOpcion());
   });
-  if(mods.length)document.getElementById('bloqueMitadMitad').style.display='block';
 }
 
 function actualizarVisibilidadMitadMitad(){const mm=document.getElementById('mitadMitadConfig');if(mm)mm.style.display=document.getElementById('cfg_tiene_mitad_mitad')?.checked?'block':'none';}
@@ -935,7 +1009,7 @@ function toggleMitadMitad(checked){document.getElementById('mitadMitadConfig').s
 
 async function guardarProducto(){
   const id=document.getElementById('p_id').value;
-  const mods=[];document.querySelectorAll('.mod-block').forEach(b=>{const nom=b.querySelector('.mod-nombre').value.trim();if(!nom)return;const tipo=b.querySelector('.mod-tipo').value;const oblig=b.querySelector('.mod-obligatorio').checked;const opcLines=b.querySelector('.mod-opciones').value.split('\n').filter(l=>l.trim());const opciones=opcLines.map(l=>{const[n,...rest]=l.split(':');const precio=parseFloat(rest.join(':'))||0;return{nombre:n.trim(),precio};});mods.push({nombre:nom,tipo,obligatorio:oblig,opciones});});
+  const mods=[];document.querySelectorAll('.mod-block').forEach(function(b){const nom=b.querySelector('.mod-nombre').value.trim();if(!nom)return;const tipo=b.querySelector('.mod-tipo').value;const oblig=b.querySelector('.mod-obligatorio').checked;const opciones=[];b.querySelectorAll('.mod-opcion-fila').forEach(function(fila){const nombre=fila.querySelector('.mod-op-nombre').value.trim();if(!nombre)return;const precio=parseFloat(fila.querySelector('.mod-op-precio').value)||0;opciones.push({nombre,precio});});if(opciones.length>0)mods.push({nombre:nom,tipo,obligatorio:oblig,opciones});});
   const mitad_mitad=document.getElementById('p_mitad_mitad')?.checked||false;
   const ingredientes_mitad=mitad_mitad?(document.getElementById('p_ingredientes_mitad').value||'').split('\n').filter(x=>x.trim()):[];
   const data={nombre:document.getElementById('p_nombre').value,precio:parseFloat(document.getElementById('p_precio').value)||0,emoji:document.getElementById('p_emoji').value,stock:document.getElementById('p_stock').value!==''?parseInt(document.getElementById('p_stock').value):null,categoria:document.getElementById('p_categoria').value,descripcion:document.getElementById('p_descripcion').value,imagen:document.getElementById('p_imagen').value,activo:document.getElementById('p_activo').checked,destacado:document.getElementById('p_destacado').checked,modificadores:mods,mitad_mitad,ingredientes_mitad};
