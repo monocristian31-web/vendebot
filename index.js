@@ -137,7 +137,6 @@ async function enviarMensaje(numero, mensaje, negocioId) {
   try {
     const jid = numero.includes('@') ? numero : `${numero.replace(/\D/g, '')}@s.whatsapp.net`;
     await sesion.sock.sendMessage(jid, { text: mensaje });
-    console.log(`Enviado [${numero}] ${mensaje.substring(0, 60)}`);
   } catch (err) { console.error(`Error enviando: ${err.message}`); }
 }
 
@@ -367,7 +366,6 @@ NOMBRE_CLIENTE: `;
   return { mensaje: mensajeFinal, imagenesIds: imgs, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo };
 }
 
-
 // ─── PROCESAR MENSAJE ENTRANTE (Baileys) ──────────────────────────────────────
 async function procesarMensajeBaileys(msg, negocio, sock) {
   try {
@@ -380,7 +378,6 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
 
     // ── LISTA BLANCA: si el número está en la lista, el bot no responde ──
     if (estaEnListaBlanca(numero, negocio)) {
-      console.log(`[Lista blanca] Ignorando mensaje de ${numero} en ${negocio.nombre}`);
       return;
     }
 
@@ -478,7 +475,6 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
     const texto = (msg.message?.conversation || msg.message?.extendedTextMessage?.text || '').trim();
     if (!texto) return;
     const textoLower = texto.toLowerCase();
-
 
     // ── Calificación de reseña ──
     const clienteData = cargarClientes()[numero];
@@ -979,17 +975,16 @@ setInterval(async () => {
 
 // ─── ENVÍO MENSAJES ───────────────────────────────────────────────────────────
 
-
 // ─── API ADMIN ────────────────────────────────────────────────────────────────
-app.get('/admin/negocios', (req, res) => res.json(cargarNegocios()));
-app.post('/admin/negocios', (req, res) => {
+app.get('/admin/negocios', authAdmin, (req, res) => res.json(cargarNegocios()));
+app.post('/admin/negocios', authAdmin, (req, res) => {
   const negocios = cargarNegocios();
   const nuevo = { id: 'negocio_' + Date.now(), activo: true, catalogo: [], modo_vacaciones: false, tiempo_entrega: '30-45 minutos', politica_devoluciones: '', mensajes: { bienvenida: 'Hola! Bienvenido/a. En que puedo ayudarte?', tono: 'amigable' }, ...req.body };
   negocios.push(nuevo);
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true, negocio: nuevo });
 });
-app.put('/admin/negocios/:id', (req, res) => {
+app.put('/admin/negocios/:id', authAdmin, (req, res) => {
   const negocios = cargarNegocios();
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
@@ -997,12 +992,12 @@ app.put('/admin/negocios/:id', (req, res) => {
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
-app.delete('/admin/negocios/:id', (req, res) => {
+app.delete('/admin/negocios/:id', authAdmin, (req, res) => {
   const negocios = cargarNegocios().filter(n => n.id !== req.params.id);
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
-app.put('/admin/negocios/:id/vacaciones', (req, res) => {
+app.put('/admin/negocios/:id/vacaciones', authAdmin, (req, res) => {
   const negocios = cargarNegocios();
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
@@ -1011,36 +1006,36 @@ app.put('/admin/negocios/:id/vacaciones', (req, res) => {
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
-app.get('/admin/clientes', (req, res) => res.json(cargarClientes()));
-app.get('/admin/puntos', (req, res) => res.json(cargarPuntos()));
-app.get('/admin/cupones', (req, res) => res.json(cargarCupones()));
-app.post('/admin/cupones', (req, res) => {
+app.get('/admin/clientes', authAdmin, (req, res) => res.json(cargarClientes()));
+app.get('/admin/puntos', authAdmin, (req, res) => res.json(cargarPuntos()));
+app.get('/admin/cupones', authAdmin, (req, res) => res.json(cargarCupones()));
+app.post('/admin/cupones', authAdmin, (req, res) => {
   const cupones = cargarCupones();
   const nuevo = { id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body };
   cupones.push(nuevo);
   guardarJSON('./cupones.json', cupones);
   res.json({ ok: true, cupon: nuevo });
 });
-app.delete('/admin/cupones/:id', (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/cupones/:id', authAdmin, (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
 // Ruta de referidos eliminada
-app.get('/admin/repartidores', (req, res) => res.json(cargarRepartidores()));
-app.post('/admin/repartidores', (req, res) => {
+app.get('/admin/repartidores', authAdmin, (req, res) => res.json(cargarRepartidores()));
+app.post('/admin/repartidores', authAdmin, (req, res) => {
   const reps = cargarRepartidores();
   const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
   reps.push(nuevo);
   guardarJSON('./repartidores.json', reps);
   res.json({ ok: true });
 });
-app.get('/admin/promociones', (req, res) => res.json(cargarPromociones()));
-app.post('/admin/promociones', (req, res) => {
+app.get('/admin/promociones', authAdmin, (req, res) => res.json(cargarPromociones()));
+app.post('/admin/promociones', authAdmin, (req, res) => {
   const promos = cargarPromociones();
   promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
   guardarJSON('./promociones.json', promos);
   res.json({ ok: true });
 });
-app.delete('/admin/promociones/:id', (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
+app.delete('/admin/promociones/:id', authAdmin, (req, res) => { guardarJSON('./promociones.json', cargarPromociones().filter(p => p.id !== req.params.id)); res.json({ ok: true }); });
 
-app.post('/admin/masivo', async (req, res) => {
+app.post('/admin/masivo', authAdmin, async (req, res) => {
   const { mensaje, solo_frecuentes } = req.body;
   if (!mensaje) return res.status(400).json({ error: 'Mensaje requerido' });
   const clientes = cargarClientes();
@@ -1051,13 +1046,11 @@ app.post('/admin/masivo', async (req, res) => {
     await enviarMensaje(cliente.numero, mensaje);
     enviados++;
     await new Promise(r => setTimeout(r, 1500));
-    if (enviados % 10 === 0) console.log(`Masivo: ${enviados}/${lista.length} enviados`);
   }
-  console.log(`Envio masivo completado: ${enviados} mensajes`);
 });
 
-app.get('/admin/pedidos', (req, res) => res.json(cargarPedidosPendientes()));
-app.get('/admin/stats', (req, res) => {
+app.get('/admin/pedidos', authAdmin, (req, res) => res.json(cargarPedidosPendientes()));
+app.get('/admin/stats', authAdmin, (req, res) => {
   const n = cargarNegocios();
   const c = cargarClientes();
   const clientes = Object.values(c);
@@ -1150,7 +1143,6 @@ app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].bot_activo = req.body.activo;
   guardarJSON('./negocios.json', negocios);
-  console.log(`Bot ${req.body.activo ? 'activado' : 'desactivado'} para ${req.params.slug}`);
   res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
 app.get('/panel/:slug/stats', authPanel, (req, res) => {
@@ -1298,6 +1290,120 @@ app.post('/panel/:slug/responder', authPanel, async (req, res) => {
     const conv = conversaciones.get(key);
     if (conv) conv.historial.push({ role: 'assistant', content: `[Dueno]: ${mensaje}` });
   }
+  res.json({ ok: true });
+});
+
+// ─── CHAT MANUAL (alias de /responder para compatibilidad panel) ──────────────
+app.post('/panel/:slug/chat-manual', authPanel, async (req, res) => {
+  const { numero, mensaje } = req.body;
+  if (!numero || !mensaje) return res.status(400).json({ error: 'Faltan datos' });
+  await enviarMensaje(numero, mensaje);
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (negocio) {
+    const key = `${numero}:${negocio.id}`;
+    const conv = conversaciones.get(key);
+    if (conv) conv.historial.push({ role: 'assistant', content: `[Dueño]: ${mensaje}` });
+  }
+  res.json({ ok: true });
+});
+
+// ─── CONFIG DEL NEGOCIO (guardar configuración avanzada) ─────────────────────
+app.post('/panel/:slug/config', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx] = { ...negocios[idx], ...req.body };
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true });
+});
+
+// ─── BOT ON/OFF ───────────────────────────────────────────────────────────────
+app.post('/panel/:slug/bot', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].bot_activo = req.body.activo;
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
+});
+
+// ─── CATÁLOGO — editar producto y stock ───────────────────────────────────────
+app.put('/panel/:slug/catalogo/:id', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  const pIdx = negocios[idx].catalogo.findIndex(p => p.id == req.params.id);
+  if (pIdx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
+  negocios[idx].catalogo[pIdx] = { ...negocios[idx].catalogo[pIdx], ...req.body };
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true });
+});
+
+app.put('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  const pIdx = negocios[idx].catalogo.findIndex(p => p.id == req.params.id);
+  if (pIdx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
+  negocios[idx].catalogo[pIdx].stock = req.body.stock;
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, stock: req.body.stock });
+});
+
+// ─── CITAS CONFIG ─────────────────────────────────────────────────────────────
+app.get('/panel/:slug/citas/config', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  res.json(negocio.citas_config || {});
+});
+
+app.post('/panel/:slug/citas/config', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].citas_config = { ...negocios[idx].citas_config, ...req.body, activo: true };
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true });
+});
+
+// ─── CITAS PRÓXIMAS ───────────────────────────────────────────────────────────
+app.get('/panel/:slug/citas/proximas', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  const ahora = new Date();
+  const proximas = cargarCitas()
+    .filter(c => c.negocio_id === negocio.id && c.estado !== 'cancelada')
+    .filter(c => { try { return new Date(c.fecha + 'T' + c.hora) >= ahora; } catch { return false; } })
+    .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
+    .slice(0, 10);
+  res.json(proximas);
+});
+
+// ─── LISTA BLANCA ─────────────────────────────────────────────────────────────
+function cargarListaBlanca() { return cargarJSON('./lista_blanca.json', []); }
+function guardarListaBlanca(lb) { guardarJSON('./lista_blanca.json', lb); }
+
+app.get('/panel/:slug/lista-blanca', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.json([]);
+  res.json(cargarListaBlanca().filter(e => e.negocio_id === negocio.id));
+});
+
+app.post('/panel/:slug/lista-blanca', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const lb = cargarListaBlanca();
+  const existe = lb.find(e => e.numero === req.body.numero && e.negocio_id === negocio.id);
+  if (existe) return res.json({ ok: true, ya_existe: true });
+  lb.push({ numero: req.body.numero, etiqueta: req.body.etiqueta || '', negocio_id: negocio.id, fecha: new Date().toISOString() });
+  guardarListaBlanca(lb);
+  res.json({ ok: true });
+});
+
+app.delete('/panel/:slug/lista-blanca/:numero', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  guardarListaBlanca(cargarListaBlanca().filter(e => !(e.numero === req.params.numero && e.negocio_id === negocio.id)));
   res.json({ ok: true });
 });
 
