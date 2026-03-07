@@ -469,12 +469,24 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
 
     if (negocio.bot_activo === false) return;
     if (negocio.modo_vacaciones) {
-      await enviar(numero, negocio.mensaje_vacaciones || `Hola! ${negocio.nombre} esta de vacaciones. Volvemos pronto!`);
+      await enviar(numero, negocio.mensaje_vacaciones || negocio.mensajes?.vacaciones || ('Hola! ' + negocio.nombre + ' esta de vacaciones. Volvemos pronto!'));
       return;
     }
-    if (!estaEnHorario()) {
-      const dias = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
-      await enviar(numero, `Hola! ${negocio.nombre} esta fuera de horario.\n\nAtencion: ${HORARIO.dias.map(d => dias[d]).join(', ')}\n8:00 am - 6:00 pm`);
+    if (!estaAbiertoAhora(negocio)) {
+      // Armar horario dinámico desde el panel
+      const zona = 'America/Guayaquil';
+      const ahoraEC = new Date(new Date().toLocaleString('en-US', { timeZone: zona }));
+      const diasNombres = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+      let horarioTexto = '';
+      if (negocio.horarios) {
+        const lineas = Object.entries(negocio.horarios)
+          .filter(([, h]) => h && h.abierto)
+          .map(([dia, h]) => dia + ': ' + h.desde + ' - ' + h.hasta);
+        horarioTexto = lineas.length ? lineas.join('\n') : 'Horario no configurado';
+      } else {
+        horarioTexto = 'Lunes a Sábado: 8:00 - 18:00';
+      }
+      await enviar(numero, 'Hola! ' + negocio.nombre + ' esta fuera de horario en este momento.\n\nNuestro horario de atención:\n' + horarioTexto + '\n\nEscríbenos en horario de atención y con gusto te ayudamos!');
       return;
     }
 
@@ -722,7 +734,19 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
       await enviar(numero, msg);
       return;
     }
-    if (textoLower === 'horario') { await enviar(numero, `Horario de ${negocio.nombre}:\n\nLunes a Sabado: 8am - 6pm\nDomingos: Cerrado`); return; }
+    if (textoLower === 'horario') {
+      let horarioTexto = '';
+      if (negocio.horarios) {
+        const lineas = Object.entries(negocio.horarios)
+          .filter(([, h]) => h && h.abierto)
+          .map(([dia, h]) => '• ' + dia + ': ' + h.desde + ' - ' + h.hasta);
+        horarioTexto = lineas.length ? lineas.join('\n') : 'Horario no configurado en el panel.';
+      } else {
+        horarioTexto = 'Lunes a Sábado: 8:00 - 18:00\nDomingos: Cerrado';
+      }
+      await enviar(numero, 'Horario de ' + negocio.nombre + ':\n\n' + horarioTexto);
+      return;
+    }
     if (textoLower === 'devoluciones' || textoLower === 'politica de devoluciones') {
       await enviar(numero, negocio.politica_devoluciones || `Politica de devoluciones:\n\n- 24 horas para reportar problemas.\n- Productos en estado original.\n- Contactanos por este WhatsApp.`);
       return;
@@ -1091,25 +1115,29 @@ setInterval(() => {
 
 // ─── TAREAS AUTOMÁTICAS ───────────────────────────────────────────────────────
 setInterval(async () => {
-  if (!estaEnHorario()) return;
   const ahora = Date.now();
   for (const [key, conv] of conversaciones) {
     if (conv.esperando === 'boucher' && !conv.recordatorio_pago_enviado && ahora - conv.ultimo_mensaje > 30 * 60 * 1000) {
       const negocio = cargarNegocios().find(n => n.id === conv.negocio_id);
-      if (negocio) { await enviarMensaje(conv.numero, 'Hola! Te recuerdo que tu pedido esta pendiente de pago. Cuando puedas envíame el comprobante.'); conv.recordatorio_pago_enviado = true; }
+      if (negocio && estaAbiertoAhora(negocio)) {
+        await enviarMensaje(conv.numero, 'Hola! Te recuerdo que tu pedido esta pendiente de pago. Cuando puedas enviame el comprobante.', negocio.id);
+        conv.recordatorio_pago_enviado = true;
+      }
     }
   }
 }, 30 * 60 * 1000);
 
 setInterval(async () => {
-  if (!estaEnHorario()) return;
   const pendientes = cargarPedidosPendientes();
   const hoy = horaActual().toLocaleDateString('es-EC');
   let cambios = false;
   for (const p of pendientes) {
     if (!p.recordatorio_enviado && !p.entrega_confirmada && p.pedido.fecha_entrega === hoy) {
-      await enviarMensaje(p.numero, `Hola! Hoy es el dia de entrega de tu pedido en ${p.negocio}. Nos pondremos en contacto pronto!`);
-      p.recordatorio_enviado = true; cambios = true;
+      const neg = cargarNegocios().find(n => n.nombre === p.negocio || n.id === p.negocio_id);
+      if (!neg || estaAbiertoAhora(neg)) { // si no hay negocio igual avisa
+        await enviarMensaje(p.numero, 'Hola! Hoy es el dia de entrega de tu pedido en ' + p.negocio + '. Nos pondremos en contacto pronto!', neg?.id);
+        p.recordatorio_enviado = true; cambios = true;
+      }
     }
   }
   if (cambios) guardarPedidosPendientes(pendientes);
@@ -1156,7 +1184,6 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 
 setInterval(async () => {
-  if (!estaEnHorario()) return;
   const clientes = cargarClientes();
   const ahora = Date.now();
   let cambios = false;
@@ -1522,7 +1549,6 @@ app.post('/panel/:slug/upload', uploadMiddleware.single('imagen'), async (req, r
 // ─── ALERTAS DE STOCK BAJO ────────────────────────────────────
 const STOCK_MINIMO = 3;
 setInterval(async () => {
-  if (!estaEnHorario()) return;
   const negocios = cargarNegocios();
   for (const negocio of negocios.filter(n => n.activo)) {
     const stockBajo = (negocio.catalogo || []).filter(p => p.stock !== undefined && p.stock <= STOCK_MINIMO && p.stock > 0);
@@ -1756,7 +1782,6 @@ function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDe
 }
 
 setInterval(async () => {
-  if (!estaEnHorario()) return;
   const clientes = cargarClientes();
   const ahora = Date.now();
   let cambios = false;
