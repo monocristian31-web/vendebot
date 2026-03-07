@@ -127,7 +127,7 @@ async function iniciarSesion(negocio) {
       const QRCode = require('qrcode');
       const qrBase64 = await QRCode.toDataURL(qr);
       sesiones.get(id).qr = qrBase64;
-      sesiones.get(id).estado = 'esperando_qr';
+      sesiones.get(id).estado = 'qr';
       console.log(`QR generado para negocio: ${negocio.nombre}`);
       notificarPanel(negocio.slug || id, { tipo: 'qr_actualizado', qr: qrBase64 });
     }
@@ -1830,6 +1830,4 @@ app.listen(PORT, async () => {
   // Iniciar sesiones WhatsApp de todos los negocios activos
   await iniciarTodasLasSesiones();
 });
- 
-  
  
