@@ -271,7 +271,11 @@ function generarMensajePago(conv, negocio) {
     msg += `\n\n¡Tu pedido está confirmado! Te avisaremos cuando el repartidor esté en camino. 🛵`;
     return msg;
   }
-  return `Datos para el pago:\n\nBanco: ${negocio.banco}\nCuenta: ${negocio.numero_cuenta}\nTitular: ${negocio.titular_cuenta}\nMonto exacto: $${conv.pedido.total?.toFixed(2) || '0.00'}\n\nEnvíame el comprobante (foto) para confirmar.`;
+  const banco = negocio.banco || 'Consultar con el negocio';
+  const cuenta = negocio.numero_cuenta || 'Consultar con el negocio';
+  const titular = negocio.titular_cuenta || negocio.nombre;
+  const tipoCuenta = negocio.tipo_cuenta ? ('\nTipo: ' + negocio.tipo_cuenta) : '';
+  return 'Datos para el pago:\n\nBanco: ' + banco + '\nCuenta: ' + cuenta + '\nTitular: ' + titular + tipoCuenta + '\nMonto exacto: $' + (conv.pedido.total ? conv.pedido.total.toFixed(2) : '0.00') + '\n\nEnviame el comprobante (foto) para confirmar.';
 }
 
 async function notificarDueno(conv, negocio) {
@@ -436,13 +440,15 @@ NOMBRE_CLIENTE: `;
 }
 
 // ─── PROCESAR MENSAJE ENTRANTE (Baileys) ──────────────────────────────────────
-async function procesarMensajeBaileys(msg, negocio, sock) {
+async function procesarMensajeBaileys(msg, negocioBase, sock) {
   try {
     const jid = msg.key.remoteJid;
     if (!jid || jid.endsWith('@g.us')) return; // ignorar grupos
 
     // Número limpio sin @s.whatsapp.net
     const numero = jid.replace('@s.whatsapp.net', '');
+    // Obtener negocio FRESCO del cache (por si el dueno cambio datos desde el panel)
+    const negocio = cargarNegocios().find(n => n.id === negocioBase.id) || negocioBase;
     const enviar = (dest, texto) => enviarMensaje(dest, texto, negocio.id);
 
     // ── LISTA BLANCA: si el número está en la lista, el bot no responde ──
@@ -522,7 +528,7 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
       conv.pedido.es_domicilio = true;
       conv.esperando = 'costo_delivery';
       conv.etapa = 'delivery';
-      const reps = cargarRepartidores().filter(r => r.activo !== false && r.negocio_id === negocio.id);
+      const reps = (negocio.repartidores || cargarRepartidores().filter(r => r.negocio_id === negocio.id)).filter(r => r.activo !== false);
       if (reps.length > 0) {
         const rep = reps[0];
         conv.pedido.repartidor_whatsapp = rep.whatsapp;
@@ -596,6 +602,17 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
     if (['cancelar', 'cancel'].includes(textoLower)) {
       if (conv.etapa === 'confirmado') { await enviar(numero, 'Tu pedido ya fue confirmado. Contacta al negocio si necesitas ayuda.'); }
       else { conversaciones.delete(`${numero}:${negocio.id}`); await enviar(numero, 'Pedido cancelado. Escribe cuando necesites algo!'); }
+      return;
+    }
+
+    // Si está esperando boucher (datos bancarios ya enviados) y escribe texto = quiere reiniciar
+    if (conv.esperando === 'boucher' && conv.etapa === 'pago') {
+      if (['reiniciar', 'nuevo pedido', 'otro pedido', 'volver', 'menu', 'inicio'].includes(textoLower)) {
+        conversaciones.delete(`${numero}:${negocio.id}`);
+        await enviar(numero, 'Pedido cancelado. Escribe cuando quieras hacer un nuevo pedido!');
+      } else {
+        await enviar(numero, 'Estoy esperando tu comprobante de pago.\n\nEnviame una foto del comprobante para confirmar tu pedido.\n\nSi quieres cancelar escribe *cancelar*.');
+      }
       return;
     }
     if (textoLower === 'mi pedido' || textoLower === 'ver pedido') {
@@ -708,9 +725,30 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
       conv.etapa = 'consultando';
       const saludos = ['hola', 'buenas', 'hi', 'buenos dias', 'buenas tardes', 'buenas noches', 'hey', 'ola'];
       if (!saludos.includes(textoLower) && texto.length > 6) {
-        const { mensaje: r, imagenesIds } = await procesarConClaude(conv, negocio, texto, cliente);
+        const etapaAntBienvenida = conv.etapa;
+        const { mensaje: r, imagenesIds, mostrarPago: mp, enviarCatalogo: ec } = await procesarConClaude(conv, negocio, texto, cliente);
         if (r) await enviar(numero, r);
-        if (imagenesIds?.length > 0 && conv.etapa !== 'pago') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
+        if (ec) {
+          const slug = negocio.slug || negocio.id;
+          const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
+          await new Promise(res => setTimeout(res, 500));
+          await enviar(numero, 'Aqui puedes ver nuestro menu completo:\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llegara aqui para terminar el pedido');
+        } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago') {
+          for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
+        }
+        if (mp || (conv.etapa === 'pago' && etapaAntBienvenida !== 'pago')) {
+          await new Promise(res => setTimeout(res, 500));
+          await enviarResumenPedido(numero, conv);
+          await new Promise(res => setTimeout(res, 500));
+          await enviar(numero, generarMensajePago(conv, negocio));
+          if (conv.pedido.metodo_pago === 'efectivo') {
+            conv.etapa = 'confirmado';
+            const pg = agregarPuntos(numero, conv.pedido.total, 'Pedido en ' + negocio.nombre);
+            registrarPedido(numero, conv.pedido, negocio.nombre);
+            await notificarDueno(conv, negocio);
+            await enviar(numero, 'Ganaste ' + pg + ' puntos!');
+          } else { conv.esperando = 'boucher'; }
+        }
       }
       return;
     }
@@ -759,6 +797,7 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
       }
     }
 
+    const etapaAnterior = conv.etapa;
     const { mensaje: respuesta, imagenesIds, mostrarPago, enviarCatalogo, pedidoDesdeCatalogo } = await procesarConClaude(conv, negocio, texto, cliente);
     if (respuesta) await enviar(numero, respuesta);
 
@@ -766,20 +805,20 @@ async function procesarMensajeBaileys(msg, negocio, sock) {
       const slug = negocio.slug || negocio.id;
       const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
       await new Promise(r => setTimeout(r, 500));
-      await enviar(numero, `Aquí puedes ver nuestro menú completo y armar tu pedido:\n\n${dominio}/catalogo/${slug}\n\nSelecciona lo que quieras, confirma y te llegará aquí para terminar el pedido 🛒`);
-    }
-
-    if (pedidoDesdeCatalogo && conv.pedido.items?.length > 0) {
+      await enviar(numero, 'Aqui puedes ver nuestro menu completo:\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llegara aqui para terminar el pedido');
+    } else if (pedidoDesdeCatalogo && conv.pedido.items && conv.pedido.items.length > 0) {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
       await new Promise(r => setTimeout(r, 500));
-      await enviar(numero, `Para completar tu pedido necesito algunos datos:\n\n1️⃣ ¿Cuál es tu nombre?\n2️⃣ ¿Es para delivery o retiras en tienda?\n3️⃣ ¿Cuándo lo necesitas?`);
+      await enviar(numero, 'Para completar tu pedido necesito:\n\n1. Tu nombre\n2. Delivery o retiras en tienda?\n3. Cuando lo necesitas?');
       conv.etapa = 'confirmando';
+    } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') {
+      for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
     }
 
-    if (imagenesIds?.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
-
-    if ((conv.etapa === 'pago' || mostrarPago) && conv.esperando !== 'boucher') {
+    // Mostrar pago SOLO cuando se transiciona a etapa pago (no en mensajes repetidos)
+    const transicionandoAPago = mostrarPago || (conv.etapa === 'pago' && etapaAnterior !== 'pago');
+    if (transicionandoAPago && conv.esperando !== 'boucher') {
       await new Promise(r => setTimeout(r, 500));
       await enviarResumenPedido(numero, conv);
       await new Promise(r => setTimeout(r, 500));
@@ -1278,15 +1317,27 @@ app.post('/panel/:slug/cupones', authPanel, (req, res) => {
 app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => { guardarJSON('./cupones.json', cargarCupones().filter(c => c.id !== req.params.id)); res.json({ ok: true }); });
 app.get('/panel/:slug/repartidores', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
-  res.json(cargarRepartidores().filter(r => r.negocio_id === negocio?.id));
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  res.json(negocio.repartidores || []);
 });
 app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
-  const reps = cargarRepartidores();
-  reps.push({ id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body });
-  guardarJSON('./repartidores.json', reps);
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  if (!negocios[idx].repartidores) negocios[idx].repartidores = [];
+  const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
+  negocios[idx].repartidores.push(nuevo);
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, ...nuevo });
+});
+app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].repartidores = (negocios[idx].repartidores || []).filter(r => r.id !== req.params.id);
+  guardarJSON('./negocios.json', negocios);
   res.json({ ok: true });
 });
-app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => { guardarJSON('./repartidores.json', cargarRepartidores().filter(r => r.id !== req.params.id)); res.json({ ok: true }); });
 app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
