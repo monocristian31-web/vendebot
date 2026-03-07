@@ -753,9 +753,24 @@ function switchTab(tab){
   else if(tab==='promociones')cargarPromociones();
 }
 
-async function api(url,opts={}){
-  try{const r=await fetch(BASE+url,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'}});const d=await r.json();return d;}
-  catch(e){console.error('API error',url,e);return null;}
+async function api(url, opts={}) {
+  try {
+    const r = await fetch(BASE+url, {...opts, headers: {...(opts.headers||{}), Authorization:'Bearer '+TOKEN, 'Content-Type':'application/json'}});
+    if (r.status === 401) {
+      // Token inválido (expiró o servidor reinició) — mostrar login
+      TOKEN = '';
+      sessionStorage.removeItem('vb_panel_token_'+SLUG);
+      document.getElementById('loginWrap').style.display = 'flex';
+      const mp = document.getElementById('mainPanel');
+      if (mp) mp.style.display = 'none';
+      return null;
+    }
+    const d = await r.json();
+    return d;
+  } catch(e) {
+    console.error('API error', url, e);
+    return null;
+  }
 }
 
 async function cargarTodo(){
