@@ -15,6 +15,27 @@
   --c:#00d4ff;--r:#ff1a4a;--g:#00ff88;--gold:#ffc200;
   --f:'Rajdhani',sans-serif;--fh:'Orbitron',monospace;--fm:'Share Tech Mono',monospace;
 }
+
+/* ── TEMAS ── */
+[data-theme="blue"]{--c:#00d4ff;--bg:#020912;--bg2:#040e1c;--bg3:#06111e;--s1:rgba(0,212,255,.04);--s2:rgba(0,212,255,.08);--s3:rgba(0,212,255,.13);--b:rgba(0,212,255,.16);--bh:rgba(0,212,255,.45);--tx:#b8e8ff;--t2:#3d7a99;--t3:#1a3f55;}
+[data-theme="green"]{--c:#00ff88;--bg:#021209;--bg2:#04200e;--bg3:#062e14;--s1:rgba(0,255,136,.04);--s2:rgba(0,255,136,.08);--s3:rgba(0,255,136,.13);--b:rgba(0,255,136,.16);--bh:rgba(0,255,136,.45);--tx:#b8ffd8;--t2:#3d9960;--t3:#1a5535;}
+[data-theme="red"]{--c:#ff1a4a;--bg:#120209;--bg2:#200408;--bg3:#2e060c;--s1:rgba(255,26,74,.04);--s2:rgba(255,26,74,.08);--s3:rgba(255,26,74,.13);--b:rgba(255,26,74,.16);--bh:rgba(255,26,74,.45);--tx:#ffb8c8;--t2:#993d50;--t3:#551a28;}
+[data-theme="purple"]{--c:#a855f7;--bg:#0a0212;--bg2:#110420;--bg3:#18062e;--s1:rgba(168,85,247,.04);--s2:rgba(168,85,247,.08);--s3:rgba(168,85,247,.13);--b:rgba(168,85,247,.16);--bh:rgba(168,85,247,.45);--tx:#e8b8ff;--t2:#7a3d99;--t3:#3f1a55;}
+[data-theme="gold"]{--c:#ffc200;--bg:#120e02;--bg2:#201804;--bg3:#2e2406;--s1:rgba(255,194,0,.04);--s2:rgba(255,194,0,.08);--s3:rgba(255,194,0,.13);--b:rgba(255,194,0,.16);--bh:rgba(255,194,0,.45);--tx:#fff2b8;--t2:#99853d;--t3:#55481a;}
+[data-theme="orange"]{--c:#ff6b00;--bg:#120802;--bg2:#201204;--bg3:#2e1a06;--s1:rgba(255,107,0,.04);--s2:rgba(255,107,0,.08);--s3:rgba(255,107,0,.13);--b:rgba(255,107,0,.16);--bh:rgba(255,107,0,.45);--tx:#ffd8b8;--t2:#99573d;--t3:#55301a;}
+[data-theme="pink"]{--c:#ff2d78;--bg:#120209;--bg2:#200410;--bg3:#2e0618;--s1:rgba(255,45,120,.04);--s2:rgba(255,45,120,.08);--s3:rgba(255,45,120,.13);--b:rgba(255,45,120,.16);--bh:rgba(255,45,120,.45);--tx:#ffb8d4;--t2:#993d60;--t3:#551a35;}
+[data-theme="custom"]{}
+.color-picker-wrap{position:relative;display:inline-block;}
+.color-picker-panel{position:absolute;top:36px;right:0;background:var(--bg2);border:1px solid var(--bh);padding:14px;z-index:9999;display:none;min-width:220px;clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);}
+.color-picker-panel.open{display:block;}
+.cp-title{font-family:var(--fh);font-size:9px;letter-spacing:.15em;color:var(--t2);margin-bottom:10px;}
+.cp-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.cp-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.cp-dot:hover,.cp-dot.active{border-color:#fff;transform:scale(1.15);}
+.cp-custom{display:flex;align-items:center;gap:8px;}
+.cp-custom label{font-family:var(--fm);font-size:10px;color:var(--t2);}
+.cp-custom input[type=color]{width:32px;height:24px;border:1px solid var(--b);background:none;cursor:pointer;padding:0;}
+
 html{-webkit-font-smoothing:antialiased;}
 body{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;font-weight:500;}
 body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
@@ -168,6 +189,25 @@ select option{background:var(--bg2);}
         <div class="admin-badge">ADMINISTRADOR</div>
       </div>
       <div class="header-right">
+        <div class="color-picker-wrap">
+          <button onclick="toggleColorPicker()" style="background:none;border:1px solid var(--b);padding:5px 10px;cursor:pointer;font-family:var(--fh);font-size:9px;letter-spacing:.1em;color:var(--c);">🎨 TEMA</button>
+          <div class="color-picker-panel" id="colorPickerPanel">
+            <div class="cp-title">// SELECCIONAR TEMA</div>
+            <div class="cp-presets">
+              <div class="cp-dot active" data-theme="blue" style="background:#00d4ff;" onclick="setTheme('blue')" title="Azul"></div>
+              <div class="cp-dot" data-theme="green" style="background:#00ff88;" onclick="setTheme('green')" title="Verde neón"></div>
+              <div class="cp-dot" data-theme="red" style="background:#ff1a4a;" onclick="setTheme('red')" title="Rojo"></div>
+              <div class="cp-dot" data-theme="purple" style="background:#a855f7;" onclick="setTheme('purple')" title="Morado"></div>
+              <div class="cp-dot" data-theme="gold" style="background:#ffc200;" onclick="setTheme('gold')" title="Dorado"></div>
+              <div class="cp-dot" data-theme="orange" style="background:#ff6b00;" onclick="setTheme('orange')" title="Naranja"></div>
+              <div class="cp-dot" data-theme="pink" style="background:#ff2d78;" onclick="setTheme('pink')" title="Rosa"></div>
+            </div>
+            <div class="cp-custom">
+              <label>COLOR PERSONALIZADO</label>
+              <input type="color" id="customColor" value="#00d4ff" oninput="setCustomColor(this.value)">
+            </div>
+          </div>
+        </div>
         <button class="btn btn-logout btn-sm" onclick="logout()">⏻ Salir</button>
       </div>
     </div>
@@ -235,12 +275,11 @@ select option{background:var(--bg2);}
 <div class="toast" id="toast"></div>
 
 <script>
-const BASE='https://vendebot-production.up.railway.app';
 let TOKEN=sessionStorage.getItem('admin_token')||'';
 
 async function login(){
   const pass=document.getElementById('loginPass').value;
-  const res=await fetch(BASE+'/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
+  const res=await fetch('/auth/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
   const data=await res.json();
   if(data.ok){TOKEN=data.token;sessionStorage.setItem('admin_token',TOKEN);mostrarApp();}
   else{document.getElementById('loginError').textContent='// ACCESO DENEGADO';document.getElementById('loginPass').value='';}
@@ -248,9 +287,9 @@ async function login(){
 
 function logout(){sessionStorage.removeItem('admin_token');TOKEN='';document.getElementById('app').style.display='none';document.getElementById('loginScreen').style.display='flex';}
 
-async function verificarToken(){if(!TOKEN)return false;const res=await fetch(BASE+'/auth/verify',{headers:{Authorization:'Bearer '+TOKEN}});const data=await res.json();return data.ok;}
+async function verificarToken(){if(!TOKEN)return false;const res=await fetch('/auth/verify',{headers:{Authorization:'Bearer '+TOKEN}});const data=await res.json();return data.ok;}
 
-async function api(url,opts={}){const res=await fetch(BASE+url,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});return res.json();}
+async function api(url,opts={}){const res=await fetch(url,{...opts,headers:{'Content-Type':'application/json',Authorization:'Bearer '+TOKEN,...(opts.headers||{})}});return res.json();}
 
 async function mostrarApp(){document.getElementById('loginScreen').style.display='none';document.getElementById('app').style.display='block';cargarNegocios();}
 
@@ -338,6 +377,30 @@ let toastTimer;
 function toast(txt){const t=document.getElementById('toast');t.textContent=txt;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2800);}
 
 (async()=>{if(TOKEN&&await verificarToken())mostrarApp();})();
+
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.querySelectorAll('.cp-dot').forEach(d=>d.classList.remove('active'));
+  document.querySelector(`.cp-dot[data-theme="${t}"]`)?.classList.add('active');
+  localStorage.setItem('vb_admin_theme',t);
+}
+function setCustomColor(hex){
+  document.documentElement.setAttribute('data-theme','custom');
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const root=document.documentElement;
+  root.style.setProperty('--c',hex);
+  root.style.setProperty('--bh',`rgba(${r},${g},${b},.45)`);
+  root.style.setProperty('--b',`rgba(${r},${g},${b},.16)`);
+  root.style.setProperty('--s1',`rgba(${r},${g},${b},.04)`);
+  root.style.setProperty('--s2',`rgba(${r},${g},${b},.08)`);
+  root.style.setProperty('--s3',`rgba(${r},${g},${b},.13)`);
+  document.querySelectorAll('.cp-dot').forEach(d=>d.classList.remove('active'));
+  localStorage.setItem('vb_admin_theme','custom');
+  localStorage.setItem('vb_admin_custom_color',hex);
+}
+function toggleColorPicker(){document.getElementById('colorPickerPanel').classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.color-picker-wrap'))document.getElementById('colorPickerPanel')?.classList.remove('open');});
+(function(){const t=localStorage.getItem('vb_admin_theme')||'blue';if(t==='custom'){const hex=localStorage.getItem('vb_admin_custom_color');if(hex){document.getElementById('customColor').value=hex;setCustomColor(hex);}}else{setTheme(t);}})();
 </script>
 </body>
 </html>
