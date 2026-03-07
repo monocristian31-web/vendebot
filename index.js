@@ -78,7 +78,7 @@ async function cargarDB(clave, defecto) {
 async function guardarDB(clave, data) {
   try {
     await db.query(
-      'INSERT INTO datos (clave, valor) VALUES (, ) ON CONFLICT (clave) DO UPDATE SET valor = , actualizado = NOW()',
+      'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2, actualizado = NOW()',
       [clave, JSON.stringify(data)]
     );
   } catch (e) { console.error('Error guardando en DB:', e.message); }
