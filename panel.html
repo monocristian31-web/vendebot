@@ -1196,7 +1196,37 @@ async function verificarEstadoWA(){
     // No hacer polling cuando está desconectado — solo al conectar
   }
 }
-async function conectarWhatsApp(){await api(`/panel/${SLUG}/whatsapp/conectar`,{method:'POST'});setTimeout(verificarEstadoWA,1500);}
+async function conectarWhatsApp(){
+  const bc = document.getElementById('btn-conectar');
+  bc.textContent = 'Conectando...'; bc.disabled = true;
+  await api(`/panel/${SLUG}/whatsapp/conectar`, {method:'POST'});
+  // Verificar cada 2s hasta que aparezca el QR o se conecte
+  let intentos = 0;
+  const esperar = setInterval(async () => {
+    intentos++;
+    const r = await api(`/panel/${SLUG}/whatsapp/estado`);
+    const estado = r?.estado || 'desconectado';
+    if (estado === 'qr' && r.qr) {
+      clearInterval(esperar);
+      bc.textContent = 'Conectar'; bc.disabled = false;
+      document.getElementById('card-qr').style.display = 'block';
+      document.getElementById('wa-qr-img').src = r.qr;
+      document.getElementById('wa-estado-txt').textContent = 'Esperando QR...';
+      document.getElementById('wa-dot').style.background = 'var(--gold)';
+      // Seguir actualizando el QR por si expira
+      setTimeout(verificarEstadoWA, 3000);
+    } else if (estado === 'conectado') {
+      clearInterval(esperar);
+      bc.textContent = 'Conectar'; bc.disabled = false;
+      verificarEstadoWA();
+    } else if (intentos >= 15) {
+      // Después de 30s dejar de intentar
+      clearInterval(esperar);
+      bc.textContent = 'Conectar'; bc.disabled = false;
+      document.getElementById('wa-estado-txt').textContent = 'Error - Intenta de nuevo';
+    }
+  }, 2000);
+}
 async function desconectarWhatsApp(){if(!confirm('¿Desconectar WhatsApp?'))return;await api(`/panel/${SLUG}/whatsapp/desconectar`,{method:'POST'});verificarEstadoWA();}
 async function cargarListaBlanca(){const r=await api(`/panel/${SLUG}/lista-blanca`);renderListaBlanca(r||[]);}
 function renderListaBlanca(lista){
