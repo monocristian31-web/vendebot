@@ -1900,6 +1900,8 @@ app.get('/catalogo-data/:slug', (req, res) => {
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
   const { password, ...pub } = negocio;
   pub.esta_abierto = estaAbiertoAhora(negocio);
+  // Incluir tema con defaults para white-label en el catálogo público
+  pub.tema = { ...TEMA_DEFAULT, ...(negocio.tema || {}) };
   res.json(pub);
 });
 
@@ -2005,6 +2007,54 @@ app.delete('/panel/:slug/lista-blanca/:numero', authPanel, (req, res) => {
   negocios[idx].lista_blanca = (negocios[idx].lista_blanca || []).filter(n => n.replace(/\D/g, '') !== numero);
   guardarJSON('./negocios.json', negocios);
   res.json({ ok: true, lista_blanca: negocios[idx].lista_blanca });
+});
+
+// ─── WHITE-LABEL: TEMA DEL NEGOCIO ───────────────────────────────────────────
+
+const TEMA_DEFAULT = {
+  color_primario: '#00c8ff',
+  color_secundario: '#00e5a0',
+  color_fondo: '#020509',
+  color_texto: '#cce8ff',
+  color_tarjeta: 'rgba(0,148,255,0.08)',
+  fuente: 'Space Grotesk',
+  border_radius: '12px',
+  logo_url: '',
+  banner_url: '',
+};
+
+// GET tema actual
+app.get('/panel/:slug/tema', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  res.json({ ...TEMA_DEFAULT, ...(negocio.tema || {}) });
+});
+
+// PUT guardar tema
+app.put('/panel/:slug/tema', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  // Validar campos permitidos
+  const camposPermitidos = ['color_primario','color_secundario','color_fondo','color_texto','color_tarjeta','fuente','border_radius'];
+  const temaActual = negocios[idx].tema || {};
+  const temaActualizado = { ...temaActual };
+  for (const campo of camposPermitidos) {
+    if (req.body[campo] !== undefined) temaActualizado[campo] = req.body[campo];
+  }
+  negocios[idx].tema = temaActualizado;
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, tema: { ...TEMA_DEFAULT, ...temaActualizado } });
+});
+
+// POST reset tema a defaults
+app.post('/panel/:slug/tema/reset', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].tema = { ...TEMA_DEFAULT };
+  guardarJSON('./negocios.json', negocios);
+  res.json({ ok: true, tema: TEMA_DEFAULT });
 });
 
 // ─── ARRANQUE ─────────────────────────────────────────────────────────────────
