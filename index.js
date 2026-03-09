@@ -251,7 +251,9 @@ async function enviarResumenPedido(numero, conv) {
   if (!p.items?.length) return;
   let resumen = 'Tu pedido:\n\n';
   for (const item of p.items) {
-    resumen += `${item.emoji || ''} ${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toFixed(2)}\n`;
+    const precioConExtras = ((item.precio || 0) + (item.extras_precio || 0)) * item.cantidad;
+    resumen += `${item.emoji || ''} ${item.nombre} x${item.cantidad} - $${precioConExtras.toFixed(2)}\n`;
+    if (item.modificadores_txt) resumen += `   📝 ${item.modificadores_txt}\n`;
     if (item.mitad1) resumen += `   🍕 Mitad 1: ${item.mitad1}\n`;
     if (item.mitad2) resumen += `   🍕 Mitad 2: ${item.mitad2}\n`;
   }
@@ -377,7 +379,7 @@ REGLAS:
 3. Si el cliente ya viene CON un pedido armado desde el catalogo (el mensaje empieza con "Hola! Quiero hacer un pedido 🛒"): NO mandes el catalogo, procesa directamente el pedido que trae en el mensaje y pon PEDIDO_DESDE_CATALOGO: true.
 4. Si hay fecha especial activa, mencionala con entusiasmo.
 5. Si el cliente tiene muchos puntos, sugieres que puede canjearlos.
-6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro. Luego pregunta el metodo de pago SOLO mostrando los metodos que el negocio tiene activos: ${(negocio.metodos_pago || ['transferencia']).join(', ')}.
+6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro. ${negocio.requiere_hora_entrega ? 'La HORA de entrega es OBLIGATORIA — si el cliente no da una hora específica, DEBES preguntar explícitamente "¿A qué hora necesitas que llegue?" antes de continuar.' : 'La hora de entrega es OPCIONAL — si el cliente dice "lo antes posible", "ahora" o "hoy", acepta eso y usa el tiempo de entrega del negocio (' + (negocio.tiempo_entrega || '30-45 min') + ') sin insistir en una hora exacta.'} Luego pregunta el metodo de pago SOLO mostrando los metodos que el negocio tiene activos: ${(negocio.metodos_pago || ['transferencia']).join(', ')}.
 7. Si el negocio acepta efectivo y el cliente elige efectivo: preguntale "¿De cuánto billete necesitas cambio?" y espera su respuesta antes de poner MOSTRAR_PAGO: true. Guarda el monto del billete en el PEDIDO_JSON como cambio_solicitado. Si elige transferencia, procede directo a MOSTRAR_PAGO: true.
 8. Si el cliente menciona un cupon, valida con APLICAR_CUPON: [codigo]
 10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
@@ -896,10 +898,7 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
       await new Promise(r => setTimeout(r, 500));
       await enviar(numero, 'Aqui puedes ver nuestro menu completo:\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llegara aqui para terminar el pedido');
     } else if (pedidoDesdeCatalogo && conv.pedido.items && conv.pedido.items.length > 0) {
-      await new Promise(r => setTimeout(r, 500));
-      await enviarResumenPedido(numero, conv);
-      await new Promise(r => setTimeout(r, 500));
-      await enviar(numero, 'Para completar tu pedido necesito:\n\n1. Tu nombre\n2. Delivery o retiras en tienda?\n3. Cuando lo necesitas?');
+      // Claude ya incluye el resumen y las preguntas en su respuesta — no duplicar
       conv.etapa = 'confirmando';
     } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') {
       for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);

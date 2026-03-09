@@ -631,6 +631,15 @@ textarea{resize:vertical;clip-path:none;border-radius:0;}
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_tarjeta" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> Tarjeta</label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_qr" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> QR</label>
     </div>
+    <div style="border:1px solid rgba(0,212,255,.2);padding:14px;background:rgba(0,212,255,.03);clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;text-transform:none;letter-spacing:normal;">
+        <input type="checkbox" id="cfg_requiere_hora" style="width:16px;height:16px;accent-color:var(--c);clip-path:none;">
+        <div>
+          <div style="font-size:13px;color:var(--tx);">🕐 Requiere hora exacta de entrega</div>
+          <div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:2px;">Actívalo para floristerías, pastelerías o servicios con cita. Desactívalo para restaurantes y comida rápida.</div>
+        </div>
+      </label>
+    </div>
     <label>Mensaje de bienvenida</label>
     <textarea id="cfg_bienvenida" rows="2" placeholder="¡Hola! Bienvenido..."></textarea>
     <label>Política de devoluciones</label>
@@ -1048,6 +1057,7 @@ async function cargarConfig(){
   const tv=document.getElementById('toggleVacaciones');if(tv){tv.classList.toggle('on',!!neg.modo_vacaciones);document.getElementById('vacacionesLabel').textContent=neg.modo_vacaciones?'Activado':'Desactivado';}
   if(neg.logo)document.getElementById('logoPreview').innerHTML=`<img src="${neg.logo}" style="max-height:60px;clip-path:polygon(4px 0%,100% 0%,100% calc(100% - 4px),calc(100% - 4px) 100%,0% 100%,0% 4px);border:1px solid var(--b);">`;
   const mtm=document.getElementById('cfg_tiene_mitad_mitad');if(mtm)mtm.checked=!!neg.tiene_mitad_mitad;
+  const rh=document.getElementById('cfg_requiere_hora');if(rh)rh.checked=!!neg.requiere_hora_entrega;
   renderHorarios(neg.horarios||{});
 }
 
@@ -1066,7 +1076,7 @@ function obtenerHorarios(){
 function toggleVacaciones(){const t=document.getElementById('toggleVacaciones');t.classList.toggle('on');document.getElementById('vacacionesLabel').textContent=t.classList.contains('on')?'Activado':'Desactivado';}
 
 async function guardarConfig(){
-  const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,whatsapp:document.getElementById('cfg_whatsapp').value,banco:document.getElementById('cfg_banco').value,cuenta:document.getElementById('cfg_cuenta').value,titular:document.getElementById('cfg_titular').value,tipo_cuenta:document.getElementById('cfg_tipo_cuenta').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,bienvenida:document.getElementById('cfg_bienvenida').value,devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false};
+  const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,whatsapp:document.getElementById('cfg_whatsapp').value,banco:document.getElementById('cfg_banco').value,cuenta:document.getElementById('cfg_cuenta').value,titular:document.getElementById('cfg_titular').value,tipo_cuenta:document.getElementById('cfg_tipo_cuenta').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,bienvenida:document.getElementById('cfg_bienvenida').value,devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
   const al=document.getElementById('configAlert');al.className='alert '+(r?.ok!==false?'ok':'err');al.textContent=r?.ok!==false?'// Configuración guardada':'// Error al guardar';
   setTimeout(()=>al.textContent='',3000);
