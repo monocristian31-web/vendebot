@@ -235,9 +235,11 @@ async function iniciarSesion(negocio) {
         } catch {}
         setTimeout(() => iniciarSesion(negocio), 10000);
       } else {
-        // Sesión cerrada (logout) — borrar credenciales
+        // Sesión cerrada (logout/401) — borrar credenciales de archivos Y PostgreSQL
         sesiones.delete(id);
         try { fs.rmSync(dirSesion(id), { recursive: true }); } catch {}
+        try { await db.query('DELETE FROM wa_sessions WHERE negocio_id=$1', [id]); } catch {}
+        console.log('[Sessions] Credenciales borradas para:', id);
         // Notificar al dueño que debe volver a escanear el QR
         try {
           const otraSesion = [...sesiones.values()].find(s => s.estado === 'conectado');
@@ -2374,6 +2376,24 @@ app.post('/panel/:slug/whatsapp/conectar', authPanel, async (req, res) => {
 });
 
 // Desconectar / cerrar sesión WhatsApp
+app.post('/panel/:slug/whatsapp/reset-sesion', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const id = negocio.id;
+  // Cerrar sesión activa
+  const sesion = sesiones.get(id);
+  if (sesion?.sock) { try { sesion.sock.end(); } catch {} }
+  sesiones.delete(id);
+  // Borrar archivos locales
+  try { fs.rmSync(dirSesion(id), { recursive: true }); } catch {}
+  // Borrar de PostgreSQL
+  try { await db.query('DELETE FROM wa_sessions WHERE negocio_id=$1', [id]); } catch(e) { console.error(e.message); }
+  console.log('[Sessions] Reset completo para:', id);
+  // Reiniciar sesión limpia
+  setTimeout(() => iniciarSesion(negocio), 2000);
+  res.json({ ok: true, mensaje: 'Sesión reseteada, escanea el QR en el panel' });
+});
+
 app.post('/panel/:slug/whatsapp/desconectar', authPanel, async (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
