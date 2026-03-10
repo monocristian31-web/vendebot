@@ -8,7 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage, initAuthCreds, proto } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const P = require('pino');
 
@@ -95,6 +95,80 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const sesiones = new Map();
 const mensajesProcesados = new Set(); // anti-duplicado // negocioId → { sock, qr, estado }
 
+// ─── SESIONES EN POSTGRESQL ───────────────────────────────────────────────────
+// Guarda y carga las credenciales de Baileys en DB para sobrevivir deploys
+
+async function initSessionTable() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS wa_sessions (
+        negocio_id TEXT NOT NULL,
+        file_key   TEXT NOT NULL,
+        data       TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (negocio_id, file_key)
+      )
+    `);
+  } catch(e) { console.error('Error creando tabla wa_sessions:', e.message); }
+}
+initSessionTable();
+
+// Auth state que lee/escribe en PostgreSQL en vez de archivos locales
+async function usePostgresAuthState(negocioId) {
+  const readData = async (key) => {
+    try {
+      const r = await db.query('SELECT data FROM wa_sessions WHERE negocio_id=$1 AND file_key=$2', [negocioId, key]);
+      if (r.rows.length) return JSON.parse(r.rows[0].data);
+    } catch(e) {}
+    return null;
+  };
+  const writeData = async (key, data) => {
+    try {
+      await db.query(`
+        INSERT INTO wa_sessions (negocio_id, file_key, data, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (negocio_id, file_key) DO UPDATE SET data=$3, updated_at=NOW()
+      `, [negocioId, key, JSON.stringify(data)]);
+    } catch(e) { console.error('Error guardando sesion:', e.message); }
+  };
+  const removeData = async (key) => {
+    try { await db.query('DELETE FROM wa_sessions WHERE negocio_id=$1 AND file_key=$2', [negocioId, key]); } catch(e) {}
+  };
+
+  // Cargar creds
+  const creds = await readData('creds') || initAuthCreds();
+
+  const state = {
+    creds,
+    keys: {
+      get: async (type, ids) => {
+        const data = {};
+        await Promise.all(ids.map(async id => {
+          let val = await readData(type + '-' + id);
+          if (type === 'app-state-sync-key' && val) {
+            val = proto.Message.AppStateSyncKeyData.fromObject(val);
+          }
+          data[id] = val;
+        }));
+        return data;
+      },
+      set: async (data) => {
+        const tasks = [];
+        for (const category in data) {
+          for (const id in data[category]) {
+            const val = data[category][id];
+            tasks.push(val ? writeData(category + '-' + id, val) : removeData(category + '-' + id));
+          }
+        }
+        await Promise.all(tasks);
+      }
+    }
+  };
+
+  const saveCreds = async () => { await writeData('creds', state.creds); };
+  return { state, saveCreds };
+}
+
 function dirSesion(negocioId) {
   const d = path.join('./sessions', negocioId);
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
@@ -105,7 +179,7 @@ async function iniciarSesion(negocio) {
   const id = negocio.id;
   if (sesiones.has(id) && sesiones.get(id).estado === 'conectado') return;
 
-  const { state, saveCreds } = await useMultiFileAuthState(dirSesion(id));
+  const { state, saveCreds } = await usePostgresAuthState(id);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
