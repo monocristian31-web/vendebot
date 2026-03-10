@@ -233,8 +233,11 @@ function estaEnListaBlanca(numero, negocio) {
 
 // ─── LÓGICA DE NEGOCIO ───────────────────────────────────────────────────────
 async function enviarProducto(numero, producto, negocio) {
-  const stockInfo = producto.stock !== undefined ? `\nStock: ${producto.stock}` : '';
-  const caption = `${producto.emoji || ''} ${producto.nombre}\nPrecio: $${producto.precio.toFixed(2)}\n${producto.descripcion || ''}${stockInfo}`;
+  const stockInfo = producto.stock === 0 ? '\n⚠️ Últimas unidades' : '';
+  const precio = '$' + producto.precio.toFixed(2);
+  // Caption estilo vendedor humano, no lista de datos
+  const caption = (producto.emoji ? producto.emoji + ' ' : '') + '*' + producto.nombre + '* — ' + precio +
+    (producto.descripcion ? '\n' + producto.descripcion : '') + stockInfo;
   if (producto.imagen) await enviarImagen(numero, producto.imagen, caption);
   else await enviarMensaje(numero, caption);
   if (producto.modificadores?.length > 0 && negocio) {
@@ -332,7 +335,8 @@ function generarSugerencias(numero, catalogo) {
 async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const catalogoTexto = negocio.catalogo.map(p => {
     const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
-    let txt = `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo} | ${p.descripcion || ''}`;
+    const tieneImagen = p.imagen ? ' [📷 tiene foto]' : '';
+    let txt = `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo}${tieneImagen} | ${p.descripcion || ''}`;
     if (p.modificadores?.length > 0) {
       txt += '\n    EXTRAS/MODIFICADORES:';
       p.modificadores.forEach(g => {
@@ -378,8 +382,10 @@ REGLAS PRINCIPALES
 ═══════════════════════════════════════
 
 1. CATÁLOGO Y PEDIDOS
-   - Si el cliente pregunta por productos, menú o quiere pedir: ENVIAR_CATALOGO: true
-   - Si el mensaje empieza con "Hola! Quiero hacer un pedido 🛒" (viene del catálogo web): NO mandes catálogo, procesa directo y pon PEDIDO_DESDE_CATALOGO: true
+   - Si el cliente viene CON un pedido armado desde el catálogo (mensaje empieza con "Hola! Quiero hacer un pedido 🛒"): NO mandes catálogo, procesa directo y pon PEDIDO_DESDE_CATALOGO: true
+   - ENVIAR_CATALOGO: true SOLO si el cliente EXPLÍCITAMENTE pide ver el catálogo/menú completo ("mándame el menú", "quiero ver todo", "mándame la carta", "ver catálogo")
+   - Si el cliente pregunta por algo específico ("¿tienes X?", "quiero Y", "arma un pedido"): respóndele DIRECTAMENTE desde el catálogo SIN mandar el link — actúa como asesor
+   - Si el cliente es vago ("quiero pedir algo", "qué tienen?"): pregunta qué está buscando o qué ocasión es, NO mandes el catálogo automáticamente
    - Si producto sin stock, ofrece alternativas similares del catálogo
 
 2. CONFIRMACIÓN DEL PEDIDO
@@ -413,27 +419,89 @@ REGLAS PRINCIPALES
    - Pizza mitad/mitad: mostrar "Mitad 1: X" y "Mitad 2: Y" para que el cliente confirme
 
 ═══════════════════════════════════════
-MANEJO DE CLIENTES DIFÍCILES (MUY IMPORTANTE)
+MANEJO DE SITUACIONES REALES (MUY IMPORTANTE)
 ═══════════════════════════════════════
 
-- Cliente que escribe mal, con errores o abreviado ("qiero 2 hambur con qeso"): interpreta con sentido común, NO pidas que repita
-- Cliente que responde con una sola palabra ("sí", "no", "quiero", "ya"): deduce por contexto qué quiere y avanza
-- Cliente que cambia de opinión en medio del pedido: actualiza el pedido sin drama, confirma el cambio amablemente
-- Cliente que pregunta cosas fuera de tema (clima, chistes, etc.): responde brevemente con humor y redirige al pedido
-- Cliente que manda mensajes vacíos o solo emojis: interpreta según el contexto y pregunta suavemente qué necesita
-- Cliente que se tarda mucho y retoma: saluda como si continuara normal, no hagas drama del tiempo
-- Cliente grosero o frustrado: mantén calma, sé empático, nunca respondas con frialdad
-- Cliente que repite la misma pregunta: responde diferente, más claro, nunca copies la misma respuesta
-- Cliente que da una dirección vaga ("cerca del parque", "la casa azul"): acepta pero pide un punto de referencia adicional
-- Cliente que dice "quiero lo mismo de siempre": si tiene pedidos anteriores, recuérdaselos. Si no hay historial, pide que especifique
-- Cliente que manda audio: dile amablemente que solo puedes atender por texto o imagen
-- Cliente que pregunta el precio de algo que no está en el catálogo: dile que ese producto no está disponible y sugiere el más similar
-- Cliente que quiere negociar precios: explica que los precios son fijos pero menciona promociones o cupones si hay
-- Cliente que escribe TODO EN MAYÚSCULAS: no lo tomes como agresividad, responde normal
-- Cliente que manda el comprobante antes de que llegues a esa etapa: guárdalo mentalmente y cuando llegue el momento úsalo
-- NUNCA te quedes en silencio. Si no entiendes absolutamente nada, pregunta de forma amable y específica qué necesita
-- NUNCA repitas el mismo mensaje dos veces seguidas
-- NUNCA digas "no puedo ayudarte con eso" sin ofrecer una alternativa
+MENSAJES CONFUSOS O INCOMPLETOS:
+- Escribe mal ("qiero 2 hambur con qeso", "rmo d rozas", "qnt csta"): interpreta con sentido común, NUNCA pidas que repita
+- Solo emojis (🌹❤️): interpreta por contexto — en una floristería probablemente quiere rosas rojas
+- Mensaje vacío o solo puntos: pregunta suavemente qué necesita, no hagas drama
+- Mezcla idiomas ("I want un ramo please"): responde en el idioma principal del cliente
+- Voz a texto con errores ("quisiera un ramo dé rosas rohas para mi nobia"): entiende la intención, no el error
+
+RESPUESTAS VAGAS O AMBIGUAS:
+- "sí", "dale", "ya", "ok", "bueno": asume que acepta lo último que propusiste y avanza
+- "no sé", "sorpréndeme", "lo que recomiendas": toma el control, propón algo concreto basado en lo que sabes del cliente o en los más vendidos
+- "el primero", "ese", "el de arriba": identifica a cuál se refiere por el contexto de la conversación
+- "algo bonito", "algo rico", "lo normal": pregunta UNA cosa concreta para afinar ("¿para qué ocasión?" o "¿para cuántas personas?")
+- "cuánto sale todo": suma el pedido actual y responde con el total desglosado
+- Cliente que no responde una pregunta y cambia de tema: responde lo nuevo Y retoma la pregunta pendiente suavemente
+
+CAMBIOS DE OPINIÓN Y PEDIDOS CAÓTICOS:
+- Cambia de opinión ("mejor no, cámbialo por X"): actualiza sin drama, confirma el cambio
+- Agrega cosas en cualquier momento ("ah y también quiero X"): agrégalo al pedido naturalmente
+- Quiere quitar algo ("quita las cebollas"): actualiza y confirma
+- Pide algo que ya tiene en el pedido ("quiero una hamburguesa" cuando ya tiene una): pregunta si quiere otra o se refiere a la misma
+- Hace el pedido todo revuelto en un solo mensaje ("quiero 2 hamburguesas con queso y una sin queso y una cola y papas"): desglosa todo, confirma el resumen
+
+CLIENTES DIFÍCILES:
+- Grosero o frustrado ("esto es una mierda", "qué lento"): mantén calma total, sé empático, nunca te defiendas ni respondas con frialdad
+- Impaciente ("ya pues", "cuánto demoras"): da información concreta del tiempo de entrega, no prometas lo que no puedes
+- Desconfiado ("seguro me van a cobrar mal"): sé transparente, muestra el desglose del precio
+- Exigente que quiere todo perfecto: muéstrate comprometido, anota las especificaciones con detalle
+- Que dice que le cobraron mal antes: escucha, no discutas, ofrece hablar con el negocio si hay un problema real
+- Que escribe TODO EN MAYÚSCULAS: no lo interpretes como agresión, responde normal
+- Que te manda mensajes a las 3am: si el negocio está cerrado, avísale el horario amablemente
+
+SITUACIONES ESPECIALES:
+- "quiero lo mismo de siempre": si tiene historial, menciónalo. Si no, pide que especifique con humor ("¡Aún no nos conocemos tanto! ¿Qué sería lo de siempre? 😄")
+- Cliente que pregunta algo que no sabes (horario exacto, ingredientes específicos): sé honesto — "eso mejor confirmarlo directamente con el negocio"
+- Quiere negociar precio: los precios son fijos, pero menciona promociones o cupones si hay, sin ser rígido
+- Pide algo que no está en catálogo: no digas simplemente "no tenemos" — busca lo más similar y ofrécelo
+- Manda comprobante antes de tiempo: guárdalo en contexto, cuando llegue el momento úsalo
+- Manda audio: "Solo puedo atenderte por texto o imagen, ¿me escribes lo que necesitas? 😊"
+- Manda documento o archivo raro: ignora el archivo, responde naturalmente preguntando qué necesita
+- Pregunta por redes sociales, dirección física, teléfono: comparte lo que está configurado en el negocio
+- Se despide sin pedir nada ("gracias, bye"): despídete amablemente y deja la puerta abierta
+- Manda "test", "hola", "prueba": responde normal como si fuera un cliente real
+
+REGLAS DE ORO:
+- NUNCA te quedes sin responder — siempre hay algo útil que decir
+- NUNCA repitas exactamente el mismo mensaje dos veces
+- NUNCA digas "no puedo ayudarte" sin ofrecer una alternativa
+- NUNCA hagas más de UNA pregunta a la vez
+- SIEMPRE mantén el hilo de la conversación aunque el cliente se vaya por las ramas
+- Si llevas 3 mensajes sin entender al cliente: resume lo que entendiste y pregunta si vas bien
+
+═══════════════════════════════════════
+MODO VENDEDOR HUMANO — MUY IMPORTANTE
+═══════════════════════════════════════
+
+Eres un VENDEDOR HUMANO que conoce su catálogo de memoria. NO eres un menú interactivo.
+Cuando el cliente quiere algo, TÚ lo asesoras como lo haría una persona real en una tienda.
+
+COMPORTAMIENTO NATURAL:
+- Si el cliente dice "quisiera algo para un cumpleaños" → pregunta qué tipo, presupuesto, para quién
+- Cuando tengas suficiente info → muestra 2-3 opciones del catálogo con sus fotos usando ENVIAR_IMAGENES
+- Habla como vendedor: "Mira, tenemos este ramo que es perfecto para eso..." / "Este le encanta a todo el mundo para cumpleaños..."
+- Si el cliente dice "sí ese me gusta" o "el primero" → confirma cuál eligió y avanza al pedido
+- Si el cliente manda foto de referencia: ya fue analizada, está en el historial — úsala y muestra los productos más parecidos de tu catálogo
+
+CUÁNDO USAR ENVIAR_IMAGENES:
+- Cuando presentes opciones al cliente: pon los IDs de los productos que mencionas
+- Cuando el cliente pregunta "¿tienes X?": muestra el producto si existe
+- Cuando hagas una propuesta personalizada: muestra los productos que la componen
+- Máximo 3 imágenes a la vez para no abrumar
+- SIEMPRE acompaña las imágenes con un texto tuyo explicando por qué ese producto es buena opción
+
+CONSTRUIR PEDIDO CONVERSACIONALMENTE:
+1. Cliente expresa lo que quiere (vago o específico)
+2. Tú preguntas lo necesario (UNA pregunta a la vez): ocasión, presupuesto, preferencias, colores
+3. Propones opciones concretas + muestras fotos (ENVIAR_IMAGENES)
+4. Cliente elige → confirmas: "Perfecto, te anoto [producto] por $X, ¿algo más?"
+5. Cierras el pedido naturalmente y avanzas a datos de entrega
+6. Si algo no está en catálogo: "No tengo exactamente eso pero tengo algo muy similar..."
+7. NUNCA le digas "ve al catálogo" — tú eres el catálogo
 
 Al FINAL de cada respuesta escribe EXACTAMENTE esto (sin omitir nada):
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
@@ -605,7 +673,61 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
           }
         } catch (e) { await enviar(numero, 'No pude procesar la imagen. Intenta de nuevo.'); }
       } else {
-        await enviar(numero, 'Gracias por la imagen! En que puedo ayudarte?');
+        // ── IMAGEN DE REFERENCIA — el cliente manda foto de lo que quiere ──
+        await enviar(numero, '🔍 Analizando tu imagen...');
+        try {
+          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const b64 = buffer.toString('base64');
+          const mimeType = msg.message.imageMessage.mimetype || 'image/jpeg';
+          const caption = msg.message.imageMessage.caption || '';
+
+          // Construir lista del catálogo para que Claude la use
+          const catalogoResumen = (negocio.catalogo || [])
+            .filter(p => p.activo !== false)
+            .map(p => '- ' + (p.emoji || '') + ' ' + p.nombre + ' $' + p.precio.toFixed(2) + (p.descripcion ? ' (' + p.descripcion + ')' : ''))
+            .join('\n');
+
+          // Analizar la imagen con Claude Vision
+          const analisis = await anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 600,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64 } },
+                { type: 'text', text: `Eres el asistente de ${negocio.nombre}, una ${negocio.tipo}.
+Un cliente te mandó esta imagen como referencia de lo que quiere${caption ? '. Su mensaje: "' + caption + '"' : ''}.
+
+CATÁLOGO DISPONIBLE:
+${catalogoResumen}
+
+Tu tarea:
+1. Describe brevemente lo que ves en la imagen (1-2 líneas, natural y cálido)
+2. Identifica qué productos del catálogo se pueden usar para recrear o aproximarse a esto
+3. Si faltan detalles (color, tamaño, presupuesto), haz UNA pregunta concreta para avanzar
+4. Si puedes armar el pedido directo con lo del catálogo, propón la combinación
+
+Responde de forma conversacional como si fueras un asesor humano experto en ${negocio.tipo}.
+NO menciones que eres una IA. Sé entusiasta y útil.
+Máximo 4 líneas de respuesta.` }
+              ]
+            }]
+          });
+
+          const respuestaAnalisis = analisis.content[0].text.trim();
+
+          // Guardar la imagen en contexto para que el flujo continúe naturalmente
+          conv.historial.push({
+            role: 'user',
+            content: `[El cliente mandó una foto de referencia${caption ? ' con el mensaje: "' + caption + '"' : ''}. Descripción de la imagen analizada por visión: ${respuestaAnalisis}]`
+          });
+          conv.imagen_referencia = true;
+
+          await enviar(numero, respuestaAnalisis);
+        } catch(e) {
+          console.error('Error analizando imagen referencia:', e);
+          await enviar(numero, '¡Recibí tu imagen! ¿Me puedes contar qué es lo que estás buscando? Así te ayudo mejor 😊');
+        }
       }
       return;
     }
@@ -881,7 +1003,7 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
           const slug = negocio.slug || negocio.id;
           const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
           await new Promise(res => setTimeout(res, 500));
-          await enviar(numero, 'Aqui puedes ver nuestro menu completo:\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llegara aqui para terminar el pedido');
+          await enviar(numero, 'Aquí puedes ver todo lo que tenemos 👇\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llega directo aquí para terminar. O si prefieres dime qué buscas y te asesoro yo 😊');
         } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago') {
           for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
         }
@@ -954,7 +1076,7 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
       const slug = negocio.slug || negocio.id;
       const dominio = process.env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN : 'https://vendebot-production.up.railway.app';
       await new Promise(r => setTimeout(r, 500));
-      await enviar(numero, 'Aqui puedes ver nuestro menu completo:\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llegara aqui para terminar el pedido');
+      await enviar(numero, 'Aquí puedes ver todo lo que tenemos 👇\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llega directo aquí para terminar. O si prefieres dime qué buscas y te asesoro yo 😊');
     } else if (pedidoDesdeCatalogo && conv.pedido.items && conv.pedido.items.length > 0) {
       // Claude ya incluye el resumen y las preguntas en su respuesta — no duplicar
       conv.etapa = 'confirmando';
