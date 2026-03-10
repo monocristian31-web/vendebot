@@ -621,36 +621,50 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
     }
 
     // ── Respuesta del repartidor con costo delivery ──
-    if (textoLower.startsWith('delivery $') || textoLower.startsWith('delivery$') || textoLower.match(/^delivery\s*\$/i)) {
-      const costoMatch = texto.match(/delivery\s*\$?([0-9]+(?:\.[0-9]+)?)/i);
+    // LÓGICA: primero verificar por CONTEXTO si este número tiene un pedido pendiente.
+    // Si lo tiene, extraer cualquier número del mensaje (sin importar cómo lo escriba).
+    // Así funciona aunque el repartidor escriba "son 2.50", "cobro 3 dólares", "la biblia... 2.50" etc.
+    const numeroLimpio = numero.replace(/\D/g, '');
+    const convPendiente = (() => {
+      for (const [clienteNum, clienteConv] of conversaciones.entries()) {
+        if (clienteConv.esperando !== 'costo_delivery') continue;
+        if (clienteConv.pedido?.repartidor_whatsapp) continue; // ya asignado
+        const contactados = clienteConv.pedido?.repartidores_contactados || [];
+        const fueContactado = contactados.some(n => n.replace(/\D/g, '') === numeroLimpio);
+        if (fueContactado) return { clienteNum, clienteConv };
+      }
+      return null;
+    })();
+
+    if (convPendiente) {
+      // Extraer el primer número que aparezca en el mensaje (ej: "son 2.50", "cobro 3", "delivery $2.50")
+      const costoMatch = texto.match(/([0-9]+(?:[.,][0-9]+)?)/);
       if (costoMatch) {
-        const costoDelivery = parseFloat(costoMatch[1]);
-        // Buscar conversacion donde este repartidor fue contactado y aun no hay asignado
-        for (const [clienteNum, clienteConv] of conversaciones.entries()) {
-          const fueContactado = clienteConv.pedido?.repartidores_contactados?.includes(numero);
-          const yaAsignado = clienteConv.pedido?.repartidor_whatsapp;
-          if (fueContactado && !yaAsignado && clienteConv.esperando === 'costo_delivery') {
-            // Este repartidor es el primero en responder — queda asignado
-            clienteConv.pedido.repartidor_whatsapp = numero;
-            // Buscar nombre del repartidor
-            const repInfo = obtenerRepartidoreActivos(negocio).find(r => r.whatsapp === numero || r.whatsapp === numero.replace(/\D/g,''));
-            clienteConv.pedido.repartidor_nombre = repInfo ? repInfo.nombre : numero;
-            clienteConv.pedido.costo_delivery = costoDelivery;
-            clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
-            clienteConv.esperando = null;
-            clienteConv.etapa = 'pago';
-            await enviarMensaje(clienteNum, 'El costo del delivery a tu ubicacion es $' + costoDelivery.toFixed(2) + ' 🛵\n\n' + generarMensajePago(clienteConv, negocio), negocio.id);
-            if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
-            await enviarMensaje(numero, '✅ Quedaste asignado! El cliente fue notificado.\nTotal del pedido: $' + clienteConv.pedido.total.toFixed(2) + '\nCliente: ' + (clienteConv.pedido.nombre_cliente || clienteNum), negocio.id);
-            // Avisar a los demas repartidores que ya fue asignado
-            for (const otroRep of (clienteConv.pedido.repartidores_contactados || [])) {
-              if (otroRep !== numero) {
-                await enviarMensaje(otroRep, 'Este pedido ya fue tomado por otro repartidor. Gracias!', negocio.id);
-              }
-            }
-            return;
+        const costoDelivery = parseFloat(costoMatch[1].replace(',', '.'));
+        const { clienteNum, clienteConv } = convPendiente;
+        // Asignar este repartidor
+        clienteConv.pedido.repartidor_whatsapp = numero;
+        const negocioPedido = cargarNegocios().find(n => n.id === clienteConv.negocio_id);
+        const repInfo = (negocioPedido?.repartidores || []).find(r => r.whatsapp.replace(/\D/g, '') === numeroLimpio);
+        clienteConv.pedido.repartidor_nombre = repInfo ? repInfo.nombre : numero;
+        clienteConv.pedido.costo_delivery = costoDelivery;
+        clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
+        clienteConv.esperando = null;
+        clienteConv.etapa = 'pago';
+        await enviarMensaje(clienteNum, 'El costo del delivery a tu ubicacion es $' + costoDelivery.toFixed(2) + ' 🛵\n\n' + generarMensajePago(clienteConv, negocio), negocio.id);
+        if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
+        await enviarMensaje(numero, '✅ Quedaste asignado! El cliente fue notificado.\nTotal del pedido: $' + clienteConv.pedido.total.toFixed(2) + '\nCliente: ' + (clienteConv.pedido.nombre_cliente || clienteNum), negocio.id);
+        // Avisar a los demás repartidores que ya fue tomado
+        for (const otroRep of (clienteConv.pedido?.repartidores_contactados || [])) {
+          if (otroRep.replace(/\D/g, '') !== numeroLimpio) {
+            await enviarMensaje(otroRep, 'Este pedido ya fue tomado por otro repartidor. Gracias!', negocio.id);
           }
         }
+        return;
+      } else {
+        // El repartidor escribió algo pero sin número — pedirle que especifique el costo
+        await enviarMensaje(numero, '❓ Para confirmar tu costo de delivery, escribe el valor en números. Ejemplo: *2.50*', negocio.id);
+        return;
       }
     }
 
