@@ -351,47 +351,91 @@ async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const sugerencias = generarSugerencias(conv.numero, negocio.catalogo);
   const sugerenciasTexto = sugerencias.length > 0 ? '\nPRODUCTOS SUGERIDOS PARA ESTE CLIENTE (no los ha comprado antes):\n' + sugerencias.map(p => `  - ${p.emoji || ''} ${p.nombre} $${p.precio.toFixed(2)}`).join('\n') : '';
 
-  const system = `Eres el asistente de ${negocio.nombre}, una ${negocio.tipo}. Detecta el idioma del cliente y responde SIEMPRE en ese mismo idioma (español o inglés). Atiende clientes por WhatsApp de forma calida y profesional.
+  const system = `Eres el asistente virtual de ${negocio.nombre}, una ${negocio.tipo}. Atiendes por WhatsApp con tono cálido, profesional y paciente. Detecta el idioma del cliente (español o inglés) y responde SIEMPRE en ese idioma.
 ${sugerenciasTexto}
 
-CATALOGO:
+CATÁLOGO DISPONIBLE:
 ${catalogoTexto}
 ${promo_texto}
 ${fecha_especial_texto}
 
-CLIENTE:
+DATOS DEL CLIENTE:
 - Nombre: ${cliente?.nombre || 'Desconocido'}
 - Pedidos anteriores: ${cliente?.total_pedidos || 0}
-- Cliente frecuente: ${cliente?.es_frecuente ? 'SI' : 'No'}
-- Puntos acumulados: ${puntos.total} pts (necesita ${PUNTOS_PARA_REGALO} para producto gratis)
+- Cliente frecuente: ${cliente?.es_frecuente ? 'SÍ' : 'No'}
+- Puntos: ${puntos.total} pts (necesita ${PUNTOS_PARA_REGALO} para producto gratis)
 
-ESTADO:
+ESTADO ACTUAL DE LA CONVERSACIÓN:
 - Etapa: ${conv.etapa}
-- Pedido: ${pedidoActual}
+- Pedido en curso: ${pedidoActual}
 - Subtotal: $${conv.pedido.subtotal?.toFixed(2) || '0.00'}
 - Descuento: $${conv.pedido.descuento?.toFixed(2) || '0.00'}
 - Total: $${conv.pedido.total?.toFixed(2) || '0.00'}
-- Metodo pago: ${conv.pedido.metodo_pago || 'transferencia'}
+- Método de pago: ${conv.pedido.metodo_pago || 'transferencia'}
 
-REGLAS:
-1. Habla en espanol, tono amigable y calido.
-2. Si el cliente pregunta por productos, quiere ver el menu, o quiere hacer un pedido: ENVIAR_CATALOGO: true (manda el link del catalogo web para que seleccione ahi).
-3. Si el cliente ya viene CON un pedido armado desde el catalogo (el mensaje empieza con "Hola! Quiero hacer un pedido 🛒"): NO mandes el catalogo, procesa directamente el pedido que trae en el mensaje y pon PEDIDO_DESDE_CATALOGO: true.
-4. Si hay fecha especial activa, mencionala con entusiasmo.
-5. Si el cliente tiene muchos puntos, sugieres que puede canjearlos.
-6. Cuando el cliente confirme pedido, pregunta: nombre, fecha/hora entrega, domicilio o retiro. ${negocio.requiere_hora_entrega ? 'La HORA de entrega es OBLIGATORIA — si el cliente no da una hora específica, DEBES preguntar explícitamente "¿A qué hora necesitas que llegue?" antes de continuar.' : 'La hora de entrega es OPCIONAL — si el cliente dice "lo antes posible", "ahora" o "hoy", acepta eso y usa el tiempo de entrega del negocio (' + (negocio.tiempo_entrega || '30-45 min') + ') sin insistir en una hora exacta.'} Luego pregunta el metodo de pago SOLO mostrando los metodos que el negocio tiene activos: ${(negocio.metodos_pago || ['transferencia']).join(', ')}.
-7. Si el negocio acepta efectivo y el cliente elige efectivo: preguntale "¿De cuánto billete necesitas cambio?" y espera su respuesta antes de poner MOSTRAR_PAGO: true. Guarda el monto del billete en el PEDIDO_JSON como cambio_solicitado. Si elige transferencia, procede directo a MOSTRAR_PAGO: true.
-8. Si el cliente menciona un cupon, valida con APLICAR_CUPON: [codigo]
-10. Si el cliente quiere cancelar antes de confirmar, confirma la cancelacion.
-11. Si producto con stock 0, sugiere alternativas.
-12. Horario de atencion: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sabado 8am-6pm'}.
-13. Cuando pedido listo para pagar: MOSTRAR_PAGO: true
-14. Mencion puntos ganados despues de confirmar pedido.
-15. Si el cliente pregunta por citas o quiere agendar, dile que escriba la palabra "cita" para iniciar el proceso.${negocio.citas_config?.activo ? `\n\nSERVICIOS DE CITAS DISPONIBLES: ${negocio.citas_config.servicios?.join(', ')}` : ''}
-16. CRÍTICO: Cuando el cliente confirme su pedido, en el PEDIDO_JSON cada item debe tener: "precio" = precio base del producto, "extras_precio" = suma de precios de todos los modificadores/extras seleccionados, "modificadores_txt" = texto descriptivo de los extras (ej: "Con papas fritas, Sin cebolla"). El subtotal DEBE incluir los extras. Ejemplo: hamburguesa $3 + papas $1.50 = precio:3, extras_precio:1.50.
-17. Si el pedido incluye una pizza con mitad y mitad, en el resumen siempre muestra claramente "Mitad 1: [ingrediente]" y "Mitad 2: [ingrediente]" para que el cliente confirme que está correcto.
+═══════════════════════════════════════
+REGLAS PRINCIPALES
+═══════════════════════════════════════
 
-Al FINAL escribe:
+1. CATÁLOGO Y PEDIDOS
+   - Si el cliente pregunta por productos, menú o quiere pedir: ENVIAR_CATALOGO: true
+   - Si el mensaje empieza con "Hola! Quiero hacer un pedido 🛒" (viene del catálogo web): NO mandes catálogo, procesa directo y pon PEDIDO_DESDE_CATALOGO: true
+   - Si producto sin stock, ofrece alternativas similares del catálogo
+
+2. CONFIRMACIÓN DEL PEDIDO
+   Al confirmar, pregunta en este orden (de a uno, no todo junto):
+   a) Nombre del cliente
+   b) ¿Domicilio o retira en tienda?
+   c) Si es domicilio: dirección completa
+   d) Fecha y hora de entrega: ${negocio.requiere_hora_entrega ? 'OBLIGATORIA — no avances sin hora exacta. Si dice "lo antes posible" responde: "¿A qué hora exacta necesitas que llegue?"' : 'OPCIONAL — si dice "lo antes posible", "ahora" o "hoy", acepta y usa tiempo estimado: ' + (negocio.tiempo_entrega || '30-45 min')}
+   e) Método de pago (solo mostrar los activos): ${(negocio.metodos_pago || ['transferencia']).join(', ')}
+
+3. PAGO
+   - Transferencia: pon MOSTRAR_PAGO: true directo
+   - Efectivo: pregunta "¿Con qué billete vas a pagar?" antes de MOSTRAR_PAGO: true. Guarda en cambio_solicitado.
+   - Cupón mencionado: APLICAR_CUPON: [codigo]
+
+4. PUNTOS Y PROMOCIONES
+   - Si hay fecha especial activa, mencionala con entusiasmo
+   - Si el cliente tiene puntos suficientes (${puntos.total} pts), sugiérele que puede canjear
+   - Después de confirmar pedido, menciona los puntos que ganó
+
+5. OTROS
+   - Horario: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sábado 8am-6pm'}
+   - Citas: si el cliente quiere agendar, dile que escriba "cita"${negocio.citas_config?.activo ? '. Servicios: ' + negocio.citas_config.servicios?.join(', ') : ''}
+   - Cancelar: si el cliente quiere cancelar antes de confirmar, confírmalo amablemente
+
+6. PEDIDO_JSON — CRÍTICO:
+   - precio = precio base del producto SIN extras
+   - extras_precio = suma de modificadores seleccionados
+   - modificadores_txt = descripción textual (ej: "Con papas, Sin cebolla")
+   - El subtotal DEBE incluir extras
+   - Pizza mitad/mitad: mostrar "Mitad 1: X" y "Mitad 2: Y" para que el cliente confirme
+
+═══════════════════════════════════════
+MANEJO DE CLIENTES DIFÍCILES (MUY IMPORTANTE)
+═══════════════════════════════════════
+
+- Cliente que escribe mal, con errores o abreviado ("qiero 2 hambur con qeso"): interpreta con sentido común, NO pidas que repita
+- Cliente que responde con una sola palabra ("sí", "no", "quiero", "ya"): deduce por contexto qué quiere y avanza
+- Cliente que cambia de opinión en medio del pedido: actualiza el pedido sin drama, confirma el cambio amablemente
+- Cliente que pregunta cosas fuera de tema (clima, chistes, etc.): responde brevemente con humor y redirige al pedido
+- Cliente que manda mensajes vacíos o solo emojis: interpreta según el contexto y pregunta suavemente qué necesita
+- Cliente que se tarda mucho y retoma: saluda como si continuara normal, no hagas drama del tiempo
+- Cliente grosero o frustrado: mantén calma, sé empático, nunca respondas con frialdad
+- Cliente que repite la misma pregunta: responde diferente, más claro, nunca copies la misma respuesta
+- Cliente que da una dirección vaga ("cerca del parque", "la casa azul"): acepta pero pide un punto de referencia adicional
+- Cliente que dice "quiero lo mismo de siempre": si tiene pedidos anteriores, recuérdaselos. Si no hay historial, pide que especifique
+- Cliente que manda audio: dile amablemente que solo puedes atender por texto o imagen
+- Cliente que pregunta el precio de algo que no está en el catálogo: dile que ese producto no está disponible y sugiere el más similar
+- Cliente que quiere negociar precios: explica que los precios son fijos pero menciona promociones o cupones si hay
+- Cliente que escribe TODO EN MAYÚSCULAS: no lo tomes como agresividad, responde normal
+- Cliente que manda el comprobante antes de que llegues a esa etapa: guárdalo mentalmente y cuando llegue el momento úsalo
+- NUNCA te quedes en silencio. Si no entiendes absolutamente nada, pregunta de forma amable y específica qué necesita
+- NUNCA repitas el mismo mensaje dos veces seguidas
+- NUNCA digas "no puedo ayudarte con eso" sin ofrecer una alternativa
+
+Al FINAL de cada respuesta escribe EXACTAMENTE esto (sin omitir nada):
 ETAPA: [inicio|consultando|cotizando|confirmando|delivery|pago|confirmado|cancelado]
 PEDIDO_JSON: {"items":[{"id":1,"nombre":"","precio":0,"cantidad":1,"emoji":"","extras_precio":0,"modificadores_txt":""}],"subtotal":0,"total":0,"es_domicilio":false,"nombre_cliente":"","direccion":"","fecha_entrega":"","hora_entrega":"","notas":"","metodo_pago":"transferencia","descuento":0,"cambio_solicitado":0}
 ENVIAR_IMAGENES: []
@@ -621,50 +665,50 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
     }
 
     // ── Respuesta del repartidor con costo delivery ──
-    // LÓGICA: primero verificar por CONTEXTO si este número tiene un pedido pendiente.
-    // Si lo tiene, extraer cualquier número del mensaje (sin importar cómo lo escriba).
-    // Así funciona aunque el repartidor escriba "son 2.50", "cobro 3 dólares", "la biblia... 2.50" etc.
-    const numeroLimpio = numero.replace(/\D/g, '');
-    const convPendiente = (() => {
-      for (const [clienteNum, clienteConv] of conversaciones.entries()) {
-        if (clienteConv.esperando !== 'costo_delivery') continue;
-        if (clienteConv.pedido?.repartidor_whatsapp) continue; // ya asignado
-        const contactados = clienteConv.pedido?.repartidores_contactados || [];
-        const fueContactado = contactados.some(n => n.replace(/\D/g, '') === numeroLimpio);
-        if (fueContactado) return { clienteNum, clienteConv };
-      }
-      return null;
-    })();
-
-    if (convPendiente) {
-      // Extraer el primer número que aparezca en el mensaje (ej: "son 2.50", "cobro 3", "delivery $2.50")
-      const costoMatch = texto.match(/([0-9]+(?:[.,][0-9]+)?)/);
+    if (textoLower.startsWith('delivery $') || textoLower.startsWith('delivery$') || textoLower.match(/^delivery\s*\$/i)) {
+      const costoMatch = texto.match(/delivery\s*\$?([0-9]+(?:\.[0-9]+)?)/i);
       if (costoMatch) {
-        const costoDelivery = parseFloat(costoMatch[1].replace(',', '.'));
-        const { clienteNum, clienteConv } = convPendiente;
-        // Asignar este repartidor
-        clienteConv.pedido.repartidor_whatsapp = numero;
-        const negocioPedido = cargarNegocios().find(n => n.id === clienteConv.negocio_id);
-        const repInfo = (negocioPedido?.repartidores || []).find(r => r.whatsapp.replace(/\D/g, '') === numeroLimpio);
-        clienteConv.pedido.repartidor_nombre = repInfo ? repInfo.nombre : numero;
-        clienteConv.pedido.costo_delivery = costoDelivery;
-        clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
-        clienteConv.esperando = null;
-        clienteConv.etapa = 'pago';
-        await enviarMensaje(clienteNum, 'El costo del delivery a tu ubicacion es $' + costoDelivery.toFixed(2) + ' 🛵\n\n' + generarMensajePago(clienteConv, negocio), negocio.id);
-        if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
-        await enviarMensaje(numero, '✅ Quedaste asignado! El cliente fue notificado.\nTotal del pedido: $' + clienteConv.pedido.total.toFixed(2) + '\nCliente: ' + (clienteConv.pedido.nombre_cliente || clienteNum), negocio.id);
-        // Avisar a los demás repartidores que ya fue tomado
-        for (const otroRep of (clienteConv.pedido?.repartidores_contactados || [])) {
-          if (otroRep.replace(/\D/g, '') !== numeroLimpio) {
-            await enviarMensaje(otroRep, 'Este pedido ya fue tomado por otro repartidor. Gracias!', negocio.id);
+        const costoDelivery = parseFloat(costoMatch[1]);
+        // Buscar conversacion donde este repartidor fue contactado y aun no hay asignado
+        for (const [clienteNum, clienteConv] of conversaciones.entries()) {
+          const fueContactado = clienteConv.pedido?.repartidores_contactados?.includes(numero);
+          const yaAsignado = clienteConv.pedido?.repartidor_whatsapp;
+          if (fueContactado && !yaAsignado && clienteConv.esperando === 'costo_delivery') {
+            // Este repartidor es el primero en responder — queda asignado
+            clienteConv.pedido.repartidor_whatsapp = numero;
+            // Buscar nombre del repartidor
+            const repInfo = obtenerRepartidoreActivos(negocio).find(r => r.whatsapp === numero || r.whatsapp === numero.replace(/\D/g,''));
+            clienteConv.pedido.repartidor_nombre = repInfo ? repInfo.nombre : numero;
+            clienteConv.pedido.costo_delivery = costoDelivery;
+            clienteConv.pedido.total = (clienteConv.pedido.subtotal || 0) - (clienteConv.pedido.descuento || 0) + costoDelivery;
+            clienteConv.esperando = null;
+            clienteConv.etapa = 'pago';
+            // Armar resumen completo del pedido para el cliente
+            const p = clienteConv.pedido;
+            let resumenCliente = '✅ *Resumen de tu pedido:*\n\n';
+            for (const item of (p.items || [])) {
+              const precioItem = ((item.precio || 0) + (item.extras_precio || 0)) * item.cantidad;
+              resumenCliente += `${item.emoji || ''} ${item.nombre} x${item.cantidad} — $${precioItem.toFixed(2)}\n`;
+              if (item.modificadores_txt) resumenCliente += `   📝 ${item.modificadores_txt}\n`;
+            }
+            resumenCliente += `\nSubtotal: $${p.subtotal.toFixed(2)}`;
+            if (p.descuento > 0) resumenCliente += `\nDescuento: -$${p.descuento.toFixed(2)}`;
+            resumenCliente += `\n🛵 Delivery: $${costoDelivery.toFixed(2)}`;
+            resumenCliente += `\n💰 *Total: $${p.total.toFixed(2)}*`;
+            if (p.fecha_entrega) resumenCliente += `\n📅 Entrega: ${p.fecha_entrega} ${p.hora_entrega || ''}`;
+            resumenCliente += '\n\n' + generarMensajePago(clienteConv, negocio);
+            await enviarMensaje(clienteNum, resumenCliente, negocio.id);
+            if (clienteConv.pedido.metodo_pago !== 'efectivo') clienteConv.esperando = 'boucher';
+            await enviarMensaje(numero, '✅ Quedaste asignado! El cliente fue notificado.\nTotal del pedido: $' + clienteConv.pedido.total.toFixed(2) + '\nCliente: ' + (clienteConv.pedido.nombre_cliente || clienteNum), negocio.id);
+            // Avisar a los demas repartidores que ya fue asignado
+            for (const otroRep of (clienteConv.pedido.repartidores_contactados || [])) {
+              if (otroRep !== numero) {
+                await enviarMensaje(otroRep, 'Este pedido ya fue tomado por otro repartidor. Gracias!', negocio.id);
+              }
+            }
+            return;
           }
         }
-        return;
-      } else {
-        // El repartidor escribió algo pero sin número — pedirle que especifique el costo
-        await enviarMensaje(numero, '❓ Para confirmar tu costo de delivery, escribe el valor en números. Ejemplo: *2.50*', negocio.id);
-        return;
       }
     }
 
@@ -1140,6 +1184,93 @@ setInterval(async () => {
   }
 }, 30 * 60 * 1000);
 
+// ─── RECORDATORIO AL REPARTIDOR 20 MIN ANTES + REASIGNACIÓN SI NO CONFIRMA ───
+setInterval(async () => {
+  const ahora = Date.now();
+  const ahoraDt = horaActual();
+
+  for (const [key, conv] of conversaciones) {
+    const p = conv.pedido;
+    if (!p || conv.etapa !== 'confirmado') continue;
+    if (!p.es_domicilio || !p.repartidor_whatsapp) continue;
+
+    const negocio = cargarNegocios().find(n => n.id === conv.negocio_id);
+    if (!negocio) continue;
+
+    // ── 1. Repartidor no confirmó en 5 minutos → buscar otro ──
+    if (p.esperando_confirmacion_rep && p.confirmacion_rep_timestamp) {
+      const minSinConfirmar = (ahora - p.confirmacion_rep_timestamp) / 60000;
+      if (minSinConfirmar >= 5) {
+        // Marcar al repartidor actual como que no respondió
+        const repAnterior = p.repartidor_whatsapp;
+        await enviarMensaje(repAnterior, '⚠️ No confirmaste a tiempo. El pedido fue reasignado a otro repartidor.', negocio.id);
+
+        // Buscar otro repartidor disponible
+        const repsDisponibles = (negocio.repartidores || []).filter(r =>
+          r.activo !== false &&
+          r.whatsapp.replace(/\D/g,'') !== repAnterior.replace(/\D/g,'')
+        );
+
+        if (repsDisponibles.length > 0) {
+          const nuevoRep = repsDisponibles[Math.floor(Math.random() * repsDisponibles.length)];
+          p.repartidor_whatsapp = nuevoRep.whatsapp;
+          p.repartidor_nombre = nuevoRep.nombre;
+          p.repartidor = nuevoRep.nombre;
+          p.confirmacion_rep_timestamp = Date.now();
+          p.esperando_confirmacion_rep = true;
+
+          const itemsRep = (p.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad + (i.modificadores_txt ? ' (' + i.modificadores_txt + ')' : '')).join('\n');
+          const msgNuevoRep = '🟢 *PEDIDO REASIGNADO — IR A RECOGER*\n\n' +
+            'Negocio: ' + negocio.nombre + '\n' +
+            'Cliente: ' + (p.nombre_cliente || conv.numero) + '\n' +
+            'WhatsApp cliente: ' + conv.numero + '\n\n' +
+            'Pedido:\n' + itemsRep + '\n\n' +
+            'Total: $' + (p.total || 0).toFixed(2) + '\n' +
+            'Entrega: ' + (p.fecha_entrega || 'Lo antes posible') + ' ' + (p.hora_entrega || '') + '\n' +
+            'Direccion: ' + (p.direccion || '') + '\n\n' +
+            (p.notas ? 'Notas: ' + p.notas + '\n\n' : '') +
+            '⚡ El repartidor anterior no confirmó. Responde *CONFIRMAR* para tomar el pedido.';
+          await enviarMensaje(nuevoRep.whatsapp, msgNuevoRep, negocio.id);
+
+          // Avisar al cliente del cambio
+          await enviarMensaje(conv.numero, '🔄 Hubo un cambio de repartidor. Tu pedido sigue en camino, no te preocupes!', negocio.id);
+        } else {
+          // No hay más repartidores — avisar al dueño
+          p.esperando_confirmacion_rep = false;
+          await enviarMensaje(negocio.whatsapp_dueno,
+            '⚠️ URGENTE: El repartidor ' + (p.repartidor_nombre || repAnterior) + ' no confirmó el pedido de ' + (p.nombre_cliente || conv.numero) + '. No hay más repartidores disponibles. Asigna uno manualmente.',
+            negocio.id
+          );
+        }
+      }
+    }
+
+    // ── 2. Recordatorio al repartidor 20 min antes de la hora de entrega ──
+    if (p.confirmado_por_rep && p.hora_entrega && !p.recordatorio_rep_enviado) {
+      try {
+        const [hh, mm] = p.hora_entrega.split(':').map(Number);
+        const horaEntrega = new Date(ahoraDt);
+        horaEntrega.setHours(hh, mm, 0, 0);
+        const minRestantes = (horaEntrega - ahoraDt) / 60000;
+
+        if (minRestantes <= 20 && minRestantes > 0) {
+          p.recordatorio_rep_enviado = true;
+          const itemsRep = (p.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad).join('\n');
+          await enviarMensaje(p.repartidor_whatsapp,
+            '⏰ *RECORDATORIO — entrega en ' + Math.round(minRestantes) + ' minutos*\n\n' +
+            'Cliente: ' + (p.nombre_cliente || conv.numero) + '\n' +
+            'Direccion: ' + (p.direccion || '') + '\n' +
+            'Hora acordada: ' + p.hora_entrega + '\n\n' +
+            'Pedido:\n' + itemsRep + '\n\n' +
+            '¡Asegúrate de estar en camino!',
+            negocio.id
+          );
+        }
+      } catch(e) {}
+    }
+  }
+}, 60 * 1000); // revisar cada 1 minuto
+
 setInterval(async () => {
   const pendientes = cargarPedidosPendientes();
   const hoy = horaActual().toLocaleDateString('es-EC');
@@ -1234,10 +1365,26 @@ setInterval(async () => {
     const horaEntrega = conv.pedido.hora_entrega;   // ej: "18:00"
     if (!fechaEntrega || !horaEntrega) continue;
 
-    // Parsear hora de entrega
+    // Parsear fecha y hora de entrega correctamente
     const [h, m] = horaEntrega.split(':').map(Number);
-    const dtEntrega = new Date(ahoraDt);
-    dtEntrega.setHours(h, m, 0, 0);
+    let dtEntrega = new Date(ahoraDt);
+
+    if (fechaEntrega && fechaEntrega.includes('/')) {
+      // Formato explícito DD/MM/YYYY — el más confiable
+      const partes = fechaEntrega.split('/');
+      dtEntrega = new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]), h, m, 0, 0);
+    } else if (fechaEntrega && (fechaEntrega.toLowerCase().includes('mañana') || fechaEntrega.toLowerCase().includes('manana'))) {
+      // "mañana" → día siguiente
+      dtEntrega.setDate(dtEntrega.getDate() + 1);
+      dtEntrega.setHours(h, m, 0, 0);
+    } else {
+      // "hoy", vacío, "lo antes posible", etc → hoy
+      dtEntrega.setHours(h, m, 0, 0);
+      // Pero si esa hora ya pasó hoy → era para mañana (edge case)
+      if (dtEntrega.getTime() < ahora - 5 * 60 * 1000) {
+        dtEntrega.setDate(dtEntrega.getDate() + 1);
+      }
+    }
     const msParaEntrega = dtEntrega.getTime() - ahora;
 
     // --- RECORDATORIO 20 MIN ANTES ---
