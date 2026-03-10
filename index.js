@@ -8,7 +8,8 @@ const path = require('path');
 const crypto = require('crypto');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage, initAuthCreds, proto } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { initAuthCreds, BufferJSON } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const P = require('pino');
 
@@ -95,9 +96,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const sesiones = new Map();
 const mensajesProcesados = new Set(); // anti-duplicado // negocioId → { sock, qr, estado }
 
-// ─── SESIONES EN POSTGRESQL ───────────────────────────────────────────────────
-// Guarda y carga las credenciales de Baileys en DB para sobrevivir deploys
-
+// ─── SESIONES PERSISTENTES EN POSTGRESQL ─────────────────────────────────────
 async function initSessionTable() {
   try {
     await db.query(`
@@ -109,64 +108,63 @@ async function initSessionTable() {
         PRIMARY KEY (negocio_id, file_key)
       )
     `);
-  } catch(e) { console.error('Error creando tabla wa_sessions:', e.message); }
+    console.log('[Sessions] Tabla wa_sessions lista');
+  } catch(e) { console.error('[Sessions] Error creando tabla:', e.message); }
 }
 initSessionTable();
 
-// Auth state que lee/escribe en PostgreSQL en vez de archivos locales
 async function usePostgresAuthState(negocioId) {
   const readData = async (key) => {
     try {
       const r = await db.query('SELECT data FROM wa_sessions WHERE negocio_id=$1 AND file_key=$2', [negocioId, key]);
-      if (r.rows.length) return JSON.parse(r.rows[0].data);
+      if (r.rows.length) return JSON.parse(r.rows[0].data, BufferJSON.reviver);
     } catch(e) {}
     return null;
   };
+
   const writeData = async (key, data) => {
     try {
+      const serialized = JSON.stringify(data, BufferJSON.replacer);
       await db.query(`
         INSERT INTO wa_sessions (negocio_id, file_key, data, updated_at)
         VALUES ($1, $2, $3, NOW())
         ON CONFLICT (negocio_id, file_key) DO UPDATE SET data=$3, updated_at=NOW()
-      `, [negocioId, key, JSON.stringify(data)]);
-    } catch(e) { console.error('Error guardando sesion:', e.message); }
+      `, [negocioId, key, serialized]);
+    } catch(e) { console.error('[Sessions] Error guardando:', key, e.message); }
   };
+
   const removeData = async (key) => {
     try { await db.query('DELETE FROM wa_sessions WHERE negocio_id=$1 AND file_key=$2', [negocioId, key]); } catch(e) {}
   };
 
-  // Cargar creds
-  const creds = await readData('creds') || initAuthCreds();
+  const creds = (await readData('creds')) || initAuthCreds();
 
-  const state = {
-    creds,
-    keys: {
-      get: async (type, ids) => {
-        const data = {};
-        await Promise.all(ids.map(async id => {
-          let val = await readData(type + '-' + id);
-          if (type === 'app-state-sync-key' && val) {
-            val = proto.Message.AppStateSyncKeyData.fromObject(val);
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {};
+          await Promise.all(ids.map(async id => {
+            const val = await readData(type + '--' + id);
+            data[id] = val;
+          }));
+          return data;
+        },
+        set: async (data) => {
+          const tasks = [];
+          for (const category in data) {
+            for (const id in data[category]) {
+              const val = data[category][id];
+              tasks.push(val ? writeData(category + '--' + id, val) : removeData(category + '--' + id));
+            }
           }
-          data[id] = val;
-        }));
-        return data;
-      },
-      set: async (data) => {
-        const tasks = [];
-        for (const category in data) {
-          for (const id in data[category]) {
-            const val = data[category][id];
-            tasks.push(val ? writeData(category + '-' + id, val) : removeData(category + '-' + id));
-          }
+          await Promise.all(tasks);
         }
-        await Promise.all(tasks);
       }
-    }
+    },
+    saveCreds: async () => { await writeData('creds', creds); }
   };
-
-  const saveCreds = async () => { await writeData('creds', state.creds); };
-  return { state, saveCreds };
 }
 
 function dirSesion(negocioId) {
@@ -830,7 +828,10 @@ Máximo 4 líneas de respuesta.` }
       conv.pedido.es_domicilio = true;
       conv.esperando = 'costo_delivery';
       conv.etapa = 'delivery';
-      const reps = obtenerRepartidoreActivos(negocio);
+      // Recargar negocio fresco para tener repartidores actualizados
+      const negocioFresco = cargarNegocios().find(n => n.id === negocio.id) || negocio;
+      const reps = obtenerRepartidoreActivos(negocioFresco);
+      console.log('[GPS] Repartidores encontrados:', reps.length, reps.map(r => r.nombre + ':' + r.whatsapp));
       if (reps.length > 0) {
         // Enviar cotización a TODOS los repartidores activos
         const itemsResumen = (conv.pedido.items || []).map(i => '• ' + i.nombre + ' x' + i.cantidad + (i.modificadores_txt ? ' (' + i.modificadores_txt + ')' : '')).join('\n');
@@ -838,7 +839,14 @@ Máximo 4 líneas de respuesta.` }
         conv.pedido.repartidor_whatsapp = null; // se asigna cuando responda
         conv.pedido.repartidor_nombre = null;
         for (const rep of reps) {
-          await enviarMensaje(rep.whatsapp, '🛵 *Nuevo pedido - Cotizacion delivery*\n\nNegocio: ' + negocio.nombre + '\nCliente: ' + (conv.pedido.nombre_cliente || numero) + '\n\nProductos:\n' + itemsResumen + '\n\nUbicacion del cliente:\n' + conv.pedido.direccion + '\n\nResponde con el costo exacto: *DELIVERY $X.XX*\n(El primero en responder queda asignado)', negocio.id);
+          await enviarMensaje(rep.whatsapp,
+            '🛵 *Nuevo pedido — Cotización delivery*\n\n' +
+            'Negocio: ' + negocio.nombre + '\n' +
+            'Cliente: ' + (conv.pedido.nombre_cliente || numero) + '\n\n' +
+            'Productos:\n' + itemsResumen + '\n\n' +
+            'Ubicación del cliente:\n' + conv.pedido.direccion + '\n\n' +
+            'Responde con el costo. Ej: *2.50*\n(El primero en responder queda asignado)',
+            negocioFresco.id);
         }
         await enviar(numero, '📍 Ubicación recibida! Estamos cotizando el costo de delivery, te avisamos en un momento. 🛵');
       } else {
@@ -1168,6 +1176,41 @@ Máximo 4 líneas de respuesta.` }
       conv.etapa = 'confirmando';
     } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago' && conv.etapa !== 'confirmado') {
       for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
+    }
+
+    // ── Contactar repartidores cuando se transiciona a etapa delivery ──
+    // Esto ocurre cuando el cliente da su dirección como texto (no GPS)
+    const transicionandoADelivery = conv.etapa === 'delivery' && etapaAnterior !== 'delivery';
+    if (transicionandoADelivery && conv.pedido.es_domicilio && !conv.pedido.repartidores_contactados?.length) {
+      const reps = obtenerRepartidoreActivos(negocio);
+      if (reps.length > 0) {
+        conv.esperando = 'costo_delivery';
+        const itemsResumen = (conv.pedido.items || []).map(i => '• ' + (i.emoji||'') + ' ' + i.nombre + ' x' + i.cantidad + (i.modificadores_txt ? ' (' + i.modificadores_txt + ')' : '')).join('\n');
+        conv.pedido.repartidores_contactados = reps.map(r => r.whatsapp);
+        conv.pedido.repartidor_whatsapp = null;
+        conv.pedido.repartidor_nombre = null;
+        for (const rep of reps) {
+          await enviarMensaje(rep.whatsapp,
+            '🛵 *Nuevo pedido — Cotización delivery*\n\n' +
+            'Negocio: ' + negocio.nombre + '\n' +
+            'Cliente: ' + (conv.pedido.nombre_cliente || numero) + '\n\n' +
+            'Productos:\n' + itemsResumen + '\n\n' +
+            'Dirección del cliente:\n' + (conv.pedido.direccion || 'No especificada') + '\n\n' +
+            'Responde con el costo. Ej: *2.50*\n(El primero en responder queda asignado)',
+            negocio.id
+          );
+        }
+        await enviar(numero, '📍 Dirección recibida! Estamos cotizando el costo de delivery, te avisamos en un momento. 🛵');
+      } else {
+        // Sin repartidores — ir directo a pago sin delivery
+        conv.pedido.costo_delivery = 0;
+        conv.esperando = null;
+        conv.etapa = 'pago';
+        await enviarResumenPedido(numero, conv);
+        await new Promise(r => setTimeout(r, 400));
+        await enviar(numero, generarMensajePago(conv, negocio));
+        if (conv.pedido.metodo_pago !== 'efectivo') conv.esperando = 'boucher';
+      }
     }
 
     // Mostrar pago SOLO cuando se transiciona a etapa pago (no en mensajes repetidos)
