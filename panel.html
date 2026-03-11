@@ -279,7 +279,7 @@ textarea{resize:vertical;border-radius:8px;}
     <button class="nav-btn" onclick="switchTab('promociones')"><span class="nav-icon">🏷️</span>Promociones</button>
     <button class="nav-btn" onclick="switchTab('clientes')"><span class="nav-icon">👥</span>Clientes</button>
     <div class="nav-group-label">// Operaciones</div>
-    <button class="nav-btn" onclick="switchTab('comunicaciones')"><span class="nav-icon">📡</span>Comunicaciones</button>
+    <button class="nav-btn" onclick="switchTab('repartidores')"><span class="nav-icon">🛵</span>Repartidores</button>
     <button class="nav-btn" onclick="switchTab('chat')"><span class="nav-icon">💬</span>Chat en vivo</button>
     <button class="nav-btn" onclick="switchTab('masivo')"><span class="nav-icon">📢</span>Envío masivo</button>
     <button class="nav-btn" onclick="switchTab('citas')"><span class="nav-icon">🗓️</span>Citas</button>
@@ -465,70 +465,18 @@ textarea{resize:vertical;border-radius:8px;}
   </div>
 </div>
 
-
-
-<!-- COMUNICACIONES -->
-<div class="panel" id="tab-comunicaciones">
-  <div class="section-title">Comunicaciones</div>
-  <div class="alert" id="comAlert"></div>
-
-  <div class="card">
-    <div class="card-title">📞 Números del negocio</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot notifica pedidos y pagos a estos números.</div>
+<!-- REPARTIDORES -->
+<div class="panel" id="tab-repartidores">
+  <div class="section-title">Repartidores</div>
+  <div class="card" style="max-width:560px;margin-bottom:14px;">
+    <div class="card-title">Agregar repartidor</div>
     <div class="form-row">
-      <div>
-        <label>WhatsApp dueño (recibe pedidos)</label>
-        <input type="text" id="com_whatsapp" placeholder="593912345678">
-      </div>
-      <div>
-        <label>Datos bancarios — Banco</label>
-        <input type="text" id="com_banco" placeholder="Banco Pichincha">
-      </div>
-    </div>
-    <div class="form-row">
-      <div>
-        <label>N° de cuenta</label>
-        <input type="text" id="com_cuenta" placeholder="2200123456789">
-      </div>
-      <div>
-        <label>Titular de la cuenta</label>
-        <input type="text" id="com_titular" placeholder="Nombre completo">
-      </div>
-    </div>
-    <div class="form-row">
-      <div>
-        <label>Tipo de cuenta</label>
-        <select id="com_tipo_cuenta">
-          <option value="Ahorros">Ahorros</option>
-          <option value="Corriente">Corriente</option>
-        </select>
-      </div>
-      <div></div>
-    </div>
-    <button class="btn btn-success" onclick="guardarComunicaciones()" style="width:100%;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR NÚMEROS Y BANCO</button>
-  </div>
-
-  <div class="card">
-    <div class="card-title">🛵 Repartidores</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot les envía cotizaciones de delivery automáticamente.</div>
-    <div class="form-row" style="max-width:560px;">
-      <div><label>Nombre *</label><input type="text" id="rep_nombre" placeholder="Nombre del repartidor"></div>
+      <div><label>Nombre *</label><input type="text" id="rep_nombre" placeholder="Nombre"></div>
       <div><label>WhatsApp *</label><input type="text" id="rep_whatsapp" placeholder="+593990000000"></div>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="crearRepartidor()" style="margin-bottom:16px;">+ Agregar repartidor</button>
-    <div id="repartidoresList"></div>
+    <button class="btn btn-primary" onclick="crearRepartidor()">Agregar</button>
   </div>
-
-  <div class="card">
-    <div class="card-title">🛡️ Lista blanca</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Números que el bot <strong style="color:var(--r);">nunca</strong> responde — ej: tu propio número para hacer pruebas.</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <input type="text" id="lb-numero" placeholder="593990000000" style="flex:1;min-width:180px;margin:0;">
-      <input type="text" id="lb-etiqueta" placeholder="Etiqueta (ej: Dueño)" style="width:150px;margin:0;">
-      <button class="btn btn-primary btn-sm" onclick="agregarListaBlanca()">+ Agregar</button>
-    </div>
-    <div id="lb-lista"><p style="font-family:var(--fm);font-size:11px;color:var(--t3);">Cargando...</p></div>
-  </div>
+  <div class="card"><div id="repartidoresList"></div></div>
 </div>
 
 <!-- CLIENTES -->
@@ -656,160 +604,427 @@ textarea{resize:vertical;border-radius:8px;}
     <div style="display:flex;justify-content:center;"><img id="wa-qr-img" src="" alt="QR" style="width:220px;height:220px;"/></div>
     <p style="font-family:var(--fm);font-size:10px;color:var(--t3);text-align:center;margin-top:12px;">El QR se actualiza automáticamente</p>
   </div>
-
+  <div class="card">
+    <div class="card-title">🛡️ Lista blanca</div>
+    <p style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:16px;">Números que el bot nunca responde.</p>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <input type="text" id="lb-numero" placeholder="593990000000" style="flex:1;min-width:200px;margin:0;">
+      <input type="text" id="lb-etiqueta" placeholder="Etiqueta" style="width:140px;margin:0;">
+      <button class="btn btn-primary btn-sm" onclick="agregarListaBlanca()">Agregar</button>
+    </div>
+    <div id="lb-lista"><p style="font-family:var(--fm);font-size:11px;color:var(--t3);">Cargando...</p></div>
+  </div>
 </div>
 
 <!-- CONFIG -->
 <div class="panel" id="tab-config">
   <div class="section-title">Configuración</div>
   <div class="alert" id="configAlert"></div>
-  <div class="card">
-    <div class="card-title">Datos del negocio</div>
-    <div class="form-row">
-      <div><label>Nombre</label><input type="text" id="cfg_nombre"></div>
-      <div><label>Tipo</label><input type="text" id="cfg_tipo" placeholder="Restaurante, Tienda..."></div>
+
+  <!-- SUB-TABS CONFIG -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;">
+    <button class="cfg-tab-btn active" onclick="switchCfgTab('negocio')" id="cfgtab-negocio">🏪 Negocio</button>
+    <button class="cfg-tab-btn" onclick="switchCfgTab('apariencia')" id="cfgtab-apariencia">🎨 Apariencia</button>
+    <button class="cfg-tab-btn" onclick="switchCfgTab('horarios')" id="cfgtab-horarios">🕐 Horarios</button>
+    <button class="cfg-tab-btn" onclick="switchCfgTab('bot')" id="cfgtab-bot">🤖 Bot</button>
+    <button class="cfg-tab-btn" onclick="switchCfgTab('vacaciones')" id="cfgtab-vacaciones">🏖️ Vacaciones</button>
+  </div>
+
+  <style>
+  .cfg-tab-btn{padding:8px 14px;background:var(--s1);border:1px solid var(--b);border-radius:8px;color:var(--t2);font-family:var(--fm);font-size:11px;cursor:pointer;transition:all .18s;letter-spacing:.06em;}
+  .cfg-tab-btn:hover{color:var(--tx);border-color:var(--bh);}
+  .cfg-tab-btn.active{color:var(--c);background:rgba(0,200,255,.08);border-color:var(--c);box-shadow:0 0 12px rgba(0,200,255,.15);}
+  .cfg-section{display:none;}.cfg-section.active{display:block;}
+  .cfg-color-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  @media(max-width:600px){.cfg-color-row{grid-template-columns:1fr;}}
+  .cfg-color-item label{font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);display:block;margin-bottom:6px;}
+  .cfg-color-swatch{display:flex;gap:8px;align-items:center;}
+  .cfg-color-swatch input[type=color]{width:44px;height:36px;padding:2px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;flex-shrink:0;}
+  .cfg-color-swatch input[type=text]{flex:1;}
+  .preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-bottom:20px;}
+  .preset-card{padding:10px 8px;border:1px solid var(--b);border-radius:10px;cursor:pointer;text-align:center;transition:all .18s;background:var(--s1);}
+  .preset-card:hover{border-color:var(--bh);transform:translateY(-2px);}
+  .preset-card.active{border-color:var(--c);box-shadow:0 0 12px rgba(0,200,255,.2);}
+  .preset-card .pc-dot{width:28px;height:28px;border-radius:50%;margin:0 auto 6px;border:2px solid rgba(255,255,255,.15);}
+  .preset-card .pc-name{font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t2);}
+  .live-preview{border:1px solid var(--b);border-radius:12px;overflow:hidden;margin-top:16px;}
+  .lp-header{padding:10px 16px;font-family:var(--fm);font-size:9px;letter-spacing:.15em;color:var(--t3);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:6px;}
+  .lp-header::before{content:'▶';font-size:7px;color:var(--c);}
+  .lp-body{padding:14px;}
+  .font-preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px;}
+  .font-card{padding:12px;border:1px solid var(--b);border-radius:8px;cursor:pointer;transition:all .15s;background:var(--s1);}
+  .font-card:hover{border-color:var(--bh);}
+  .font-card.active{border-color:var(--c);background:rgba(0,200,255,.06);}
+  .font-card .fc-sample{font-size:18px;font-weight:700;color:var(--tx);margin-bottom:4px;line-height:1.2;}
+  .font-card .fc-name{font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;}
+  .layout-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+  .layout-card{padding:10px;border:1px solid var(--b);border-radius:8px;cursor:pointer;transition:all .15s;background:var(--s1);text-align:center;}
+  .layout-card:hover{border-color:var(--bh);}
+  .layout-card.active{border-color:var(--c);background:rgba(0,200,255,.06);}
+  .layout-card .lc-icon{font-size:22px;margin-bottom:4px;}
+  .layout-card .lc-name{font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.08em;}
+  .radio-group{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .radio-pill{padding:7px 14px;border:1px solid var(--b);border-radius:20px;cursor:pointer;font-family:var(--fm);font-size:11px;color:var(--t2);transition:all .15s;background:var(--s1);}
+  .radio-pill:hover{border-color:var(--bh);color:var(--tx);}
+  .radio-pill.active{border-color:var(--c);color:var(--c);background:rgba(0,200,255,.08);}
+  .cfg-section-label{font-family:var(--fm);font-size:9px;letter-spacing:.2em;color:var(--t3);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--b);}
+  </style>
+
+  <!-- ══════════ NEGOCIO ══════════ -->
+  <div class="cfg-section active" id="cfgsec-negocio">
+    <div class="card">
+      <div class="card-title">🏪 Información del negocio</div>
+      <div class="form-row">
+        <div><label>Nombre</label><input type="text" id="cfg_nombre"></div>
+        <div><label>Tipo de negocio</label><input type="text" id="cfg_tipo" placeholder="Restaurante, Floristería..."></div>
+      </div>
+      <div class="form-row">
+        <div><label>Dirección física</label><input type="text" id="cfg_direccion" placeholder="Av. Principal 123"></div>
+        <div><label>Tiempo de entrega</label><input type="text" id="cfg_tiempo" placeholder="30-45 minutos"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Zonas de delivery</label><input type="text" id="cfg_zonas" placeholder="Norte, Sur, Centro..."></div>
+        <div><label>Pedido mínimo ($)</label><input type="number" id="cfg_pedido_minimo" placeholder="5.00" step="0.01"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Costo de delivery</label><input type="text" id="cfg_costo_delivery" placeholder="Varía según distancia"></div>
+        <div><label>Instagram</label><input type="text" id="cfg_instagram" placeholder="@tunegocio"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Facebook</label><input type="text" id="cfg_facebook" placeholder="facebook.com/tunegocio"></div>
+        <div><label>TikTok</label><input type="text" id="cfg_tiktok" placeholder="@tunegocio"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Sitio web</label><input type="text" id="cfg_web" placeholder="www.tunegocio.com"></div>
+        <div><label>Email de contacto</label><input type="text" id="cfg_email" placeholder="info@tunegocio.com"></div>
+      </div>
     </div>
-    <div class="form-row">
-      <div><label>Dirección</label><input type="text" id="cfg_direccion" placeholder="Av. Principal 123"></div>
-      <div><label>Tiempo de entrega</label><input type="text" id="cfg_tiempo" placeholder="30-45 minutos"></div>
-    </div>
-    <div class="form-row">
-      <div><label>Zonas de delivery</label><input type="text" id="cfg_zonas" placeholder="Norte, Sur, Centro..."></div>
-      <div><label>Pedido mínimo ($)</label><input type="number" id="cfg_pedido_minimo" placeholder="5.00" step="0.01"></div>
-    </div>
-    <label>Métodos de pago</label>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;padding:10px 0 16px;">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_transferencia" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> Transferencia</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_efectivo" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> Efectivo</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_tarjeta" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> Tarjeta</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);"><input type="checkbox" id="pago_qr" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;"> QR</label>
-    </div>
-    <div style="border:1px solid rgba(0,212,255,.2);padding:14px;background:rgba(0,212,255,.03);clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);margin-bottom:14px;">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;text-transform:none;letter-spacing:normal;">
-        <input type="checkbox" id="cfg_requiere_hora" style="width:16px;height:16px;accent-color:var(--c);clip-path:none;">
-        <div>
-          <div style="font-size:13px;color:var(--tx);">🕐 Requiere hora exacta de entrega</div>
-          <div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:2px;">Actívalo para floristerías, pastelerías o servicios con cita. Desactívalo para restaurantes y comida rápida.</div>
+
+    <div class="card">
+      <div class="card-title">💳 Métodos de pago</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;padding:6px 0 16px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);padding:8px 14px;border:1px solid var(--b);border-radius:8px;transition:all .15s;" id="lbl_pago_transferencia">
+          <input type="checkbox" id="pago_transferencia" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;" onchange="highlightPago('transferencia')"> 💸 Transferencia
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);padding:8px 14px;border:1px solid var(--b);border-radius:8px;transition:all .15s;" id="lbl_pago_efectivo">
+          <input type="checkbox" id="pago_efectivo" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;" onchange="highlightPago('efectivo')"> 💵 Efectivo
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);padding:8px 14px;border:1px solid var(--b);border-radius:8px;transition:all .15s;" id="lbl_pago_tarjeta">
+          <input type="checkbox" id="pago_tarjeta" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;" onchange="highlightPago('tarjeta')"> 💳 Tarjeta
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0;text-transform:none;letter-spacing:normal;color:var(--tx);padding:8px 14px;border:1px solid var(--b);border-radius:8px;transition:all .15s;" id="lbl_pago_qr">
+          <input type="checkbox" id="pago_qr" style="width:auto;margin:0;accent-color:var(--c);clip-path:none;" onchange="highlightPago('qr')"> 📱 QR
+        </label>
+      </div>
+      <div class="form-row">
+        <div><label>Banco</label><input type="text" id="cfg_banco"></div>
+        <div><label>N° de cuenta</label><input type="text" id="cfg_cuenta"></div>
+      </div>
+      <div class="form-row">
+        <div><label>Titular</label><input type="text" id="cfg_titular"></div>
+        <div><label>Tipo de cuenta</label>
+          <select id="cfg_tipo_cuenta">
+            <option value="Ahorros">Ahorros</option>
+            <option value="Corriente">Corriente</option>
+          </select>
         </div>
-      </label>
+      </div>
     </div>
-    <label>Mensaje de bienvenida</label>
-    <textarea id="cfg_bienvenida" rows="2" placeholder="¡Hola! Bienvenido..."></textarea>
-    <label>Política de devoluciones</label>
-    <textarea id="cfg_devoluciones" rows="2"></textarea>
-    <div style="border:1px solid rgba(255,194,0,.2);padding:14px;background:rgba(255,194,0,.03);clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px);">
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;text-transform:none;letter-spacing:normal;">
-        <input type="checkbox" id="cfg_tiene_mitad_mitad" style="width:16px;height:16px;accent-color:#f59e0b;clip-path:none;" onchange="actualizarVisibilidadMitadMitad()">
-        <div><div style="font-size:13px;color:var(--tx);">🍕 Productos personalizables por mitades</div></div>
-      </label>
+
+    <button class="btn btn-success" onclick="guardarConfig()" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR NEGOCIO</button>
+  </div>
+
+  <!-- ══════════ APARIENCIA ══════════ -->
+  <div class="cfg-section" id="cfgsec-apariencia">
+    <div class="card">
+      <div class="card-title">🖼️ Imágenes del catálogo</div>
+      <div class="form-row">
+        <div>
+          <label>Logo del negocio</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+            <input type="text" id="cfg_logo" placeholder="https://..." style="margin-bottom:0;flex:1;">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()">📷</button>
+            <input type="file" id="logoFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_logo','logoPreview')">
+          </div>
+          <div id="logoPreview"></div>
+        </div>
+        <div>
+          <label>Banner del catálogo</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+            <input type="text" id="cfg_banner" placeholder="https://..." style="margin-bottom:0;flex:1;">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()">📷</button>
+            <input type="file" id="bannerFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_banner','bannerPreview')">
+          </div>
+          <div id="bannerPreview"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="cardWhiteLabel">
+      <div class="card-title">🎨 Tema del catálogo público</div>
+
+      <!-- PRESETS -->
+      <div class="cfg-section-label">TEMAS PREDEFINIDOS</div>
+      <div class="preset-grid">
+        <div class="preset-card" onclick="wlPreset('nexus')" data-wlpreset="nexus">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#00c8ff,#0048ff);"></div>
+          <div class="pc-name">NEXUS</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('verde')" data-wlpreset="verde">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#00e5a0,#00b050);"></div>
+          <div class="pc-name">VERDE</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('rojo')" data-wlpreset="rojo">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#ff3860,#c0001a);"></div>
+          <div class="pc-name">ROJO</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('morado')" data-wlpreset="morado">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#9b5cff,#5c00d4);"></div>
+          <div class="pc-name">MORADO</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('dorado')" data-wlpreset="dorado">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#ffd060,#c07800);"></div>
+          <div class="pc-name">DORADO</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('naranja')" data-wlpreset="naranja">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#ff8040,#c04000);"></div>
+          <div class="pc-name">NARANJA</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('rosa')" data-wlpreset="rosa">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#ff2d9b,#90005a);"></div>
+          <div class="pc-name">ROSA</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('blanco')" data-wlpreset="blanco">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#f0f6ff,#c0d0e8);border:1px solid #ddd;"></div>
+          <div class="pc-name">CLARO</div>
+        </div>
+        <div class="preset-card" onclick="wlPreset('negro')" data-wlpreset="negro">
+          <div class="pc-dot" style="background:linear-gradient(135deg,#333,#000);"></div>
+          <div class="pc-name">NEGRO</div>
+        </div>
+      </div>
+
+      <!-- COLORES -->
+      <div class="cfg-section-label">COLORES PERSONALIZADOS</div>
+      <div class="cfg-color-row">
+        <div class="cfg-color-item">
+          <label>COLOR PRIMARIO</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_primario" value="#00c8ff" oninput="wlSyncFromPicker('wl_color_primario');wlPreview()">
+            <input type="text" id="wl_color_primario_hex" placeholder="#00c8ff" oninput="wlSyncHex('wl_color_primario')">
+          </div>
+        </div>
+        <div class="cfg-color-item">
+          <label>COLOR DE FONDO</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_fondo" value="#020509" oninput="wlSyncFromPicker('wl_color_fondo');wlPreview()">
+            <input type="text" id="wl_color_fondo_hex" placeholder="#020509" oninput="wlSyncHex('wl_color_fondo')">
+          </div>
+        </div>
+        <div class="cfg-color-item">
+          <label>COLOR DE TEXTO</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_texto" value="#cce8ff" oninput="wlSyncFromPicker('wl_color_texto');wlPreview()">
+            <input type="text" id="wl_color_texto_hex" placeholder="#cce8ff" oninput="wlSyncHex('wl_color_texto')">
+          </div>
+        </div>
+        <div class="cfg-color-item">
+          <label>COLOR SECUNDARIO</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_secundario" value="#00e5a0" oninput="wlSyncFromPicker('wl_color_secundario');wlPreview()">
+            <input type="text" id="wl_color_secundario_hex" placeholder="#00e5a0" oninput="wlSyncHex('wl_color_secundario')">
+          </div>
+        </div>
+        <div class="cfg-color-item">
+          <label>COLOR DE BOTONES</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_boton" value="#00c8ff" oninput="wlSyncFromPicker('wl_color_boton');wlPreview()">
+            <input type="text" id="wl_color_boton_hex" placeholder="#00c8ff" oninput="wlSyncHex('wl_color_boton')">
+          </div>
+        </div>
+        <div class="cfg-color-item">
+          <label>COLOR DE PRECIOS</label>
+          <div class="cfg-color-swatch">
+            <input type="color" id="wl_color_precio" value="#00e5a0" oninput="wlSyncFromPicker('wl_color_precio');wlPreview()">
+            <input type="text" id="wl_color_precio_hex" placeholder="#00e5a0" oninput="wlSyncHex('wl_color_precio')">
+          </div>
+        </div>
+      </div>
+
+      <!-- TIPOGRAFÍA -->
+      <div class="cfg-section-label">TIPOGRAFÍA</div>
+      <div class="font-preview-grid" id="fontGrid">
+        <div class="font-card active" onclick="selectFont('Space Grotesk')" data-font="Space Grotesk">
+          <div class="fc-sample" style="font-family:'Space Grotesk',sans-serif;">Aa Bb</div>
+          <div class="fc-name">SPACE GROTESK</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Poppins')" data-font="Poppins">
+          <div class="fc-sample" style="font-family:'Poppins',sans-serif;">Aa Bb</div>
+          <div class="fc-name">POPPINS</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Nunito')" data-font="Nunito">
+          <div class="fc-sample" style="font-family:'Nunito',sans-serif;">Aa Bb</div>
+          <div class="fc-name">NUNITO</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Playfair Display')" data-font="Playfair Display">
+          <div class="fc-sample" style="font-family:'Playfair Display',serif;">Aa Bb</div>
+          <div class="fc-name">PLAYFAIR</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Oswald')" data-font="Oswald">
+          <div class="fc-sample" style="font-family:'Oswald',sans-serif;">Aa Bb</div>
+          <div class="fc-name">OSWALD</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Montserrat')" data-font="Montserrat">
+          <div class="fc-sample" style="font-family:'Montserrat',sans-serif;">Aa Bb</div>
+          <div class="fc-name">MONTSERRAT</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Raleway')" data-font="Raleway">
+          <div class="fc-sample" style="font-family:'Raleway',sans-serif;">Aa Bb</div>
+          <div class="fc-name">RALEWAY</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Roboto')" data-font="Roboto">
+          <div class="fc-sample" style="font-family:'Roboto',sans-serif;">Aa Bb</div>
+          <div class="fc-name">ROBOTO</div>
+        </div>
+        <div class="font-card" onclick="selectFont('Inter')" data-font="Inter">
+          <div class="fc-sample" style="font-family:'Inter',sans-serif;">Aa Bb</div>
+          <div class="fc-name">INTER</div>
+        </div>
+      </div>
+      <input type="hidden" id="wl_fuente" value="Space Grotesk">
+
+      <!-- ESTILO DE BORDES -->
+      <div class="cfg-section-label">ESTILO DE BORDES</div>
+      <div class="radio-group" id="borderGroup">
+        <div class="radio-pill active" onclick="selectBorder('4px')" data-br="4px">■ Angular</div>
+        <div class="radio-pill" onclick="selectBorder('12px')" data-br="12px">▣ Redondeado</div>
+        <div class="radio-pill" onclick="selectBorder('24px')" data-br="24px">● Muy redondeado</div>
+        <div class="radio-pill" onclick="selectBorder('0px')" data-br="0px">▬ Sin bordes</div>
+      </div>
+      <input type="hidden" id="wl_border_radius" value="12px">
+
+      <!-- LAYOUT DE PRODUCTOS -->
+      <div class="cfg-section-label">LAYOUT DE PRODUCTOS</div>
+      <div class="layout-grid" id="layoutGrid">
+        <div class="layout-card active" onclick="selectLayout('1')" data-layout="1">
+          <div class="lc-icon">▬</div>
+          <div class="lc-name">1 COLUMNA</div>
+        </div>
+        <div class="layout-card" onclick="selectLayout('2')" data-layout="2">
+          <div class="lc-icon">⊞</div>
+          <div class="lc-name">2 COLUMNAS</div>
+        </div>
+        <div class="layout-card" onclick="selectLayout('3')" data-layout="3">
+          <div class="lc-icon">⊟</div>
+          <div class="lc-name">3 COLUMNAS</div>
+        </div>
+      </div>
+      <input type="hidden" id="wl_layout" value="2">
+
+      <!-- EFECTOS -->
+      <div class="cfg-section-label">EFECTOS VISUALES</div>
+      <div class="radio-group" id="efectoGroup">
+        <div class="radio-pill active" onclick="selectEfecto('none')" data-efecto="none">Sin efecto</div>
+        <div class="radio-pill" onclick="selectEfecto('glass')" data-efecto="glass">✨ Glass</div>
+        <div class="radio-pill" onclick="selectEfecto('neon')" data-efecto="neon">⚡ Neon</div>
+        <div class="radio-pill" onclick="selectEfecto('flat')" data-efecto="flat">▣ Flat</div>
+        <div class="radio-pill" onclick="selectEfecto('shadow')" data-efecto="shadow">◈ Sombras</div>
+      </div>
+      <input type="hidden" id="wl_efecto" value="none">
+
+      <!-- PREVIEW EN VIVO -->
+      <div class="live-preview">
+        <div class="lp-header">PREVIEW EN VIVO</div>
+        <div class="lp-body" id="wlPreviewBox" style="background:#020509;transition:all .3s;">
+          <div id="wlPreviewHeader" style="padding:12px 16px;border-radius:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,200,255,.1);">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div id="wlPreviewLogo" style="width:36px;height:36px;border-radius:8px;background:rgba(0,200,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;">🏪</div>
+              <span id="wlPreviewNombre" style="font-weight:700;font-size:14px;color:#cce8ff;">Tu Negocio</span>
+            </div>
+            <span id="wlPreviewBadge" style="font-size:10px;padding:4px 10px;border-radius:20px;font-weight:600;background:#00e5a0;color:#020509;">● Abierto</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <div id="wlPreviewCard1" style="flex:1;padding:12px;border-radius:8px;background:rgba(0,200,255,.08);">
+              <div style="font-size:24px;margin-bottom:6px;">🌹</div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#cce8ff;">Ramo Especial</div>
+              <div id="wlPreviewPrice1" style="font-size:13px;font-weight:700;color:#00c8ff;">$25.00</div>
+              <div id="wlPreviewBtn1" style="margin-top:8px;padding:5px;border-radius:6px;background:#00c8ff;color:#020509;font-size:10px;font-weight:700;text-align:center;">Agregar</div>
+            </div>
+            <div id="wlPreviewCard2" style="flex:1;padding:12px;border-radius:8px;background:rgba(0,200,255,.08);">
+              <div style="font-size:24px;margin-bottom:6px;">💐</div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#cce8ff;">Bouquet Rosa</div>
+              <div id="wlPreviewPrice2" style="font-size:13px;font-weight:700;color:#00c8ff;">$18.00</div>
+              <div id="wlPreviewBtn2" style="margin-top:8px;padding:5px;border-radius:6px;background:#00c8ff;color:#020509;font-size:10px;font-weight:700;text-align:center;">Agregar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR TEMA</button>
+        <button class="btn btn-secondary" onclick="resetearTema()" style="font-size:11px;">↺ Reset</button>
+      </div>
+      <div id="wlAlert" class="alert" style="margin-top:10px;"></div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Horarios de atención</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot muestra si estás abierto según este horario.</div>
-    <div id="horariosContainer"></div>
+  <!-- ══════════ HORARIOS ══════════ -->
+  <div class="cfg-section" id="cfgsec-horarios">
+    <div class="card">
+      <div class="card-title">🕐 Horarios de atención</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot responde según este horario. Fuera de horario manda mensaje automático.</div>
+      <div id="horariosContainer"></div>
+    </div>
+    <button class="btn btn-success" onclick="guardarConfig()" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR HORARIOS</button>
   </div>
-  <div class="card">
-    <div class="card-title">Apariencia del catálogo</div>
-    <label>Logo</label>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
-      <input type="text" id="cfg_logo" placeholder="https://..." style="margin-bottom:0;flex:1;">
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()" style="flex-shrink:0;">📷</button>
-      <input type="file" id="logoFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_logo','logoPreview')">
-    </div>
-    <div id="logoPreview" style="margin-bottom:14px;margin-top:8px;"></div>
-    <label>Banner</label>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
-      <input type="text" id="cfg_banner" placeholder="https://..." style="margin-bottom:0;flex:1;">
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()" style="flex-shrink:0;">📷</button>
-      <input type="file" id="bannerFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_banner','bannerPreview')">
-    </div>
-    <div id="bannerPreview" style="margin-bottom:14px;margin-top:8px;"></div>
-    <div class="form-row">
-      <div><label>Costo delivery</label><input type="text" id="cfg_costo_delivery" placeholder="Varía según distancia"></div>
-      <div>
-        <label>Redes sociales</label>
-        <input type="text" id="cfg_instagram" placeholder="@tunegocio" style="margin-bottom:6px;">
-        <input type="text" id="cfg_facebook" placeholder="facebook.com/tunegocio">
-      </div>
-    </div>
-  </div>
-  <div class="card" id="cardWhiteLabel">
-    <div class="card-title">🎨 Personalización del catálogo público</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:16px;">Estos colores se aplican al catálogo web que ven tus clientes.</div>
-    <div id="wl_presets" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;">
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('nexus')" data-wlpreset="nexus" style="font-size:10px;">⚡ Nexus</button>
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('verde')" data-wlpreset="verde" style="font-size:10px;">🌿 Verde</button>
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('rojo')" data-wlpreset="rojo" style="font-size:10px;">🔥 Rojo</button>
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('morado')" data-wlpreset="morado" style="font-size:10px;">💜 Morado</button>
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('dorado')" data-wlpreset="dorado" style="font-size:10px;">✨ Dorado</button>
-      <button class="btn btn-secondary btn-sm" onclick="wlPreset('blanco')" data-wlpreset="blanco" style="font-size:10px;">☀️ Claro</button>
-    </div>
-    <div class="form-row">
-      <div><label>Color primario</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="wl_color_primario" value="#00c8ff" oninput="wlSyncFromPicker('wl_color_primario');wlPreview()" style="width:44px;height:36px;padding:2px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;"><input type="text" id="wl_color_primario_hex" placeholder="#00c8ff" oninput="wlSyncHex('wl_color_primario')" style="flex:1;"></div></div>
-      <div><label>Color de fondo</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="wl_color_fondo" value="#020509" oninput="wlSyncFromPicker('wl_color_fondo');wlPreview()" style="width:44px;height:36px;padding:2px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;"><input type="text" id="wl_color_fondo_hex" placeholder="#020509" oninput="wlSyncHex('wl_color_fondo')" style="flex:1;"></div></div>
-    </div>
-    <div class="form-row">
-      <div><label>Color de texto</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="wl_color_texto" value="#cce8ff" oninput="wlSyncFromPicker('wl_color_texto');wlPreview()" style="width:44px;height:36px;padding:2px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;"><input type="text" id="wl_color_texto_hex" placeholder="#cce8ff" oninput="wlSyncHex('wl_color_texto')" style="flex:1;"></div></div>
-      <div><label>Color secundario</label><div style="display:flex;gap:8px;align-items:center;"><input type="color" id="wl_color_secundario" value="#00e5a0" oninput="wlSyncFromPicker('wl_color_secundario');wlPreview()" style="width:44px;height:36px;padding:2px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;"><input type="text" id="wl_color_secundario_hex" placeholder="#00e5a0" oninput="wlSyncHex('wl_color_secundario')" style="flex:1;"></div></div>
-    </div>
-    <div class="form-row">
-      <div><label>Fuente</label>
-        <select id="wl_fuente" onchange="wlPreview()">
-          <option value="Space Grotesk">Space Grotesk (default)</option>
-          <option value="Inter">Inter</option>
-          <option value="Poppins">Poppins</option>
-          <option value="Nunito">Nunito</option>
-          <option value="Roboto">Roboto</option>
-        </select>
-      </div>
-      <div><label>Bordes</label>
-        <select id="wl_border_radius" onchange="wlPreview()">
-          <option value="12px">Redondeado (default)</option>
-          <option value="4px">Angular</option>
-          <option value="24px">Muy redondeado</option>
-          <option value="0px">Sin bordes</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin:16px 0 8px;">
-      <div style="font-family:var(--fm);font-size:10px;color:var(--t3);letter-spacing:.12em;margin-bottom:8px;">// PREVIEW</div>
-      <div id="wlPreviewBox" style="padding:14px;border-radius:12px;transition:all .3s;background:#020509;">
-        <div id="wlPreviewHeader" style="padding:10px 14px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,200,255,.1);">
-          <span id="wlPreviewNombre" style="font-weight:700;font-size:13px;color:#cce8ff;">Tu Negocio</span>
-          <span id="wlPreviewBadge" style="font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;background:#00e5a0;color:#020509;">Abierto</span>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <div id="wlPreviewCard1" style="flex:1;padding:10px;border-radius:8px;background:rgba(0,200,255,.08);">
-            <div style="font-size:20px;margin-bottom:4px;">🍔</div>
-            <div style="font-size:11px;font-weight:600;margin-bottom:2px;color:#cce8ff;">Producto</div>
-            <div style="font-size:11px;font-weight:700;color:#00c8ff;">$5.00</div>
+
+  <!-- ══════════ BOT ══════════ -->
+  <div class="cfg-section" id="cfgsec-bot">
+    <div class="card">
+      <div class="card-title">🤖 Comportamiento del bot</div>
+      <div style="border:1px solid rgba(0,212,255,.2);padding:14px;border-radius:10px;background:rgba(0,212,255,.03);margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;text-transform:none;letter-spacing:normal;">
+          <input type="checkbox" id="cfg_requiere_hora" style="width:16px;height:16px;accent-color:var(--c);clip-path:none;">
+          <div>
+            <div style="font-size:13px;color:var(--tx);">🕐 Requiere hora exacta de entrega</div>
+            <div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:2px;">Actívalo para floristerías y pastelerías. Desactívalo para comida rápida.</div>
           </div>
-          <div id="wlPreviewCard2" style="flex:1;padding:10px;border-radius:8px;background:rgba(0,200,255,.08);">
-            <div style="font-size:20px;margin-bottom:4px;">🌮</div>
-            <div style="font-size:11px;font-weight:600;margin-bottom:2px;color:#cce8ff;">Producto 2</div>
-            <div style="font-size:11px;font-weight:700;color:#00c8ff;">$4.50</div>
-          </div>
-        </div>
+        </label>
       </div>
+      <div style="border:1px solid rgba(255,194,0,.2);padding:14px;border-radius:10px;background:rgba(255,194,0,.03);margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;text-transform:none;letter-spacing:normal;">
+          <input type="checkbox" id="cfg_tiene_mitad_mitad" style="width:16px;height:16px;accent-color:#f59e0b;clip-path:none;" onchange="actualizarVisibilidadMitadMitad()">
+          <div>
+            <div style="font-size:13px;color:var(--tx);">🍕 Productos personalizables por mitades</div>
+            <div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:2px;">Para pizzerías y negocios con productos divididos.</div>
+          </div>
+        </label>
+      </div>
+      <label>Mensaje de bienvenida del bot</label>
+      <textarea id="cfg_bienvenida" rows="3" placeholder="¡Hola! Bienvenido a nuestro negocio. ¿En qué puedo ayudarte?"></textarea>
+      <label>Mensaje de ausencia (fuera de horario)</label>
+      <textarea id="cfg_ausencia" rows="2" placeholder="Estamos fuera de horario. Nuestro horario es..."></textarea>
+      <label>Política de devoluciones</label>
+      <textarea id="cfg_devoluciones" rows="2" placeholder="No se aceptan devoluciones después de..."></textarea>
     </div>
-    <div style="display:flex;gap:8px;margin-top:4px;">
-      <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR TEMA</button>
-      <button class="btn btn-secondary" onclick="resetearTema()" style="font-size:11px;">↺ Reset</button>
-    </div>
-    <div id="wlAlert" class="alert" style="margin-top:10px;"></div>
+    <button class="btn btn-success" onclick="guardarConfig()" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR BOT</button>
   </div>
-  <div class="card">
-    <div class="card-title">🏖️ Modo vacaciones</div>
-    <div class="toggle">
-      <div class="toggle-switch" id="toggleVacaciones" onclick="toggleVacaciones()"></div>
-      <span class="toggle-label" id="vacacionesLabel">Desactivado</span>
+
+  <!-- ══════════ VACACIONES ══════════ -->
+  <div class="cfg-section" id="cfgsec-vacaciones">
+    <div class="card">
+      <div class="card-title">🏖️ Modo vacaciones</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:16px;">Cuando está activo el bot responde con el mensaje de vacaciones y no procesa pedidos.</div>
+      <div class="toggle" style="margin-bottom:16px;">
+        <div class="toggle-switch" id="toggleVacaciones" onclick="toggleVacaciones()"></div>
+        <span class="toggle-label" id="vacacionesLabel">Desactivado</span>
+      </div>
+      <label>Mensaje de vacaciones</label>
+      <textarea id="cfg_vacaciones" rows="3" placeholder="¡Estamos de vacaciones! Volvemos el 15 de enero. Gracias por tu paciencia 🙏"></textarea>
     </div>
-    <label>Mensaje de vacaciones</label>
-    <textarea id="cfg_vacaciones" rows="2" placeholder="Estamos de vacaciones hasta el 15 de enero..."></textarea>
+    <button class="btn btn-success" onclick="guardarConfig()" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR</button>
   </div>
-  <button class="btn btn-success" onclick="guardarConfig()" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;margin-top:4px;">💾 GUARDAR CONFIGURACIÓN</button>
+
 </div>
 
     </div>
@@ -844,7 +1059,7 @@ async function loginPanel(){
   }
 }
 
-const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',comunicaciones:'// COMUNICACIONES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP'};
+const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',repartidores:'// REPARTIDORES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP'};
 
 function switchTab(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -862,7 +1077,7 @@ function switchTab(tab){
   else if(tab==='citas')cargarCitas();
   else if(tab==='whatsapp')cargarWhatsApp();
   else if(tab==='config')cargarConfig();
-  else if(tab==='comunicaciones')cargarComunicaciones();
+  else if(tab==='repartidores')cargarRepartidores();
   else if(tab==='promociones')cargarPromociones();
 }
 
@@ -982,36 +1197,13 @@ async function eliminarPromocion(id){await api(`/panel/${SLUG}/promociones/${id}
 async function crearCupon(){const cod=document.getElementById('cupon_codigo').value;if(!cod)return;await api(`/panel/${SLUG}/cupones`,{method:'POST',body:JSON.stringify({codigo:cod,tipo:document.getElementById('cupon_tipo').value,valor:parseFloat(document.getElementById('cupon_valor').value)||0,usos_maximos:parseInt(document.getElementById('cupon_usos').value)||0})});document.getElementById('cupon_codigo').value='';cargarPromociones();mostrarNotificacion('// Cupón creado');}
 async function eliminarCupon(id){await api(`/panel/${SLUG}/cupones/${id}`,{method:'DELETE'});cargarPromociones();}
 
-async function cargarComunicaciones(){
+async function cargarRepartidores(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;
-  // Números y banco
-  ['whatsapp','banco','cuenta','titular'].forEach(k=>{const el=document.getElementById('com_'+k);if(el)el.value=neg[k]||'';});
-  const tc=document.getElementById('com_tipo_cuenta');if(tc)tc.value=neg.tipo_cuenta||'Ahorros';
-  // Repartidores
   const reps=neg.repartidores||[];
-  document.getElementById('repartidoresList').innerHTML=reps.length
-    ?`<table class="table"><thead><tr><th>Nombre</th><th>WhatsApp</th><th></th></tr></thead><tbody>${reps.map(r=>`<tr><td>${r.nombre}</td><td style="font-family:var(--fm);font-size:12px;">${r.whatsapp}</td><td><button class="btn btn-danger btn-sm" onclick="eliminarRepartidor('${r.id}')">✕</button></td></tr>`).join('')}</tbody></table>`
-    :'<div style="font-family:var(--fm);font-size:11px;color:var(--t3);">Sin repartidores aún</div>';
-  // Lista blanca
-  cargarListaBlanca();
+  document.getElementById('repartidoresList').innerHTML=reps.length?`<table class="table"><thead><tr><th>Nombre</th><th>WhatsApp</th><th>Acción</th></tr></thead><tbody>${reps.map(r=>`<tr><td>${r.nombre}</td><td style="font-family:var(--fm);font-size:12px;">${r.whatsapp}</td><td><button class="btn btn-danger btn-sm" onclick="eliminarRepartidor('${r.id}')">✕</button></td></tr>`).join('')}</tbody></table>`:'<div style="font-family:var(--fm);font-size:11px;color:var(--t3);">Sin repartidores</div>';
 }
-async function guardarComunicaciones(){
-  const data={
-    whatsapp:document.getElementById('com_whatsapp').value.trim(),
-    banco:document.getElementById('com_banco').value.trim(),
-    cuenta:document.getElementById('com_cuenta').value.trim(),
-    titular:document.getElementById('com_titular').value.trim(),
-    tipo_cuenta:document.getElementById('com_tipo_cuenta').value,
-  };
-  const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
-  const al=document.getElementById('comAlert');
-  al.className='alert '+(r?.ok!==false?'ok':'err');
-  al.textContent=r?.ok!==false?'// Números y datos bancarios guardados':'// Error al guardar';
-  setTimeout(()=>al.textContent='',3000);
-  if(r?.ok!==false)mostrarNotificacion('// Comunicaciones guardadas');
-}
-async function crearRepartidor(){const n=document.getElementById('rep_nombre').value,w=document.getElementById('rep_whatsapp').value;if(!n||!w)return;await api(`/panel/${SLUG}/repartidores`,{method:'POST',body:JSON.stringify({nombre:n,whatsapp:w})});document.getElementById('rep_nombre').value='';document.getElementById('rep_whatsapp').value='';cargarComunicaciones();mostrarNotificacion('// Repartidor agregado');}
-async function eliminarRepartidor(id){if(!confirm('¿Eliminar repartidor?'))return;await api(`/panel/${SLUG}/repartidores/${id}`,{method:'DELETE'});cargarComunicaciones();}
+async function crearRepartidor(){const n=document.getElementById('rep_nombre').value,w=document.getElementById('rep_whatsapp').value;if(!n||!w)return;await api(`/panel/${SLUG}/repartidores`,{method:'POST',body:JSON.stringify({nombre:n,whatsapp:w})});document.getElementById('rep_nombre').value='';document.getElementById('rep_whatsapp').value='';cargarRepartidores();mostrarNotificacion('// Repartidor agregado');}
+async function eliminarRepartidor(id){await api(`/panel/${SLUG}/repartidores/${id}`,{method:'DELETE'});cargarRepartidores();}
 
 async function cargarClientes(){
   const clientes=await api(`/panel/${SLUG}/clientes`);if(!clientes)return;
@@ -1180,7 +1372,12 @@ async function subirImagen(input){
 
 async function cargarConfig(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;negocioData=neg;
-  ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','logo','banner','costo_delivery','instagram','facebook','bienvenida','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
+  ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','whatsapp','delivery','banco','cuenta','titular','logo','banner','costo_delivery','instagram','facebook','tiktok','web','email','bienvenida','ausencia','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
+  // Highlight métodos de pago activos
+  ['transferencia','efectivo','tarjeta','qr'].forEach(p => {
+    const cb = document.getElementById('pago_'+p);
+    if(cb) { setTimeout(() => highlightPago(p), 100); }
+  });
   ['transferencia','efectivo','tarjeta','qr'].forEach(p=>{const el=document.getElementById('pago_'+p);if(el)el.checked=(neg.metodos_pago||[]).includes(p);});
   const tv=document.getElementById('toggleVacaciones');if(tv){tv.classList.toggle('on',!!neg.modo_vacaciones);document.getElementById('vacacionesLabel').textContent=neg.modo_vacaciones?'Activado':'Desactivado';}
   if(neg.logo)document.getElementById('logoPreview').innerHTML=`<img src="${neg.logo}" style="max-height:60px;clip-path:polygon(4px 0%,100% 0%,100% calc(100% - 4px),calc(100% - 4px) 100%,0% 100%,0% 4px);border:1px solid var(--b);">`;
@@ -1205,7 +1402,7 @@ function obtenerHorarios(){
 function toggleVacaciones(){const t=document.getElementById('toggleVacaciones');t.classList.toggle('on');document.getElementById('vacacionesLabel').textContent=t.classList.contains('on')?'Activado':'Desactivado';}
 
 async function guardarConfig(){
-  const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,bienvenida:document.getElementById('cfg_bienvenida').value,devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
+  const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,whatsapp:document.getElementById('cfg_whatsapp').value,banco:document.getElementById('cfg_banco').value,cuenta:document.getElementById('cfg_cuenta').value,titular:document.getElementById('cfg_titular').value,tipo_cuenta:document.getElementById('cfg_tipo_cuenta').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,tiktok:document.getElementById('cfg_tiktok')?.value||'',web:document.getElementById('cfg_web')?.value||'',email:document.getElementById('cfg_email')?.value||'',bienvenida:document.getElementById('cfg_bienvenida').value,ausencia:document.getElementById('cfg_ausencia')?.value||'',devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
   const al=document.getElementById('configAlert');al.className='alert '+(r?.ok!==false?'ok':'err');al.textContent=r?.ok!==false?'// Configuración guardada':'// Error al guardar';
   setTimeout(()=>al.textContent='',3000);
@@ -1380,21 +1577,24 @@ async function eliminarListaBlanca(num){await api(`/panel/${SLUG}/lista-blanca/$
 
 // ─── WHITE-LABEL: TEMA DEL CATÁLOGO ──────────────────────────────────────────
 const WL_PRESETS = {
-  nexus:  {color_primario:'#00c8ff',color_fondo:'#020509',color_texto:'#cce8ff',color_secundario:'#00e5a0'},
-  verde:  {color_primario:'#00e57a',color_fondo:'#021209',color_texto:'#b8ffd8',color_secundario:'#00c8ff'},
-  rojo:   {color_primario:'#ff3860',color_fondo:'#120209',color_texto:'#ffd0d8',color_secundario:'#ff8c00'},
-  morado: {color_primario:'#a855f7',color_fondo:'#0a0212',color_texto:'#e8b8ff',color_secundario:'#00c8ff'},
-  dorado: {color_primario:'#ffc200',color_fondo:'#120e02',color_texto:'#fff2b8',color_secundario:'#ff6b00'},
-  blanco: {color_primario:'#0066ff',color_fondo:'#f8faff',color_texto:'#1a1a2e',color_secundario:'#00c8a0'},
+  nexus:   {color_primario:'#00c8ff',color_fondo:'#020509',color_texto:'#cce8ff',color_secundario:'#00e5a0',color_boton:'#00c8ff',color_precio:'#00e5a0'},
+  verde:   {color_primario:'#00e57a',color_fondo:'#021209',color_texto:'#b8ffd8',color_secundario:'#00c8ff',color_boton:'#00e57a',color_precio:'#00c8ff'},
+  rojo:    {color_primario:'#ff3860',color_fondo:'#120209',color_texto:'#ffd0d8',color_secundario:'#ff8c00',color_boton:'#ff3860',color_precio:'#ff8c00'},
+  morado:  {color_primario:'#a855f7',color_fondo:'#0a0212',color_texto:'#e8b8ff',color_secundario:'#00c8ff',color_boton:'#a855f7',color_precio:'#00c8ff'},
+  dorado:  {color_primario:'#ffc200',color_fondo:'#120e02',color_texto:'#fff2b8',color_secundario:'#ff6b00',color_boton:'#ffc200',color_precio:'#ff6b00'},
+  naranja: {color_primario:'#ff8040',color_fondo:'#090400',color_texto:'#ffd8b8',color_secundario:'#ffb060',color_boton:'#ff8040',color_precio:'#ffb060'},
+  rosa:    {color_primario:'#ff2d9b',color_fondo:'#090006',color_texto:'#ffd0ee',color_secundario:'#ff80cc',color_boton:'#ff2d9b',color_precio:'#ff80cc'},
+  blanco:  {color_primario:'#0066ff',color_fondo:'#f8faff',color_texto:'#1a1a2e',color_secundario:'#00c8a0',color_boton:'#0066ff',color_precio:'#00c8a0'},
+  negro:   {color_primario:'#ffffff',color_fondo:'#000000',color_texto:'#ffffff',color_secundario:'#888888',color_boton:'#ffffff',color_precio:'#aaaaaa'},
 };
 
 function wlPreset(nombre) {
   const p = WL_PRESETS[nombre]; if(!p) return;
-  ['color_primario','color_fondo','color_texto','color_secundario'].forEach(k => {
+  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
     const picker = document.getElementById('wl_'+k);
     const hex = document.getElementById('wl_'+k+'_hex');
-    if(picker) picker.value = p[k];
-    if(hex) hex.value = p[k];
+    if(picker && p[k]) picker.value = p[k];
+    if(hex && p[k]) hex.value = p[k];
   });
   document.querySelectorAll('[data-wlpreset]').forEach(b => b.classList.remove('active'));
   document.querySelector(`[data-wlpreset="${nombre}"]`)?.classList.add('active');
@@ -1425,7 +1625,10 @@ function wlPreview() {
   const cf = document.getElementById('wl_color_fondo')?.value || '#020509';
   const ct = document.getElementById('wl_color_texto')?.value || '#cce8ff';
   const cs = document.getElementById('wl_color_secundario')?.value || '#00e5a0';
+  const cb = document.getElementById('wl_color_boton')?.value || cp;
+  const cpr = document.getElementById('wl_color_precio')?.value || cs;
   const br = document.getElementById('wl_border_radius')?.value || '12px';
+  const efecto = document.getElementById('wl_efecto')?.value || 'none';
   const box = document.getElementById('wlPreviewBox');
   const header = document.getElementById('wlPreviewHeader');
   const badge = document.getElementById('wlPreviewBadge');
@@ -1434,6 +1637,14 @@ function wlPreview() {
   const card2 = document.getElementById('wlPreviewCard2');
   if(!box) return;
   const rgb = hexToRgbWL(cp);
+  const rgbB = hexToRgbWL(cb);
+  // Efecto visual
+  let cardBg = `rgba(${rgb},.08)`;
+  let cardShadow = 'none';
+  if(efecto==='glass') { cardBg = `rgba(${rgb},.05)`; cardShadow = `0 4px 24px rgba(${rgb},.15)`; }
+  else if(efecto==='neon') { cardBg = `rgba(${rgb},.06)`; cardShadow = `0 0 16px rgba(${rgb},.3), inset 0 0 16px rgba(${rgb},.05)`; }
+  else if(efecto==='flat') { cardBg = `rgba(${rgb},.12)`; cardShadow = 'none'; }
+  else if(efecto==='shadow') { cardBg = `rgba(${rgb},.08)`; cardShadow = '0 8px 24px rgba(0,0,0,.4)'; }
   box.style.background = cf;
   box.style.borderRadius = br;
   header.style.background = `rgba(${rgb},.1)`;
@@ -1442,16 +1653,19 @@ function wlPreview() {
   badge.style.color = cf;
   badge.style.borderRadius = '20px';
   nombre.style.color = ct;
-  [card1, card2].forEach(c => {
-    c.style.background = `rgba(${rgb},.08)`;
+  [card1, card2].forEach((c,i) => {
+    c.style.background = cardBg;
     c.style.borderRadius = br;
-    c.querySelectorAll('div').forEach((d,i) => {
-      if(i===1) d.style.color = ct;
-      if(i===2) d.style.color = cp;
-    });
+    c.style.boxShadow = cardShadow;
+    const nameEl = c.querySelector('div:nth-child(2)');
+    const priceEl = c.querySelector('#wlPreviewPrice'+(i+1));
+    const btnEl = c.querySelector('#wlPreviewBtn'+(i+1));
+    if(nameEl) nameEl.style.color = ct;
+    if(priceEl) priceEl.style.color = cpr;
+    if(btnEl) { btnEl.style.background = cb; btnEl.style.color = cf; btnEl.style.borderRadius = br === '0px' ? '0px' : '6px'; }
   });
-  // Sync hex inputs with picker values
-  ['color_primario','color_fondo','color_texto','color_secundario'].forEach(k => {
+  // Sync hex inputs
+  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
     const picker = document.getElementById('wl_'+k);
     const hex = document.getElementById('wl_'+k+'_hex');
     if(picker && hex && hex.value !== picker.value) hex.value = picker.value;
@@ -1461,14 +1675,16 @@ function wlPreview() {
 async function cargarTema() {
   const tema = await api(`/panel/${SLUG}/tema`);
   if(!tema) return;
-  ['color_primario','color_fondo','color_texto','color_secundario'].forEach(k => {
+  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
     const picker = document.getElementById('wl_'+k);
     const hex = document.getElementById('wl_'+k+'_hex');
     if(picker && tema[k]) picker.value = tema[k];
     if(hex && tema[k]) hex.value = tema[k];
   });
-  if(tema.fuente) { const s = document.getElementById('wl_fuente'); if(s) s.value = tema.fuente; }
-  if(tema.border_radius) { const s = document.getElementById('wl_border_radius'); if(s) s.value = tema.border_radius; }
+  if(tema.fuente) { selectFont(tema.fuente); }
+  if(tema.border_radius) { selectBorder(tema.border_radius); }
+  if(tema.layout) { selectLayout(tema.layout); }
+  if(tema.efecto) { selectEfecto(tema.efecto); }
   wlPreview();
 }
 
@@ -1478,8 +1694,12 @@ async function guardarTema() {
     color_fondo: document.getElementById('wl_color_fondo')?.value,
     color_texto: document.getElementById('wl_color_texto')?.value,
     color_secundario: document.getElementById('wl_color_secundario')?.value,
+    color_boton: document.getElementById('wl_color_boton')?.value,
+    color_precio: document.getElementById('wl_color_precio')?.value,
     fuente: document.getElementById('wl_fuente')?.value,
     border_radius: document.getElementById('wl_border_radius')?.value,
+    layout: document.getElementById('wl_layout')?.value,
+    efecto: document.getElementById('wl_efecto')?.value,
   };
   const r = await api(`/panel/${SLUG}/tema`, {method:'PUT', body:JSON.stringify(data)});
   const al = document.getElementById('wlAlert');
@@ -1494,6 +1714,63 @@ async function resetearTema() {
   const r = await api(`/panel/${SLUG}/tema/reset`, {method:'POST'});
   if(r?.ok) { wlPreset('nexus'); mostrarNotificacion('// Tema reseteado'); }
 }
+
+// ── CONFIG SUB-TABS ──
+function switchCfgTab(tab) {
+  document.querySelectorAll('.cfg-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.cfg-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('cfgtab-' + tab)?.classList.add('active');
+  document.getElementById('cfgsec-' + tab)?.classList.add('active');
+}
+
+// ── FONT SELECTOR ──
+function selectFont(font) {
+  document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.font-card[data-font="${font}"]`)?.classList.add('active');
+  document.getElementById('wl_fuente').value = font;
+  wlPreview();
+}
+
+// ── BORDER SELECTOR ──
+function selectBorder(br) {
+  document.querySelectorAll('.radio-pill[data-br]').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.radio-pill[data-br="${br}"]`)?.classList.add('active');
+  document.getElementById('wl_border_radius').value = br;
+  wlPreview();
+}
+
+// ── LAYOUT SELECTOR ──
+function selectLayout(layout) {
+  document.querySelectorAll('.layout-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.layout-card[data-layout="${layout}"]`)?.classList.add('active');
+  document.getElementById('wl_layout').value = layout;
+}
+
+// ── EFECTO SELECTOR ──
+function selectEfecto(efecto) {
+  document.querySelectorAll('.radio-pill[data-efecto]').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.radio-pill[data-efecto="${efecto}"]`)?.classList.add('active');
+  document.getElementById('wl_efecto').value = efecto;
+  wlPreview();
+}
+
+// ── HIGHLIGHT PAGO ──
+function highlightPago(tipo) {
+  const lbl = document.getElementById('lbl_pago_' + tipo);
+  const cb = document.getElementById('pago_' + tipo);
+  if(lbl && cb) {
+    lbl.style.borderColor = cb.checked ? 'var(--c)' : 'var(--b)';
+    lbl.style.background = cb.checked ? 'rgba(0,200,255,.06)' : '';
+    lbl.style.color = cb.checked ? 'var(--c)' : 'var(--tx)';
+  }
+}
+
+// ── EXTENDED PRESETS (incluye nuevos) ──
+const WL_PRESETS_EXT = {
+  naranja: { color_primario:'#ff8040', color_fondo:'#090400', color_texto:'#ffd8b8', color_secundario:'#ffb060', color_boton:'#ff8040', color_precio:'#ffb060' },
+  rosa:    { color_primario:'#ff2d9b', color_fondo:'#090006', color_texto:'#ffd0ee', color_secundario:'#ff80cc', color_boton:'#ff2d9b', color_precio:'#ff80cc' },
+  negro:   { color_primario:'#ffffff', color_fondo:'#000000', color_texto:'#ffffff', color_secundario:'#cccccc', color_boton:'#ffffff', color_precio:'#aaaaaa' },
+};
 
 // Al cargar: si ya hay token intentar entrar
 window.addEventListener('DOMContentLoaded',()=>{
