@@ -2455,6 +2455,7 @@ const TEMA_DEFAULT = {
   border_radius: '12px',
   layout: '2',
   efecto: 'none',
+  banner_opacity: 0.55,
   logo_url: '',
   banner_url: '',
 };
@@ -2472,7 +2473,7 @@ app.put('/panel/:slug/tema', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   // Validar campos permitidos
-  const camposPermitidos = ['color_primario','color_secundario','color_fondo','color_texto','color_tarjeta','color_boton','color_precio','fuente','border_radius','layout','efecto'];
+  const camposPermitidos = ['color_primario','color_secundario','color_fondo','color_texto','color_tarjeta','color_boton','color_precio','fuente','border_radius','layout','efecto','banner_opacity'];
   const temaActual = negocios[idx].tema || {};
   const temaActualizado = { ...temaActual };
   for (const campo of camposPermitidos) {

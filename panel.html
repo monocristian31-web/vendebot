@@ -758,6 +758,16 @@ textarea{resize:vertical;border-radius:8px;}
           <div id="bannerPreview"></div>
         </div>
       </div>
+      <div style="margin-top:14px;">
+        <label style="font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);display:block;margin-bottom:8px;">OPACIDAD DEL BANNER</label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="wl_banner_opacity" min="0.05" max="1" step="0.05" value="0.55"
+            oninput="document.getElementById('wl_banner_opacity_val').textContent=Math.round(this.value*100)+'%';wlPreview();"
+            style="flex:1;accent-color:var(--c);">
+          <span id="wl_banner_opacity_val" style="font-family:var(--fm);font-size:12px;color:var(--c);min-width:36px;text-align:right;">55%</span>
+        </div>
+        <div style="font-family:var(--fm);font-size:10px;color:var(--t3);margin-top:4px;">Sube el valor para ver más el banner, bájalo para que sea más sutil.</div>
+      </div>
     </div>
 
     <div class="card" id="cardWhiteLabel">
@@ -1681,6 +1691,12 @@ async function cargarTema() {
     if(picker && tema[k]) picker.value = tema[k];
     if(hex && tema[k]) hex.value = tema[k];
   });
+  if(tema.banner_opacity!==undefined){
+    const sl=document.getElementById('wl_banner_opacity');
+    const vl=document.getElementById('wl_banner_opacity_val');
+    if(sl) sl.value=tema.banner_opacity;
+    if(vl) vl.textContent=Math.round(tema.banner_opacity*100)+'%';
+  }
   if(tema.fuente) { selectFont(tema.fuente); }
   if(tema.border_radius) { selectBorder(tema.border_radius); }
   if(tema.layout) { selectLayout(tema.layout); }
@@ -1694,6 +1710,7 @@ async function guardarTema() {
     color_fondo: document.getElementById('wl_color_fondo')?.value,
     color_texto: document.getElementById('wl_color_texto')?.value,
     color_secundario: document.getElementById('wl_color_secundario')?.value,
+    banner_opacity: parseFloat(document.getElementById('wl_banner_opacity')?.value||0.55),
     color_boton: document.getElementById('wl_color_boton')?.value,
     color_precio: document.getElementById('wl_color_precio')?.value,
     fuente: document.getElementById('wl_fuente')?.value,
