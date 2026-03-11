@@ -260,6 +260,27 @@ textarea{resize:vertical;border-radius:8px;}
   .stats-grid{grid-template-columns:1fr 1fr;}
   .form-row{grid-template-columns:1fr;}
 }
+
+  /* ── TEMA CARDS ── */
+  .tema-f-btn{padding:5px 12px;border:1px solid var(--b);border-radius:20px;font-size:10px;letter-spacing:.08em;color:var(--t3);cursor:pointer;transition:all .15s;background:none;font-family:var(--fm);}
+  .tema-f-btn:hover,.tema-f-btn.active{border-color:var(--c);color:var(--c);background:rgba(0,200,255,.06);}
+  .tema-card{border-radius:10px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;border:1px solid rgba(255,255,255,.06);}
+  .tema-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5);}
+  .tema-card.activo{outline:2px solid var(--c);outline-offset:1px;}
+  .tc-preview{height:90px;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+  .tc-bar{height:20px;display:flex;align-items:center;padding:0 6px;flex-shrink:0;}
+  .tc-dot{width:12px;height:12px;border-radius:50%;}
+  .tc-emoji{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:20px;line-height:1;}
+  .tc-prices{position:absolute;bottom:20px;left:0;right:0;display:flex;gap:4px;padding:0 6px;}
+  .tc-price{flex:1;height:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;}
+  .tc-btnp{position:absolute;bottom:4px;left:6px;right:6px;height:12px;opacity:.7;}
+  .tc-check{position:absolute;top:4px;right:4px;background:var(--c);color:#000;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;}
+  .tc-label{padding:5px 7px;}
+  .tc-name-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #temaGrid::-webkit-scrollbar{width:4px;}
+  #temaGrid::-webkit-scrollbar-track{background:rgba(255,255,255,.03);}
+  #temaGrid::-webkit-scrollbar-thumb{background:rgba(0,200,255,.2);border-radius:2px;}
+
 </style>
 </head>
 <body>
@@ -736,239 +757,50 @@ textarea{resize:vertical;border-radius:8px;}
 
   <!-- ══════════ APARIENCIA ══════════ -->
   <div class="cfg-section" id="cfgsec-apariencia">
+    <!-- IMÁGENES -->
     <div class="card">
       <div class="card-title">🖼️ Imágenes del catálogo</div>
       <div class="form-row">
         <div>
-          <label>Logo del negocio</label>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
-            <input type="text" id="cfg_logo" placeholder="https://..." style="margin-bottom:0;flex:1;">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFile').click()">📷</button>
-            <input type="file" id="logoFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_logo','logoPreview')">
-          </div>
-          <div id="logoPreview"></div>
+          <label class="form-label">Logo del negocio</label>
+          <input type="file" class="form-input" id="logoFile" accept="image/*" onchange="subirLogo(this)">
+          <div id="logoPreviewWrap" style="margin-top:8px;display:none;"><img id="logoPreview" style="max-height:60px;border-radius:8px;"></div>
         </div>
         <div>
-          <label>Banner del catálogo</label>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
-            <input type="text" id="cfg_banner" placeholder="https://..." style="margin-bottom:0;flex:1;">
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('bannerFile').click()">📷</button>
-            <input type="file" id="bannerFile" accept="image/*" style="display:none;" onchange="subirImagenConfig(this,'cfg_banner','bannerPreview')">
-          </div>
-          <div id="bannerPreview"></div>
+          <label class="form-label">Banner principal</label>
+          <input type="file" class="form-input" id="bannerFile" accept="image/*" onchange="subirBanner(this)">
+          <div id="bannerPreviewWrap" style="margin-top:8px;display:none;"><img id="bannerPreview" style="max-height:60px;border-radius:8px;width:100%;object-fit:cover;"></div>
         </div>
       </div>
-      <div style="margin-top:14px;">
-        <label style="font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);display:block;margin-bottom:8px;">OPACIDAD DEL BANNER</label>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <input type="range" id="wl_banner_opacity" min="0.05" max="1" step="0.05" value="0.55"
-            oninput="document.getElementById('wl_banner_opacity_val').textContent=Math.round(this.value*100)+'%';wlPreview();"
-            style="flex:1;accent-color:var(--c);">
-          <span id="wl_banner_opacity_val" style="font-family:var(--fm);font-size:12px;color:var(--c);min-width:36px;text-align:right;">55%</span>
-        </div>
-        <div style="font-family:var(--fm);font-size:10px;color:var(--t3);margin-top:4px;">Sube el valor para ver más el banner, bájalo para que sea más sutil.</div>
+      <div style="margin-top:12px;">
+        <label class="form-label">Opacidad del banner <span id="wl_banner_opacity_val">55%</span></label>
+        <input type="range" id="wl_banner_opacity" min="0" max="1" step="0.05" value="0.55" style="width:100%;accent-color:var(--c);"
+          oninput="document.getElementById('wl_banner_opacity_val').textContent=Math.round(this.value*100)+'%';">
       </div>
     </div>
 
-    <div class="card" id="cardWhiteLabel">
-      <div class="card-title">🎨 Tema del catálogo público</div>
+    <!-- SELECTOR DE 50 TEMAS -->
+    <div class="card">
+      <div class="card-title">🎨 Tema del catálogo</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Elige el look completo de tu tienda — cada tema incluye colores, tipografía y fondo.</div>
 
-      <!-- PRESETS -->
-      <div class="cfg-section-label">TEMAS PREDEFINIDOS</div>
-      <div class="preset-grid">
-        <div class="preset-card" onclick="wlPreset('nexus')" data-wlpreset="nexus">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#00c8ff,#0048ff);"></div>
-          <div class="pc-name">NEXUS</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('verde')" data-wlpreset="verde">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#00e5a0,#00b050);"></div>
-          <div class="pc-name">VERDE</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('rojo')" data-wlpreset="rojo">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#ff3860,#c0001a);"></div>
-          <div class="pc-name">ROJO</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('morado')" data-wlpreset="morado">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#9b5cff,#5c00d4);"></div>
-          <div class="pc-name">MORADO</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('dorado')" data-wlpreset="dorado">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#ffd060,#c07800);"></div>
-          <div class="pc-name">DORADO</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('naranja')" data-wlpreset="naranja">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#ff8040,#c04000);"></div>
-          <div class="pc-name">NARANJA</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('rosa')" data-wlpreset="rosa">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#ff2d9b,#90005a);"></div>
-          <div class="pc-name">ROSA</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('blanco')" data-wlpreset="blanco">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#f0f6ff,#c0d0e8);border:1px solid #ddd;"></div>
-          <div class="pc-name">CLARO</div>
-        </div>
-        <div class="preset-card" onclick="wlPreset('negro')" data-wlpreset="negro">
-          <div class="pc-dot" style="background:linear-gradient(135deg,#333,#000);"></div>
-          <div class="pc-name">NEGRO</div>
-        </div>
+      <!-- FILTROS -->
+      <div id="temaFiltros" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+        <button class="tema-f-btn active" onclick="filtrarTemas('todos',this)">Todos</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('dark',this)">🌑 Dark</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('light',this)">☀️ Claro</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('neon',this)">⚡ Neón</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('food',this)">🍔 Comida</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('luxury',this)">💎 Lujo</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('nature',this)">🌿 Natural</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('fun',this)">🎉 Fun</button>
+        <button class="tema-f-btn" onclick="filtrarTemas('minimal',this)">▣ Minimal</button>
       </div>
 
-      <!-- COLORES -->
-      <div class="cfg-section-label">COLORES PERSONALIZADOS</div>
-      <div class="cfg-color-row">
-        <div class="cfg-color-item">
-          <label>COLOR PRIMARIO</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_primario" value="#00c8ff" oninput="wlSyncFromPicker('wl_color_primario');wlPreview()">
-            <input type="text" id="wl_color_primario_hex" placeholder="#00c8ff" oninput="wlSyncHex('wl_color_primario')">
-          </div>
-        </div>
-        <div class="cfg-color-item">
-          <label>COLOR DE FONDO</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_fondo" value="#020509" oninput="wlSyncFromPicker('wl_color_fondo');wlPreview()">
-            <input type="text" id="wl_color_fondo_hex" placeholder="#020509" oninput="wlSyncHex('wl_color_fondo')">
-          </div>
-        </div>
-        <div class="cfg-color-item">
-          <label>COLOR DE TEXTO</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_texto" value="#cce8ff" oninput="wlSyncFromPicker('wl_color_texto');wlPreview()">
-            <input type="text" id="wl_color_texto_hex" placeholder="#cce8ff" oninput="wlSyncHex('wl_color_texto')">
-          </div>
-        </div>
-        <div class="cfg-color-item">
-          <label>COLOR SECUNDARIO</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_secundario" value="#00e5a0" oninput="wlSyncFromPicker('wl_color_secundario');wlPreview()">
-            <input type="text" id="wl_color_secundario_hex" placeholder="#00e5a0" oninput="wlSyncHex('wl_color_secundario')">
-          </div>
-        </div>
-        <div class="cfg-color-item">
-          <label>COLOR DE BOTONES</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_boton" value="#00c8ff" oninput="wlSyncFromPicker('wl_color_boton');wlPreview()">
-            <input type="text" id="wl_color_boton_hex" placeholder="#00c8ff" oninput="wlSyncHex('wl_color_boton')">
-          </div>
-        </div>
-        <div class="cfg-color-item">
-          <label>COLOR DE PRECIOS</label>
-          <div class="cfg-color-swatch">
-            <input type="color" id="wl_color_precio" value="#00e5a0" oninput="wlSyncFromPicker('wl_color_precio');wlPreview()">
-            <input type="text" id="wl_color_precio_hex" placeholder="#00e5a0" oninput="wlSyncHex('wl_color_precio')">
-          </div>
-        </div>
-      </div>
+      <!-- GRID DE TEMAS -->
+      <div id="temaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:480px;overflow-y:auto;padding-right:4px;"></div>
 
-      <!-- TIPOGRAFÍA -->
-      <div class="cfg-section-label">TIPOGRAFÍA</div>
-      <div class="font-preview-grid" id="fontGrid">
-        <div class="font-card active" onclick="selectFont('Space Grotesk')" data-font="Space Grotesk">
-          <div class="fc-sample" style="font-family:'Space Grotesk',sans-serif;">Aa Bb</div>
-          <div class="fc-name">SPACE GROTESK</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Poppins')" data-font="Poppins">
-          <div class="fc-sample" style="font-family:'Poppins',sans-serif;">Aa Bb</div>
-          <div class="fc-name">POPPINS</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Nunito')" data-font="Nunito">
-          <div class="fc-sample" style="font-family:'Nunito',sans-serif;">Aa Bb</div>
-          <div class="fc-name">NUNITO</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Playfair Display')" data-font="Playfair Display">
-          <div class="fc-sample" style="font-family:'Playfair Display',serif;">Aa Bb</div>
-          <div class="fc-name">PLAYFAIR</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Oswald')" data-font="Oswald">
-          <div class="fc-sample" style="font-family:'Oswald',sans-serif;">Aa Bb</div>
-          <div class="fc-name">OSWALD</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Montserrat')" data-font="Montserrat">
-          <div class="fc-sample" style="font-family:'Montserrat',sans-serif;">Aa Bb</div>
-          <div class="fc-name">MONTSERRAT</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Raleway')" data-font="Raleway">
-          <div class="fc-sample" style="font-family:'Raleway',sans-serif;">Aa Bb</div>
-          <div class="fc-name">RALEWAY</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Roboto')" data-font="Roboto">
-          <div class="fc-sample" style="font-family:'Roboto',sans-serif;">Aa Bb</div>
-          <div class="fc-name">ROBOTO</div>
-        </div>
-        <div class="font-card" onclick="selectFont('Inter')" data-font="Inter">
-          <div class="fc-sample" style="font-family:'Inter',sans-serif;">Aa Bb</div>
-          <div class="fc-name">INTER</div>
-        </div>
-      </div>
-      <input type="hidden" id="wl_fuente" value="Space Grotesk">
-
-      <!-- ESTILO DE BORDES -->
-      <div class="cfg-section-label">ESTILO DE BORDES</div>
-      <div class="radio-group" id="borderGroup">
-        <div class="radio-pill active" onclick="selectBorder('4px')" data-br="4px">■ Angular</div>
-        <div class="radio-pill" onclick="selectBorder('12px')" data-br="12px">▣ Redondeado</div>
-        <div class="radio-pill" onclick="selectBorder('24px')" data-br="24px">● Muy redondeado</div>
-        <div class="radio-pill" onclick="selectBorder('0px')" data-br="0px">▬ Sin bordes</div>
-      </div>
-      <input type="hidden" id="wl_border_radius" value="12px">
-
-      <!-- LAYOUT DE PRODUCTOS -->
-      <div class="cfg-section-label">LAYOUT DE PRODUCTOS</div>
-      <div class="layout-grid" id="layoutGrid">
-        <div class="layout-card active" onclick="selectLayout('1')" data-layout="1">
-          <div class="lc-icon">▬</div>
-          <div class="lc-name">1 COLUMNA</div>
-        </div>
-        <div class="layout-card" onclick="selectLayout('2')" data-layout="2">
-          <div class="lc-icon">⊞</div>
-          <div class="lc-name">2 COLUMNAS</div>
-        </div>
-        <div class="layout-card" onclick="selectLayout('3')" data-layout="3">
-          <div class="lc-icon">⊟</div>
-          <div class="lc-name">3 COLUMNAS</div>
-        </div>
-      </div>
-      <input type="hidden" id="wl_layout" value="2">
-
-      <!-- EFECTOS -->
-      <div class="cfg-section-label">EFECTOS VISUALES</div>
-      <div class="radio-group" id="efectoGroup">
-        <div class="radio-pill active" onclick="selectEfecto('none')" data-efecto="none">Sin efecto</div>
-        <div class="radio-pill" onclick="selectEfecto('glass')" data-efecto="glass">✨ Glass</div>
-        <div class="radio-pill" onclick="selectEfecto('neon')" data-efecto="neon">⚡ Neon</div>
-        <div class="radio-pill" onclick="selectEfecto('flat')" data-efecto="flat">▣ Flat</div>
-        <div class="radio-pill" onclick="selectEfecto('shadow')" data-efecto="shadow">◈ Sombras</div>
-      </div>
-      <input type="hidden" id="wl_efecto" value="none">
-
-      <!-- PREVIEW EN VIVO -->
-      <div class="live-preview">
-        <div class="lp-header">PREVIEW EN VIVO</div>
-        <div class="lp-body" id="wlPreviewBox" style="background:#020509;transition:all .3s;">
-          <div id="wlPreviewHeader" style="padding:12px 16px;border-radius:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,200,255,.1);">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div id="wlPreviewLogo" style="width:36px;height:36px;border-radius:8px;background:rgba(0,200,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;">🏪</div>
-              <span id="wlPreviewNombre" style="font-weight:700;font-size:14px;color:#cce8ff;">Tu Negocio</span>
-            </div>
-            <span id="wlPreviewBadge" style="font-size:10px;padding:4px 10px;border-radius:20px;font-weight:600;background:#00e5a0;color:#020509;">● Abierto</span>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <div id="wlPreviewCard1" style="flex:1;padding:12px;border-radius:8px;background:rgba(0,200,255,.08);">
-              <div style="font-size:24px;margin-bottom:6px;">🌹</div>
-              <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#cce8ff;">Ramo Especial</div>
-              <div id="wlPreviewPrice1" style="font-size:13px;font-weight:700;color:#00c8ff;">$25.00</div>
-              <div id="wlPreviewBtn1" style="margin-top:8px;padding:5px;border-radius:6px;background:#00c8ff;color:#020509;font-size:10px;font-weight:700;text-align:center;">Agregar</div>
-            </div>
-            <div id="wlPreviewCard2" style="flex:1;padding:12px;border-radius:8px;background:rgba(0,200,255,.08);">
-              <div style="font-size:24px;margin-bottom:6px;">💐</div>
-              <div style="font-size:12px;font-weight:600;margin-bottom:4px;color:#cce8ff;">Bouquet Rosa</div>
-              <div id="wlPreviewPrice2" style="font-size:13px;font-weight:700;color:#00c8ff;">$18.00</div>
-              <div id="wlPreviewBtn2" style="margin-top:8px;padding:5px;border-radius:6px;background:#00c8ff;color:#020509;font-size:10px;font-weight:700;text-align:center;">Agregar</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <input type="hidden" id="wl_tema_seleccionado" value="obsidian_noir">
 
       <div style="display:flex;gap:8px;margin-top:16px;">
         <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR TEMA</button>
@@ -978,7 +810,8 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
   </div>
 
-  <!-- ══════════ HORARIOS ══════════ -->
+
+    <!-- ══════════ HORARIOS ══════════ -->
   <div class="cfg-section" id="cfgsec-horarios">
     <div class="card">
       <div class="card-title">🕐 Horarios de atención</div>
@@ -1586,142 +1419,148 @@ async function agregarListaBlanca(){const num=document.getElementById('lb-numero
 async function eliminarListaBlanca(num){await api(`/panel/${SLUG}/lista-blanca/${num}`,{method:'DELETE'});cargarListaBlanca();}
 
 // ─── WHITE-LABEL: TEMA DEL CATÁLOGO ──────────────────────────────────────────
-const WL_PRESETS = {
-  nexus:   {color_primario:'#00c8ff',color_fondo:'#020509',color_texto:'#cce8ff',color_secundario:'#00e5a0',color_boton:'#00c8ff',color_precio:'#00e5a0'},
-  verde:   {color_primario:'#00e57a',color_fondo:'#021209',color_texto:'#b8ffd8',color_secundario:'#00c8ff',color_boton:'#00e57a',color_precio:'#00c8ff'},
-  rojo:    {color_primario:'#ff3860',color_fondo:'#120209',color_texto:'#ffd0d8',color_secundario:'#ff8c00',color_boton:'#ff3860',color_precio:'#ff8c00'},
-  morado:  {color_primario:'#a855f7',color_fondo:'#0a0212',color_texto:'#e8b8ff',color_secundario:'#00c8ff',color_boton:'#a855f7',color_precio:'#00c8ff'},
-  dorado:  {color_primario:'#ffc200',color_fondo:'#120e02',color_texto:'#fff2b8',color_secundario:'#ff6b00',color_boton:'#ffc200',color_precio:'#ff6b00'},
-  naranja: {color_primario:'#ff8040',color_fondo:'#090400',color_texto:'#ffd8b8',color_secundario:'#ffb060',color_boton:'#ff8040',color_precio:'#ffb060'},
-  rosa:    {color_primario:'#ff2d9b',color_fondo:'#090006',color_texto:'#ffd0ee',color_secundario:'#ff80cc',color_boton:'#ff2d9b',color_precio:'#ff80cc'},
-  blanco:  {color_primario:'#0066ff',color_fondo:'#f8faff',color_texto:'#1a1a2e',color_secundario:'#00c8a0',color_boton:'#0066ff',color_precio:'#00c8a0'},
-  negro:   {color_primario:'#ffffff',color_fondo:'#000000',color_texto:'#ffffff',color_secundario:'#888888',color_boton:'#ffffff',color_precio:'#aaaaaa'},
-};
+const TEMAS_50 = [
+  {id:'obsidian_noir',  name:'Obsidian Noir',     cat:'dark minimal luxury',  emoji:'⬛', bg:'#080808', pri:'#ffffff', sec:'#888888', txt:'#cccccc', btn:'#ffffff', precio:'#aaaaaa', fuente:'Oswald',              br:'4px',  layout:'2', efecto:'none',   fondo:'#080808'},
+  {id:'sakura',         name:'Sakura',             cat:'light fun nature',     emoji:'🌸', bg:'#fdf6f8', pri:'#ff4081', sec:'#ff6b9d', txt:'#880e4f', btn:'#e91e8c', precio:'#c62366', fuente:'Quicksand',           br:'20px', layout:'2', efecto:'shadow', fondo:'#fdf6f8'},
+  {id:'cyberpunk',      name:'Cyberpunk',          cat:'dark neon',            emoji:'⚡', bg:'#050010', pri:'#00ffff', sec:'#ff00ff', txt:'#e0c0ff', btn:'#00ffff', precio:'#ff00ff', fuente:'Bebas Neue',          br:'0px',  layout:'2', efecto:'neon',   fondo:'#050010'},
+  {id:'dorado_lujo',    name:'Dorado Lujo',        cat:'dark luxury',          emoji:'💎', bg:'#0d0900', pri:'#d4af37', sec:'#ff8c00', txt:'#f5e6c8', btn:'#d4af37', precio:'#ff8c00', fuente:'Cormorant Garamond',  br:'3px',  layout:'2', efecto:'none',   fondo:'#0d0900'},
+  {id:'jungle',         name:'Jungle',             cat:'dark nature',          emoji:'🌿', bg:'#071309', pri:'#22c55e', sec:'#00c896', txt:'#dcfce7', btn:'#22c55e', precio:'#00c896', fuente:'Josefin Sans',        br:'8px',  layout:'2', efecto:'none',   fondo:'#071309'},
+  {id:'cafe_artesanal', name:'Café Artesanal',     cat:'dark food',            emoji:'☕', bg:'#120a04', pri:'#b47c3c', sec:'#d4a96a', txt:'#f5deb3', btn:'#b47c3c', precio:'#d4a96a', fuente:'Playfair Display',    br:'8px',  layout:'2', efecto:'none',   fondo:'#120a04'},
+  {id:'miami_vice',     name:'Miami Vice',         cat:'dark neon food',       emoji:'🌴', bg:'#08001a', pri:'#ff5e00', sec:'#ff00aa', txt:'#ffddcc', btn:'#ff5e00', precio:'#ff00aa', fuente:'Oswald',              br:'8px',  layout:'2', efecto:'neon',   fondo:'#08001a'},
+  {id:'minimalista',    name:'Minimalista',        cat:'light minimal',        emoji:'▣', bg:'#f8f8f8', pri:'#111111', sec:'#444444', txt:'#111111', btn:'#111111', precio:'#111111', fuente:'DM Sans',             br:'8px',  layout:'2', efecto:'flat',   fondo:'#f8f8f8'},
+  {id:'neon_tropical',  name:'Noche Tropical',     cat:'dark nature',          emoji:'🌴', bg:'#001a18', pri:'#00ffc8', sec:'#00c896', txt:'#e0fff8', btn:'#00ffc8', precio:'#00c896', fuente:'Quicksand',           br:'12px', layout:'2', efecto:'none',   fondo:'#001a18'},
+  {id:'sunset_food',    name:'Sunset Foodie',      cat:'dark food',            emoji:'🍔', bg:'#0f0400', pri:'#ff7020', sec:'#ff9040', txt:'#ffe0c0', btn:'#ff7020', precio:'#ff9040', fuente:'Syne',                br:'10px', layout:'2', efecto:'none',   fondo:'#0f0400'},
+  {id:'aurora',         name:'Aurora',             cat:'dark neon',            emoji:'✦', bg:'#04001a', pri:'#00ff96', sec:'#0064ff', txt:'#e0f0ff', btn:'#00ff96', precio:'#0064ff', fuente:'Raleway',             br:'10px', layout:'2', efecto:'glass',  fondo:'#04001a'},
+  {id:'dragon_ramen',   name:'Dragon Ramen',       cat:'dark food luxury',     emoji:'🐉', bg:'#0a0005', pri:'#dc2828', sec:'#ff6060', txt:'#ffe0e0', btn:'#cc0000', precio:'#ff4444', fuente:'Cinzel',              br:'4px',  layout:'2', efecto:'none',   fondo:'#0a0005'},
+  {id:'pastel_kids',    name:'Pastel Kids',        cat:'light fun',            emoji:'🌈', bg:'#fff8f0', pri:'#ff69b4', sec:'#ffd700', txt:'#880e4f', btn:'#ff69b4', precio:'#ffaa00', fuente:'Fredoka One',         br:'14px', layout:'2', efecto:'shadow', fondo:'#fff8f0'},
+  {id:'galaxy',         name:'Galaxy',             cat:'dark neon',            emoji:'🪐', bg:'#000a1a', pri:'#a040ff', sec:'#0064ff', txt:'#d0b0ff', btn:'#6400c8', precio:'#a040ff', fuente:'Orbitron',            br:'8px',  layout:'2', efecto:'neon',   fondo:'#000a1a'},
+  {id:'madera_viva',    name:'Madera Viva',        cat:'dark food',            emoji:'🪵', bg:'#1a1008', pri:'#d2691e', sec:'#c89060', txt:'#ffdeb3', btn:'#d2691e', precio:'#c89060', fuente:'Lobster',             br:'6px',  layout:'2', efecto:'none',   fondo:'#1a1008'},
+  {id:'ice_cream',      name:'Ice Cream',          cat:'light fun food',       emoji:'🍦', bg:'#e8f4ff', pri:'#d63384', sec:'#ff8fab', txt:'#880e4f', btn:'#d63384', precio:'#9c274b', fuente:'Pacifico',            br:'20px', layout:'2', efecto:'glass',  fondo:'#e8f4ff'},
+  {id:'neon_sports',    name:'Neon Sports',        cat:'dark neon',            emoji:'⚽', bg:'#000800', pri:'#00ff00', sec:'#00cc00', txt:'#ccffcc', btn:'#00ff00', precio:'#00cc00', fuente:'Anton',               br:'4px',  layout:'2', efecto:'neon',   fondo:'#000800'},
+  {id:'sunset_playa',   name:'Sunset Playa',       cat:'dark fun',             emoji:'🏄', bg:'#050020', pri:'#ff6400', sec:'#ff0064', txt:'#ffcca0', btn:'#ff6400', precio:'#ff0064', fuente:'Righteous',           br:'10px', layout:'2', efecto:'none',   fondo:'#050020'},
+  {id:'dark_tech',      name:'Dark Tech',          cat:'dark minimal',         emoji:'⬡', bg:'#030508', pri:'#0096ff', sec:'#60c0ff', txt:'#c0e0ff', btn:'#0064c8', precio:'#0096ff', fuente:'Exo 2',               br:'6px',  layout:'2', efecto:'none',   fondo:'#030508'},
+  {id:'vintage_press',  name:'Vintage Press',      cat:'light minimal luxury', emoji:'📰', bg:'#f5f0e8', pri:'#1a1a1a', sec:'#555555', txt:'#1a1a1a', btn:'#1a1a1a', precio:'#444444', fuente:'Abril Fatface',       br:'2px',  layout:'2', efecto:'flat',   fondo:'#f5f0e8'},
+  {id:'lavanda_spa',    name:'Lavanda Spa',        cat:'light luxury',         emoji:'🪷', bg:'#f8f4ff', pri:'#8b00ff', sec:'#b464ff', txt:'#4a0080', btn:'#8b00ff', precio:'#6400c8', fuente:'Raleway',             br:'14px', layout:'2', efecto:'glass',  fondo:'#f8f4ff'},
+  {id:'anime_kawaii',   name:'Anime Kawaii',       cat:'light fun',            emoji:'⭐', bg:'#fff0f8', pri:'#ff4488', sec:'#ff8800', txt:'#cc0066', btn:'#ff4488', precio:'#cc0066', fuente:'Fredoka One',         br:'10px', layout:'2', efecto:'shadow', fondo:'#fff0f8'},
+  {id:'marmol_negro',   name:'Mármol Negro',       cat:'dark luxury minimal',  emoji:'◈', bg:'#0a0a0a', pri:'#cccccc', sec:'#888888', txt:'#cccccc', btn:'#aaaaaa', precio:'#888888', fuente:'Cinzel',              br:'2px',  layout:'2', efecto:'none',   fondo:'#0a0a0a'},
+  {id:'verano_tropical',name:'Verano Tropical',    cat:'light fun food',       emoji:'☀️', bg:'#fff9e6', pri:'#e65100', sec:'#ffb300', txt:'#bf360c', btn:'#e65100', precio:'#bf360c', fuente:'Pacifico',            br:'12px', layout:'2', efecto:'shadow', fondo:'#fff9e6'},
+  {id:'blood_moon',     name:'Blood Moon',         cat:'dark',                 emoji:'🌑', bg:'#0a0000', pri:'#cc0000', sec:'#800000', txt:'#ffcccc', btn:'#aa0000', precio:'#cc0000', fuente:'Cinzel',              br:'4px',  layout:'2', efecto:'neon',   fondo:'#0a0000'},
+  {id:'sushi_bar',      name:'Sushi Bar',          cat:'light food',           emoji:'🍣', bg:'#f5f0eb', pri:'#c82828', sec:'#888888', txt:'#1a0a0a', btn:'#c82828', precio:'#c82828', fuente:'Josefin Sans',        br:'4px',  layout:'2', efecto:'flat',   fondo:'#f5f0eb'},
+  {id:'deep_sea',       name:'Deep Sea',           cat:'dark nature',          emoji:'🐚', bg:'#000d1a', pri:'#00c8ff', sec:'#0096c0', txt:'#b0e8ff', btn:'#006494', precio:'#00c8ff', fuente:'Raleway',             br:'10px', layout:'2', efecto:'glass',  fondo:'#000d1a'},
+  {id:'botanica',       name:'Botánica',           cat:'light nature',         emoji:'🌱', bg:'#f0f4ee', pri:'#2e7d32', sec:'#4caf50', txt:'#1b5e20', btn:'#2e7d32', precio:'#2e7d32', fuente:'Merriweather',        br:'12px', layout:'2', efecto:'shadow', fondo:'#f0f4ee'},
+  {id:'retro_80s',      name:'Retro 80s',          cat:'dark neon fun',        emoji:'📼', bg:'#1a0a2e', pri:'#ff0080', sec:'#00c8ff', txt:'#fff0ff', btn:'#ff0080', precio:'#00c8ff', fuente:'Righteous',           br:'0px',  layout:'2', efecto:'neon',   fondo:'#1a0a2e'},
+  {id:'farmacia',       name:'Farmacia',           cat:'light minimal',        emoji:'✚', bg:'#f0f8ff', pri:'#0064c8', sec:'#0096ff', txt:'#003c8f', btn:'#0064c8', precio:'#0096ff', fuente:'Montserrat',          br:'8px',  layout:'2', efecto:'flat',   fondo:'#f0f8ff'},
+  {id:'noche_arabe',    name:'Noche Árabe',        cat:'dark luxury',          emoji:'🌙', bg:'#0d0800', pri:'#d4af37', sec:'#ff8c00', txt:'#fff8e0', btn:'#d4af37', precio:'#ff8c00', fuente:'Cinzel',              br:'6px',  layout:'2', efecto:'none',   fondo:'#0d0800'},
+  {id:'pasteleria_fr',  name:'Pastelería Francesa',cat:'light luxury food',    emoji:'🥐', bg:'#fef9f0', pri:'#e91e63', sec:'#f48fb1', txt:'#880e4f', btn:'#e91e63', precio:'#c2185b', fuente:'Cormorant Garamond',  br:'12px', layout:'2', efecto:'glass',  fondo:'#fef9f0'},
+  {id:'steampunk',      name:'Steampunk',          cat:'dark',                 emoji:'⚙️', bg:'#150e00', pri:'#cd853f', sec:'#8b4513', txt:'#ffe0a0', btn:'#8b4513', precio:'#ffe0a0', fuente:'Abril Fatface',       br:'4px',  layout:'2', efecto:'none',   fondo:'#150e00'},
+  {id:'glassmorphism',  name:'Glassmorphism',      cat:'dark',                 emoji:'◎', bg:'#1a2040', pri:'#ffffff', sec:'#cc80ff', txt:'#ffffff', btn:'#ffffff', precio:'#cc80ff', fuente:'Raleway',             br:'14px', layout:'2', efecto:'glass',  fondo:'#1a2040'},
+  {id:'navideno',       name:'Navideño',           cat:'dark fun',             emoji:'🎄', bg:'#0a1a0a', pri:'#ff4444', sec:'#22c55e', txt:'#ccffcc', btn:'#cc0000', precio:'#ff4444', fuente:'Fredoka One',         br:'10px', layout:'2', efecto:'neon',   fondo:'#0a1a0a'},
+  {id:'editorial_bw',   name:'Editorial B&W',      cat:'light minimal',        emoji:'📋', bg:'#ffffff', pri:'#111111', sec:'#333333', txt:'#111111', btn:'#111111', precio:'#ff0000', fuente:'Anton',               br:'2px',  layout:'2', efecto:'flat',   fondo:'#ffffff'},
+  {id:'coral_reef',     name:'Coral Reef',         cat:'dark nature',          emoji:'🐠', bg:'#001825', pri:'#00b4d8', sec:'#ff7850', txt:'#cff4ff', btn:'#00b4d8', precio:'#ff7850', fuente:'Josefin Sans',        br:'10px', layout:'2', efecto:'none',   fondo:'#001825'},
+  {id:'pastel_macaron', name:'Pastel Macaron',     cat:'light fun luxury',     emoji:'🎀', bg:'#fdf4ff', pri:'#9b59b6', sec:'#a8d4ff', txt:'#7d3c98', btn:'#9b59b6', precio:'#7d3c98', fuente:'Quicksand',           br:'16px', layout:'2', efecto:'glass',  fondo:'#fdf4ff'},
+  {id:'dark_academia',  name:'Dark Academia',      cat:'dark luxury',          emoji:'📚', bg:'#1a1508', pri:'#d4af50', sec:'#c8a878', txt:'#f5deb3', btn:'#8b7355', precio:'#d4af50', fuente:'Merriweather',        br:'4px',  layout:'2', efecto:'none',   fondo:'#1a1508'},
+  {id:'matrix',         name:'Matrix',             cat:'dark neon',            emoji:'💻', bg:'#000500', pri:'#00ff00', sec:'#006600', txt:'#00ff00', btn:'#00aa00', precio:'#00ff00', fuente:'Space Grotesk',        br:'0px',  layout:'2', efecto:'neon',   fondo:'#000500'},
+  {id:'wedding',        name:'Wedding',            cat:'light luxury',         emoji:'💍', bg:'#fefefe', pri:'#8b6914', sec:'#c8b48c', txt:'#5c4010', btn:'#8b6914', precio:'#8b6914', fuente:'Cormorant Garamond',  br:'8px',  layout:'2', efecto:'shadow', fondo:'#fefefe'},
+  {id:'neon_underground',name:'Neon Underground',  cat:'dark neon',            emoji:'🎛️', bg:'#000008', pri:'#ffff00', sec:'#ff00c8', txt:'#ffffaa', btn:'#ffff00', precio:'#ff00c8', fuente:'Bebas Neue',          br:'0px',  layout:'2', efecto:'neon',   fondo:'#000008'},
+  {id:'bauhaus',        name:'Bauhaus',            cat:'light minimal',        emoji:'🔴', bg:'#f5f5f5', pri:'#ff0000', sec:'#0000ff', txt:'#000000', btn:'#000000', precio:'#ff0000', fuente:'Montserrat',          br:'0px',  layout:'2', efecto:'flat',   fondo:'#f5f5f5'},
+  {id:'polar_winter',   name:'Polar Winter',       cat:'light',                emoji:'❄️', bg:'#f0f8ff', pri:'#0288d1', sec:'#4fc3f7', txt:'#01579b', btn:'#0288d1', precio:'#0277bd', fuente:'Raleway',             br:'12px', layout:'2', efecto:'glass',  fondo:'#f0f8ff'},
+  {id:'vintage_diner',  name:'Vintage Diner',      cat:'light food fun',       emoji:'🍟', bg:'#fef3e0', pri:'#c82000', sec:'#ff6b00', txt:'#c82000', btn:'#c82000', precio:'#ff6b00', fuente:'Righteous',           br:'20px', layout:'2', efecto:'shadow', fondo:'#fef3e0'},
+  {id:'crypto_web3',    name:'Crypto/Web3',        cat:'dark',                 emoji:'₿', bg:'#060c18', pri:'#50c878', sec:'#ffa000', txt:'#e0ffe8', btn:'#50c878', precio:'#ffa000', fuente:'Exo 2',               br:'8px',  layout:'2', efecto:'none',   fondo:'#060c18'},
+  {id:'terra_cotta',    name:'Terra Cotta',        cat:'light nature minimal', emoji:'🏺', bg:'#f5ede4', pri:'#8b4513', sec:'#c07850', txt:'#5c2a0a', btn:'#8b4513', precio:'#c07850', fuente:'Josefin Sans',        br:'10px', layout:'2', efecto:'flat',   fondo:'#f5ede4'},
+  {id:'electric_violet',name:'Electric Violet',    cat:'dark neon',            emoji:'⚡', bg:'#080010', pri:'#b040ff', sec:'#7800ff', txt:'#e0b0ff', btn:'#7800ff', precio:'#b040ff', fuente:'Orbitron',            br:'8px',  layout:'2', efecto:'neon',   fondo:'#080010'},
+  {id:'street_food',    name:'Street Food',        cat:'dark food fun',        emoji:'🌮', bg:'#1a0f00', pri:'#ff8c00', sec:'#ff4400', txt:'#ffedcc', btn:'#ff8c00', precio:'#ff6600', fuente:'Syne',                br:'4px',  layout:'2', efecto:'none',   fondo:'#1a0f00'},
+  {id:'cosmos',         name:'Cosmos',             cat:'dark neon luxury',     emoji:'🌌', bg:'#000005', pri:'#ff64c8', sec:'#6464ff', txt:'#f0e8ff', btn:'#6400c8', precio:'#ff64c8', fuente:'Raleway',             br:'12px', layout:'2', efecto:'glass',  fondo:'#000005'},
+];
 
-function wlPreset(nombre) {
-  const p = WL_PRESETS[nombre]; if(!p) return;
-  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
-    const picker = document.getElementById('wl_'+k);
-    const hex = document.getElementById('wl_'+k+'_hex');
-    if(picker && p[k]) picker.value = p[k];
-    if(hex && p[k]) hex.value = p[k];
-  });
-  document.querySelectorAll('[data-wlpreset]').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-wlpreset="${nombre}"]`)?.classList.add('active');
-  wlPreview();
+let _temaSeleccionado = 'obsidian_noir';
+
+function renderTemaGrid(filter) {
+  const grid = document.getElementById('temaGrid');
+  if(!grid) return;
+  const lista = filter === 'todos' ? TEMAS_50 : TEMAS_50.filter(t => t.cat.includes(filter));
+  grid.innerHTML = lista.map(t => `
+    <div class="tema-card ${_temaSeleccionado === t.id ? 'activo' : ''}" data-tema-id="${t.id}" onclick="elegirTema('${t.id}')" title="${t.name}">
+      <div class="tc-preview" style="background:${t.fondo};">
+        <div class="tc-bar" style="background:${t.fondo};border-bottom:1px solid ${t.pri}22;">
+          <div class="tc-dot" style="background:${t.pri};"></div>
+        </div>
+        <div class="tc-emoji">${t.emoji}</div>
+        <div class="tc-prices">
+          <div class="tc-price" style="background:${t.pri}15;border:1px solid ${t.pri}30;">
+            <span style="color:${t.precio};font-size:8px;font-weight:700;">$12</span>
+          </div>
+          <div class="tc-price" style="background:${t.pri}15;border:1px solid ${t.pri}30;">
+            <span style="color:${t.precio};font-size:8px;font-weight:700;">$25</span>
+          </div>
+        </div>
+        <div class="tc-btnp" style="background:${t.btn};border-radius:${t.br};"></div>
+        ${_temaSeleccionado === t.id ? '<div class="tc-check">✓</div>' : ''}
+      </div>
+      <div class="tc-label" style="background:${t.fondo};border-top:1px solid ${t.pri}20;">
+        <div class="tc-name-text" style="color:${t.txt};font-size:9px;font-weight:700;letter-spacing:.04em;line-height:1.2;">${t.name}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
-function wlSyncFromPicker(id) {
-  const v = document.getElementById(id)?.value;
-  if(v) { const h = document.getElementById(id+'_hex'); if(h) h.value = v; }
+function filtrarTemas(tag, btn) {
+  document.querySelectorAll('.tema-f-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderTemaGrid(tag);
 }
 
-function wlSyncHex(id) {
-  const hex = document.getElementById(id+'_hex')?.value?.trim();
-  if(hex && /^#[0-9a-fA-F]{6}$/.test(hex)) {
-    const picker = document.getElementById(id);
-    if(picker) picker.value = hex;
-    wlPreview();
+function elegirTema(id) {
+  const t = TEMAS_50.find(x => x.id === id);
+  if(!t) return;
+  _temaSeleccionado = id;
+  document.getElementById('wl_tema_seleccionado').value = id;
+  // Sync hidden fields for guardarTema
+  setHidden('wl_color_primario', t.pri);
+  setHidden('wl_color_fondo', t.fondo);
+  setHidden('wl_color_texto', t.txt);
+  setHidden('wl_color_secundario', t.sec);
+  setHidden('wl_color_boton', t.btn);
+  setHidden('wl_color_precio', t.precio);
+  setHidden('wl_fuente', t.fuente);
+  setHidden('wl_border_radius', t.br);
+  setHidden('wl_layout', t.layout);
+  setHidden('wl_efecto', t.efecto);
+  // Re-render grid to show checkmark
+  const current_filter = document.querySelector('.tema-f-btn.active')?.textContent || 'Todos';
+  const filterMap = {'Todos':'todos','🌑 Dark':'dark','☀️ Claro':'light','⚡ Neón':'neon','🍔 Comida':'food','💎 Lujo':'luxury','🌿 Natural':'nature','🎉 Fun':'fun','▣ Minimal':'minimal'};
+  renderTemaGrid(filterMap[current_filter] || 'todos');
+  mostrarNotificacion(`🎨 Tema: ${t.name} — presiona GUARDAR para aplicar`);
+}
+
+function setHidden(id, val) {
+  let el = document.getElementById(id);
+  if(!el) {
+    el = document.createElement('input');
+    el.type = 'hidden';
+    el.id = id;
+    document.body.appendChild(el);
   }
-}
-
-function hexToRgbWL(hex) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return `${r},${g},${b}`;
-}
-
-function wlPreview() {
-  const cp = document.getElementById('wl_color_primario')?.value || '#00c8ff';
-  const cf = document.getElementById('wl_color_fondo')?.value || '#020509';
-  const ct = document.getElementById('wl_color_texto')?.value || '#cce8ff';
-  const cs = document.getElementById('wl_color_secundario')?.value || '#00e5a0';
-  const cb = document.getElementById('wl_color_boton')?.value || cp;
-  const cpr = document.getElementById('wl_color_precio')?.value || cs;
-  const br = document.getElementById('wl_border_radius')?.value || '12px';
-  const efecto = document.getElementById('wl_efecto')?.value || 'none';
-  const box = document.getElementById('wlPreviewBox');
-  const header = document.getElementById('wlPreviewHeader');
-  const badge = document.getElementById('wlPreviewBadge');
-  const nombre = document.getElementById('wlPreviewNombre');
-  const card1 = document.getElementById('wlPreviewCard1');
-  const card2 = document.getElementById('wlPreviewCard2');
-  if(!box) return;
-  const rgb = hexToRgbWL(cp);
-  const rgbB = hexToRgbWL(cb);
-  // Efecto visual
-  let cardBg = `rgba(${rgb},.08)`;
-  let cardShadow = 'none';
-  if(efecto==='glass') { cardBg = `rgba(${rgb},.05)`; cardShadow = `0 4px 24px rgba(${rgb},.15)`; }
-  else if(efecto==='neon') { cardBg = `rgba(${rgb},.06)`; cardShadow = `0 0 16px rgba(${rgb},.3), inset 0 0 16px rgba(${rgb},.05)`; }
-  else if(efecto==='flat') { cardBg = `rgba(${rgb},.12)`; cardShadow = 'none'; }
-  else if(efecto==='shadow') { cardBg = `rgba(${rgb},.08)`; cardShadow = '0 8px 24px rgba(0,0,0,.4)'; }
-  box.style.background = cf;
-  box.style.borderRadius = br;
-  header.style.background = `rgba(${rgb},.1)`;
-  header.style.borderRadius = br;
-  badge.style.background = cs;
-  badge.style.color = cf;
-  badge.style.borderRadius = '20px';
-  nombre.style.color = ct;
-  [card1, card2].forEach((c,i) => {
-    c.style.background = cardBg;
-    c.style.borderRadius = br;
-    c.style.boxShadow = cardShadow;
-    const nameEl = c.querySelector('div:nth-child(2)');
-    const priceEl = c.querySelector('#wlPreviewPrice'+(i+1));
-    const btnEl = c.querySelector('#wlPreviewBtn'+(i+1));
-    if(nameEl) nameEl.style.color = ct;
-    if(priceEl) priceEl.style.color = cpr;
-    if(btnEl) { btnEl.style.background = cb; btnEl.style.color = cf; btnEl.style.borderRadius = br === '0px' ? '0px' : '6px'; }
-  });
-  // Sync hex inputs
-  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
-    const picker = document.getElementById('wl_'+k);
-    const hex = document.getElementById('wl_'+k+'_hex');
-    if(picker && hex && hex.value !== picker.value) hex.value = picker.value;
-  });
-}
-
-async function cargarTema() {
-  const tema = await api(`/panel/${SLUG}/tema`);
-  if(!tema) return;
-  ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio'].forEach(k => {
-    const picker = document.getElementById('wl_'+k);
-    const hex = document.getElementById('wl_'+k+'_hex');
-    if(picker && tema[k]) picker.value = tema[k];
-    if(hex && tema[k]) hex.value = tema[k];
-  });
-  if(tema.banner_opacity!==undefined){
-    const sl=document.getElementById('wl_banner_opacity');
-    const vl=document.getElementById('wl_banner_opacity_val');
-    if(sl) sl.value=tema.banner_opacity;
-    if(vl) vl.textContent=Math.round(tema.banner_opacity*100)+'%';
-  }
-  if(tema.fuente) { selectFont(tema.fuente); }
-  if(tema.border_radius) { selectBorder(tema.border_radius); }
-  if(tema.layout) { selectLayout(tema.layout); }
-  if(tema.efecto) { selectEfecto(tema.efecto); }
-  wlPreview();
+  el.value = val;
 }
 
 async function guardarTema() {
   const data = {
-    color_primario: document.getElementById('wl_color_primario')?.value,
-    color_fondo: document.getElementById('wl_color_fondo')?.value,
-    color_texto: document.getElementById('wl_color_texto')?.value,
-    color_secundario: document.getElementById('wl_color_secundario')?.value,
-    banner_opacity: parseFloat(document.getElementById('wl_banner_opacity')?.value||0.55),
-    color_boton: document.getElementById('wl_color_boton')?.value,
-    color_precio: document.getElementById('wl_color_precio')?.value,
-    fuente: document.getElementById('wl_fuente')?.value,
-    border_radius: document.getElementById('wl_border_radius')?.value,
-    layout: document.getElementById('wl_layout')?.value,
-    efecto: document.getElementById('wl_efecto')?.value,
+    color_primario:  document.getElementById('wl_color_primario')?.value  || '#00c8ff',
+    color_fondo:     document.getElementById('wl_color_fondo')?.value     || '#020509',
+    color_texto:     document.getElementById('wl_color_texto')?.value     || '#cce8ff',
+    color_secundario:document.getElementById('wl_color_secundario')?.value|| '#00e5a0',
+    banner_opacity:  parseFloat(document.getElementById('wl_banner_opacity')?.value||0.55),
+    color_boton:     document.getElementById('wl_color_boton')?.value     || '#00c8ff',
+    color_precio:    document.getElementById('wl_color_precio')?.value    || '#00e5a0',
+    fuente:          document.getElementById('wl_fuente')?.value          || 'Space Grotesk',
+    border_radius:   document.getElementById('wl_border_radius')?.value   || '12px',
+    layout:          document.getElementById('wl_layout')?.value          || '2',
+    efecto:          document.getElementById('wl_efecto')?.value          || 'none',
   };
   const r = await api(`/panel/${SLUG}/tema`, {method:'PUT', body:JSON.stringify(data)});
   const al = document.getElementById('wlAlert');
   al.className = 'alert ' + (r?.ok ? 'ok' : 'err');
-  al.textContent = r?.ok ? '// Tema guardado — el catálogo ya refleja los cambios' : '// Error al guardar';
+  al.textContent = r?.ok ? '✓ Tema guardado — el catálogo ya refleja los cambios' : '// Error al guardar';
   setTimeout(() => al.textContent = '', 4000);
   if(r?.ok) mostrarNotificacion('🎨 Tema del catálogo actualizado');
 }
@@ -1729,7 +1568,27 @@ async function guardarTema() {
 async function resetearTema() {
   if(!confirm('¿Resetear al tema por defecto?')) return;
   const r = await api(`/panel/${SLUG}/tema/reset`, {method:'POST'});
-  if(r?.ok) { wlPreset('nexus'); mostrarNotificacion('// Tema reseteado'); }
+  if(r?.ok) { elegirTema('obsidian_noir'); mostrarNotificacion('// Tema reseteado'); }
+}
+
+async function cargarTema() {
+  const tema = await api(`/panel/${SLUG}/tema`);
+  if(!tema) { renderTemaGrid('todos'); return; }
+  // Try to match saved theme to one of our 50
+  const match = TEMAS_50.find(t =>
+    t.pri === tema.color_primario || t.fondo === tema.color_fondo
+  );
+  if(match) { _temaSeleccionado = match.id; }
+  if(tema.banner_opacity !== undefined) {
+    const sl = document.getElementById('wl_banner_opacity');
+    const vl = document.getElementById('wl_banner_opacity_val');
+    if(sl) sl.value = tema.banner_opacity;
+    if(vl) vl.textContent = Math.round(tema.banner_opacity*100)+'%';
+  }
+  // Set hidden fields
+  const fields = ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio','fuente','border_radius','layout','efecto'];
+  fields.forEach(k => { if(tema[k]) setHidden('wl_'+k, tema[k]); });
+  renderTemaGrid('todos');
 }
 
 // ── CONFIG SUB-TABS ──
@@ -1740,36 +1599,12 @@ function switchCfgTab(tab) {
   document.getElementById('cfgsec-' + tab)?.classList.add('active');
 }
 
-// ── FONT SELECTOR ──
-function selectFont(font) {
-  document.querySelectorAll('.font-card').forEach(c => c.classList.remove('active'));
-  document.querySelector(`.font-card[data-font="${font}"]`)?.classList.add('active');
-  document.getElementById('wl_fuente').value = font;
-  wlPreview();
-}
-
-// ── BORDER SELECTOR ──
-function selectBorder(br) {
-  document.querySelectorAll('.radio-pill[data-br]').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.radio-pill[data-br="${br}"]`)?.classList.add('active');
-  document.getElementById('wl_border_radius').value = br;
-  wlPreview();
-}
-
-// ── LAYOUT SELECTOR ──
-function selectLayout(layout) {
-  document.querySelectorAll('.layout-card').forEach(c => c.classList.remove('active'));
-  document.querySelector(`.layout-card[data-layout="${layout}"]`)?.classList.add('active');
-  document.getElementById('wl_layout').value = layout;
-}
-
-// ── EFECTO SELECTOR ──
-function selectEfecto(efecto) {
-  document.querySelectorAll('.radio-pill[data-efecto]').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.radio-pill[data-efecto="${efecto}"]`)?.classList.add('active');
-  document.getElementById('wl_efecto').value = efecto;
-  wlPreview();
-}
+// ── LEGACY (por si algo externo llama) ──
+function selectFont(f){setHidden('wl_fuente',f);}
+function selectBorder(b){setHidden('wl_border_radius',b);}
+function selectLayout(l){setHidden('wl_layout',l);}
+function selectEfecto(e){setHidden('wl_efecto',e);}
+function wlPreview(){}
 
 // ── HIGHLIGHT PAGO ──
 function highlightPago(tipo) {
@@ -1782,12 +1617,6 @@ function highlightPago(tipo) {
   }
 }
 
-// ── EXTENDED PRESETS (incluye nuevos) ──
-const WL_PRESETS_EXT = {
-  naranja: { color_primario:'#ff8040', color_fondo:'#090400', color_texto:'#ffd8b8', color_secundario:'#ffb060', color_boton:'#ff8040', color_precio:'#ffb060' },
-  rosa:    { color_primario:'#ff2d9b', color_fondo:'#090006', color_texto:'#ffd0ee', color_secundario:'#ff80cc', color_boton:'#ff2d9b', color_precio:'#ff80cc' },
-  negro:   { color_primario:'#ffffff', color_fondo:'#000000', color_texto:'#ffffff', color_secundario:'#cccccc', color_boton:'#ffffff', color_precio:'#aaaaaa' },
-};
 
 // Al cargar: si ya hay token intentar entrar
 window.addEventListener('DOMContentLoaded',()=>{
