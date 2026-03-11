@@ -418,8 +418,67 @@ function aplicarTema(tema){
     document.querySelectorAll('.feat-card,.prod-row,.prod-thumb,.add-btn,.fab-body,.sheet,.cart-sheet,.opt-row,.qty-btn,.ci-thumb,.tb-logo,.icon-btn,.cat-btn').forEach(el=>{
       el.style.borderRadius=tema.border_radius;
     });
-    // También vía CSS var para elementos creados dinámicamente
     root.style.setProperty('--br',tema.border_radius);
+  }
+  // Color de botones independiente
+  if(tema.color_boton){
+    root.style.setProperty('--btn',tema.color_boton);
+    const rgbB=hexToRgb(tema.color_boton);
+    if(rgbB){
+      const{r,g,b}=rgbB;
+      // Aplicar a botones de agregar
+      const styleBtn=document.createElement('style');
+      styleBtn.id='tema-btn-style';
+      styleBtn.textContent=`.add-btn{background:rgba(${r},${g},${b},1)!important;color:var(--bg)!important;} .add-btn:hover{background:rgba(${r},${g},${b},.85)!important;} .cart-fab{background:rgba(${r},${g},${b},1)!important;} .qty-btn{border-color:rgba(${r},${g},${b},.5)!important;color:rgba(${r},${g},${b},1)!important;}`;
+      document.getElementById('tema-btn-style')?.remove();
+      document.head.appendChild(styleBtn);
+    }
+  }
+  // Color de precios independiente
+  if(tema.color_precio){
+    root.style.setProperty('--precio',tema.color_precio);
+    const styleP=document.createElement('style');
+    styleP.id='tema-precio-style';
+    styleP.textContent=`.prod-price,.feat-price,.price-tag{color:${tema.color_precio}!important;}`;
+    document.getElementById('tema-precio-style')?.remove();
+    document.head.appendChild(styleP);
+  }
+  // Efectos visuales en cards
+  if(tema.efecto&&tema.efecto!=='none'){
+    const cp=tema.color_primario||'#00c8ff';
+    const rgb=hexToRgb(cp);
+    const{r=0,g=148,b=255}=rgb||{};
+    let styleEfecto='';
+    if(tema.efecto==='glass'){
+      styleEfecto=`.prod-row,.feat-card{backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;background:rgba(${r},${g},${b},.06)!important;border:1px solid rgba(${r},${g},${b},.2)!important;}`;
+    } else if(tema.efecto==='neon'){
+      styleEfecto=`.prod-row,.feat-card{box-shadow:0 0 16px rgba(${r},${g},${b},.25),inset 0 0 16px rgba(${r},${g},${b},.04)!important;border:1px solid rgba(${r},${g},${b},.35)!important;} .add-btn{box-shadow:0 0 10px rgba(${r},${g},${b},.5)!important;}`;
+    } else if(tema.efecto==='flat'){
+      styleEfecto=`.prod-row,.feat-card{background:rgba(${r},${g},${b},.12)!important;border:none!important;box-shadow:none!important;}`;
+    } else if(tema.efecto==='shadow'){
+      styleEfecto=`.prod-row,.feat-card{box-shadow:0 8px 32px rgba(0,0,0,.5)!important;border:1px solid rgba(${r},${g},${b},.1)!important;}`;
+    }
+    if(styleEfecto){
+      const styleEl=document.createElement('style');
+      styleEl.id='tema-efecto-style';
+      styleEl.textContent=styleEfecto;
+      document.getElementById('tema-efecto-style')?.remove();
+      document.head.appendChild(styleEl);
+    }
+  }
+  // Layout de productos (columnas)
+  if(tema.layout){
+    const styleLayout=document.createElement('style');
+    styleLayout.id='tema-layout-style';
+    if(tema.layout==='1'){
+      styleLayout.textContent=`.prod-grid{grid-template-columns:1fr!important;}`;
+    } else if(tema.layout==='3'){
+      styleLayout.textContent=`.prod-grid{grid-template-columns:repeat(3,1fr)!important;} @media(max-width:500px){.prod-grid{grid-template-columns:repeat(2,1fr)!important;}}`;
+    } else {
+      styleLayout.textContent=`.prod-grid{grid-template-columns:repeat(2,1fr)!important;} @media(max-width:400px){.prod-grid{grid-template-columns:1fr!important;}}`;
+    }
+    document.getElementById('tema-layout-style')?.remove();
+    document.head.appendChild(styleLayout);
   }
   if(tema.fuente&&tema.fuente!=='Space Grotesk'){
     const link=document.createElement('link');
@@ -428,13 +487,12 @@ function aplicarTema(tema){
     document.head.appendChild(link);
     root.style.setProperty('--f',`'${tema.fuente}',sans-serif`);
   }
-  // Fondo adaptado para tema claro (si el fondo es claro, ajustar texto de loader)
+  // Fondo adaptado para tema claro
   if(tema.color_fondo){
     const rgb=hexToRgb(tema.color_fondo);
     if(rgb){
       const luminance=(0.299*rgb.r+0.587*rgb.g+0.114*rgb.b)/255;
       if(luminance>0.5){
-        // Tema claro: ajustar gradientes de fondo
         document.body.style.setProperty('--bg',tema.color_fondo);
         const loader=document.getElementById('loader');
         if(loader)loader.style.background=tema.color_fondo;
