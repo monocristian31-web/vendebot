@@ -407,7 +407,7 @@ function generarSugerencias(numero, catalogo) {
 }
 
 async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
-  const catalogoTexto = negocio.catalogo.map(p => {
+  const catalogoTexto = (negocio.catalogo || []).map(p => {
     const stockInfo = p.stock !== undefined ? ` [Stock: ${p.stock}]` : '';
     const tieneImagen = p.imagen ? ' [📷 tiene foto]' : '';
     let txt = `  ID:${p.id} | ${p.emoji || ''} ${p.nombre} | $${p.precio.toFixed(2)}${stockInfo}${tieneImagen} | ${p.descripcion || ''}`;
@@ -944,7 +944,7 @@ Máximo 4 líneas de respuesta.` }
 
     if (textoLower.startsWith('buscar ') || textoLower.startsWith('busca ')) {
       const termino = texto.replace(/^buscar?\s+/i, '').trim();
-      const resultados = negocio.catalogo.filter(p => p.nombre.toLowerCase().includes(termino.toLowerCase()) || p.descripcion?.toLowerCase().includes(termino.toLowerCase()));
+      const resultados = (negocio.catalogo || []).filter(p => p.nombre.toLowerCase().includes(termino.toLowerCase()) || p.descripcion?.toLowerCase().includes(termino.toLowerCase()));
       if (resultados.length > 0) {
         await enviar(numero, `Encontre ${resultados.length} producto(s) para "${termino}":`);
         for (const p of resultados) await enviarProducto(numero, p, negocio);
@@ -1101,7 +1101,7 @@ Máximo 4 líneas de respuesta.` }
           await new Promise(res => setTimeout(res, 500));
           await enviar(numero, 'Aquí puedes ver todo lo que tenemos 👇\n\n' + dominio + '/catalogo/' + slug + '\n\nSelecciona lo que quieras y te llega directo aquí para terminar. O si prefieres dime qué buscas y te asesoro yo 😊');
         } else if (imagenesIds && imagenesIds.length > 0 && conv.etapa !== 'pago') {
-          for (const p of negocio.catalogo.filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
+          for (const p of (negocio.catalogo || []).filter(p => imagenesIds.includes(p.id))) await enviarProducto(numero, p, negocio);
         }
         if (mp || (conv.etapa === 'pago' && etapaAntBienvenida !== 'pago')) {
           await new Promise(res => setTimeout(res, 500));
@@ -1233,7 +1233,7 @@ Máximo 4 líneas de respuesta.` }
 
     if (conv.etapa === 'cancelado') conversaciones.delete(`${numero}:${negocio.id}`);
 
-  } catch (err) { console.error('Error procesando mensaje:', err.message); }
+  } catch (err) { console.error('Error procesando mensaje:', err.message, err.stack); }
 }
 
 // ─── HORARIO ──────────────────────────────────────────────────────────────────
