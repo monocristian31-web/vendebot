@@ -2056,7 +2056,9 @@ app.post('/panel/:slug/config', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
+  cache.negocios = negocios; // ← actualizar cache en memoria inmediatamente
   guardarJSON('./negocios.json', negocios);
+  guardarDB('negocios', negocios).catch(() => {}); // ← también persistir en DB
   res.json({ ok: true });
 });
 
@@ -2290,10 +2292,15 @@ function estaAbiertoAhora(negocio) {
   const zona = 'America/Guayaquil';
   const ahoraEC = new Date(new Date().toLocaleString('en-US', { timeZone: zona }));
   const horarios = negocio.horarios;
-  if (!horarios) { const h = ahoraEC.getHours(); return h >= 8 && h < 18; }
+  // Sin horarios configurados → asumir abierto (no bloquear al negocio)
+  if (!horarios) return true;
+  // Si ningún día tiene abierto=true → horarios no configurados → asumir abierto
+  const algunoAbierto = Object.values(horarios).some(h => h && h.abierto);
+  if (!algunoAbierto) return true;
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const hoy = dias[ahoraEC.getDay()];
   const horario = horarios[hoy];
+  // Si el día de hoy no tiene horario o no está abierto → cerrado
   if (!horario || !horario.abierto || !horario.desde || !horario.hasta) return false;
   const [dH, dM] = horario.desde.split(':').map(Number);
   const [hH, hM] = horario.hasta.split(':').map(Number);
