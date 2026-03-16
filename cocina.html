@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cocina — VendeBot</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --prim:#060A06;--sec:#0F140E;--acc:#25D366;--acc2:#1da851;
+  --warn:#f59e0b;--done:#22c55e;--danger:#ef4444;
+  --txt:#fff;--txt2:rgba(255,255,255,.6);--txt3:rgba(255,255,255,.25);
+  --card:rgba(255,255,255,.05);--border:rgba(255,255,255,.1);
+}
+html,body{min-height:100vh;background:var(--prim);font-family:'Segoe UI',system-ui,sans-serif;color:var(--txt);}
+
+/* ── HEADER ── */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;
+  background:var(--sec);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:10;
+}
+.header-left{display:flex;align-items:center;gap:14px;}
+.biz-logo{width:40px;height:40px;border-radius:9px;object-fit:contain;background:var(--acc);padding:5px;}
+.biz-logo-ph{width:40px;height:40px;border-radius:9px;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:20px;}
+.biz-name{font-size:18px;font-weight:700;}
+.header-right{display:flex;align-items:center;gap:16px;}
+.live-badge{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 14px;border-radius:100px;
+  background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);
+  font-size:12px;font-weight:600;color:var(--acc);letter-spacing:.06em;
+}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);animation:blink 1.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.total-hoy{font-size:13px;color:var(--txt2);}
+.total-hoy span{color:var(--acc);font-weight:700;}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:4px;
+  padding:12px 24px;
+  background:var(--sec);
+  border-bottom:1px solid var(--border);
+}
+.tab{
+  padding:9px 20px;border-radius:100px;
+  font-size:14px;font-weight:600;cursor:pointer;
+  background:var(--card);border:1px solid var(--border);
+  color:var(--txt2);transition:all .2s;
+}
+.tab.active{background:var(--acc);border-color:var(--acc);color:#fff;}
+.tab .badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.2);color:#fff;
+  font-size:11px;font-weight:700;
+  width:20px;height:20px;border-radius:50%;
+  margin-left:6px;
+}
+.tab.active .badge{background:rgba(0,0,0,.25);}
+
+/* ── BOARD ── */
+.board{
+  padding:20px 24px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+}
+
+/* ── CARD PEDIDO ── */
+.order-card{
+  background:var(--card);
+  border:2px solid var(--border);
+  border-radius:18px;overflow:hidden;
+  transition:border-color .3s;
+  position:relative;
+}
+.order-card.nuevo{
+  border-color:var(--warn);
+  animation:new-order 1s ease-in-out 3;
+}
+@keyframes new-order{0%,100%{box-shadow:none;}50%{box-shadow:0 0 24px rgba(245,158,11,.4);}}
+.order-card.listo{border-color:var(--done);opacity:.6;}
+
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+}
+.card-num{font-family:monospace;font-size:28px;font-weight:900;color:var(--txt);}
+.card-time{font-size:12px;color:var(--txt3);}
+.card-status{
+  font-size:11px;font-weight:700;
+  padding:4px 10px;border-radius:100px;
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.card-status.pendiente{background:rgba(245,158,11,.15);color:var(--warn);}
+.card-status.listo{background:rgba(34,197,94,.15);color:var(--done);}
+
+.card-items{padding:12px 16px;}
+.card-item{
+  display:flex;justify-content:space-between;
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+.card-item:last-child{border-bottom:none;}
+.card-item-qty{
+  background:var(--acc);color:#111;
+  font-size:11px;font-weight:700;
+  width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-right:8px;flex-shrink:0;
+}
+.card-item-name{flex:1;}
+.card-item-price{color:var(--txt2);font-size:13px;}
+
+.card-total{
+  display:flex;justify-content:space-between;
+  padding:10px 16px;
+  border-top:1px solid var(--border);
+  font-size:15px;font-weight:700;
+}
+.card-total-val{color:var(--acc);}
+
+.card-footer{padding:12px 16px;}
+.listo-btn{
+  width:100%;background:var(--acc);color:#111;
+  border:none;border-radius:12px;
+  padding:14px;font-size:16px;font-weight:700;
+  cursor:pointer;transition:background .2s;
+}
+.listo-btn:hover{background:var(--acc2);}
+.listo-btn.done{
+  background:rgba(34,197,94,.15);color:var(--done);
+  border:1px solid rgba(34,197,94,.3);cursor:default;
+}
+
+/* ── EMPTY ── */
+.empty-state{
+  grid-column:1/-1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:80px 20px;text-align:center;color:var(--txt3);
+}
+.empty-state .icon{font-size:64px;margin-bottom:16px;}
+.empty-state p{font-size:18px;}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:30px;right:30px;
+  background:var(--acc);color:#111;
+  font-size:15px;font-weight:700;
+  padding:14px 24px;border-radius:14px;
+  box-shadow:0 8px 32px rgba(37,211,102,.3);
+  transform:translateY(20px);opacity:0;
+  transition:all .3s;z-index:100;
+}
+#toast.show{transform:translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div id="biz-logo-el"></div>
+    <div class="biz-name" id="biz-name-el">Cocina</div>
+  </div>
+  <div class="header-right">
+    <div class="total-hoy">Hoy: <span id="total-hoy">0 pedidos</span></div>
+    <div class="live-badge"><div class="live-dot"></div>EN VIVO</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-pendiente" onclick="setTab('pendiente')">
+    Pendientes <span class="badge" id="badge-pendiente">0</span>
+  </div>
+  <div class="tab" id="tab-listo" onclick="setTab('listo')">
+    Listos hoy <span class="badge" id="badge-listo">0</span>
+  </div>
+</div>
+
+<div class="board" id="board"></div>
+<div id="toast"></div>
+
+<script>
+const slug = location.pathname.split('/')[2];
+let negocio = null;
+let pedidos = [];
+let tabActiva = 'pendiente';
+let audioCtx = null;
+
+// ══════ INIT ══════
+async function init() {
+  try {
+    const r = await fetch(`/kiosco-data/${slug}`);
+    negocio = await r.json();
+    if (negocio.logo) {
+      document.getElementById('biz-logo-el').innerHTML = `<img class="biz-logo" src="${negocio.logo}">`;
+    } else {
+      document.getElementById('biz-logo-el').innerHTML = `<div class="biz-logo-ph">${negocio.emoji||'🏪'}</div>`;
+    }
+    document.getElementById('biz-name-el').textContent = negocio.nombre + ' — Cocina';
+    cargarPedidos();
+    conectarSSE();
+  } catch(e) {
+    document.getElementById('board').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
+  }
+}
+
+// ══════ CARGAR PEDIDOS ══════
+async function cargarPedidos() {
+  try {
+    const r = await fetch(`/kiosco/${slug}/pedidos`);
+    pedidos = await r.json();
+    renderBoard();
+  } catch(e) { console.error(e); }
+}
+
+// ══════ SSE — TIEMPO REAL ══════
+function conectarSSE() {
+  const es = new EventSource(`/kiosco/${slug}/events`);
+  es.addEventListener('nuevo_pedido', e => {
+    const p = JSON.parse(e.data);
+    pedidos.unshift(p);
+    renderBoard();
+    beep();
+    toast(`🔔 Nuevo pedido #${p.numero}!`);
+  });
+  es.addEventListener('pedido_listo', e => {
+    const d = JSON.parse(e.data);
+    const idx = pedidos.findIndex(p=>p.id===d.id);
+    if (idx>=0) { pedidos[idx].estado='listo'; renderBoard(); }
+  });
+  es.onerror = () => setTimeout(conectarSSE, 3000);
+}
+
+// ══════ RENDER ══════
+function renderBoard() {
+  const filtrados = pedidos.filter(p => p.estado === tabActiva);
+  const pendientes = pedidos.filter(p=>p.estado==='pendiente').length;
+  const listos = pedidos.filter(p=>p.estado==='listo').length;
+  document.getElementById('badge-pendiente').textContent = pendientes;
+  document.getElementById('badge-listo').textContent = listos;
+  document.getElementById('total-hoy').textContent = pedidos.length + ' pedido' + (pedidos.length!==1?'s':'');
+
+  const board = document.getElementById('board');
+  if (filtrados.length === 0) {
+    board.innerHTML = `<div class="empty-state"><div class="icon">${tabActiva==='pendiente'?'✅':'📋'}</div><p>${tabActiva==='pendiente'?'Sin pedidos pendientes':'No hay pedidos listos hoy'}</p></div>`;
+    return;
+  }
+
+  board.innerHTML = filtrados.map(p => {
+    const total = p.items.reduce((s,i)=>s+(i.precio*i.cantidad),0);
+    const mins = Math.floor((Date.now()-new Date(p.fecha))/60000);
+    const tiempoLabel = mins < 1 ? 'Ahora mismo' : `Hace ${mins} min`;
+    return `
+    <div class="order-card ${p.estado==='pendiente'?'nuevo':''} ${p.estado==='listo'?'listo':''}" id="card-${p.id}">
+      <div class="card-header">
+        <div>
+          <div class="card-num">#${p.numero}</div>
+          <div class="card-time">${tiempoLabel}</div>
+        </div>
+        <div class="card-status ${p.estado}">${p.estado==='pendiente'?'Pendiente':'✓ Listo'}</div>
+      </div>
+      <div class="card-items">
+        ${p.items.map(i=>`
+          <div class="card-item">
+            <span class="card-item-qty">${i.cantidad}</span>
+            <span class="card-item-name">${i.nombre}</span>
+            <span class="card-item-price">$${(i.precio*i.cantidad).toFixed(2)}</span>
+          </div>`).join('')}
+      </div>
+      <div class="card-total">
+        <span>Total</span>
+        <span class="card-total-val">$${total.toFixed(2)}</span>
+      </div>
+      <div class="card-footer">
+        ${p.estado==='pendiente'
+          ? `<button class="listo-btn" onclick="marcarListo('${p.id}')">✅ Marcar como listo</button>`
+          : `<button class="listo-btn done" disabled>✓ Pedido entregado</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setTab(tab) {
+  tabActiva = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  renderBoard();
+}
+
+// ══════ MARCAR LISTO ══════
+async function marcarListo(id) {
+  try {
+    await fetch(`/kiosco/${slug}/pedidos/${id}/listo`, {method:'POST'});
+    const idx = pedidos.findIndex(p=>p.id===id);
+    if (idx>=0) { pedidos[idx].estado='listo'; renderBoard(); }
+    toast('✅ Pedido marcado como listo');
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+// ══════ BEEP ══════
+function beep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.5);
+    osc.start(); osc.stop(audioCtx.currentTime+0.5);
+  } catch{}
+}
+
+// ══════ TOAST ══════
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+init();
+// Recargar pedidos cada 30s por si acaso
+setInterval(cargarPedidos, 30000);
+</script>
+</body>
+</html>

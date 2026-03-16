@@ -2547,6 +2547,232 @@ async function restaurarDesdeDB() {
   console.log('✓ Negocios en memoria:', cache.negocios.length);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MÓDULO KIOSCO DIGITAL — VendeBot
+// Pega este bloque completo ANTES de la línea: app.listen(PORT, ...
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Contador de pedidos kiosco por negocio (en memoria) ──────────
+const kioscoContadores = {};      // { negocioId: numero_actual }
+const kioscoSSE = {};             // { negocioId: [res1, res2, ...] }
+
+// ── Helpers ──────────────────────────────────────────────────────
+function getKioscoPedidos(negocioId) {
+  const key = `kiosco_pedidos_${negocioId}`;
+  return cache[key] || [];
+}
+function saveKioscoPedidos(negocioId, pedidos) {
+  const key = `kiosco_pedidos_${negocioId}`;
+  cache[key] = pedidos;
+  guardarJSON(key, pedidos);
+}
+
+function proximoNumero(negocioId) {
+  // Reinicia a 1 si cambia el día
+  const hoy = new Date().toLocaleDateString('es-EC');
+  if (!kioscoContadores[negocioId] || kioscoContadores[negocioId].fecha !== hoy) {
+    kioscoContadores[negocioId] = { fecha: hoy, num: 0 };
+  }
+  kioscoContadores[negocioId].num++;
+  return kioscoContadores[negocioId].num;
+}
+
+function emitirKiosco(negocioId, evento, data) {
+  const clientes = kioscoSSE[negocioId] || [];
+  const msg = `event: ${evento}\ndata: ${JSON.stringify(data)}\n\n`;
+  clientes.forEach(res => { try { res.write(msg); } catch {} });
+}
+
+// ── Middleware kiosco activo ──────────────────────────────────────
+function requireKiosco(req, res, next) {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
+  if (!negocio.kiosco_activo) return res.status(403).json({ error: 'Módulo kiosco no activo para este negocio' });
+  req.negocio = negocio;
+  next();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RUTAS PÚBLICAS DEL KIOSCO
+// ══════════════════════════════════════════════════════════════════
+
+// Sirve la pantalla del kiosco (cliente)
+app.get('/kiosco/:slug', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).send('<h1 style="font-family:sans-serif;padding:40px">Negocio no encontrado</h1>');
+  if (!negocio.kiosco_activo) return res.status(403).send('<h1 style="font-family:sans-serif;padding:40px">Módulo kiosco no activo</h1>');
+  res.set({ 'Cache-Control': 'no-store' });
+  res.sendFile('kiosco.html', { root: '.' });
+});
+
+// Sirve la pantalla de cocina
+app.get('/cocina/:slug', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).send('<h1 style="font-family:sans-serif;padding:40px">Negocio no encontrado</h1>');
+  if (!negocio.kiosco_activo) return res.status(403).send('<h1 style="font-family:sans-serif;padding:40px">Módulo kiosco no activo</h1>');
+  res.set({ 'Cache-Control': 'no-store' });
+  res.sendFile('cocina.html', { root: '.' });
+});
+
+// API de datos del negocio para el kiosco y cocina
+app.get('/kiosco-data/:slug', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  if (!negocio.kiosco_activo) return res.status(403).json({ error: 'Kiosco no activo' });
+  const { password, ...pub } = negocio;
+  // Solo enviar lo necesario al kiosco
+  res.json({
+    id: pub.id,
+    nombre: pub.nombre,
+    logo: pub.logo || null,
+    emoji: pub.emoji || '🏪',
+    catalogo: (pub.catalogo || []).filter(p => p.activo !== false),
+  });
+});
+
+// ── Crear pedido desde el kiosco ──────────────────────────────────
+app.post('/kiosco/:slug/pedido', requireKiosco, (req, res) => {
+  const { items, total } = req.body;
+  if (!items || !items.length) return res.status(400).json({ error: 'Pedido vacío' });
+
+  const negocio = req.negocio;
+  const numero = proximoNumero(negocio.id);
+  const pedido = {
+    id: `k_${negocio.id}_${Date.now()}`,
+    numero,
+    items,
+    total: parseFloat(total) || items.reduce((s,i) => s + i.precio * i.cantidad, 0),
+    estado: 'pendiente',  // pendiente | listo
+    fecha: new Date().toISOString(),
+  };
+
+  const pedidos = getKioscoPedidos(negocio.id);
+  // Guardar solo pedidos de hoy
+  const hoy = new Date().toLocaleDateString('es-EC');
+  const pedidosHoy = pedidos.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy);
+  pedidosHoy.unshift(pedido);
+  saveKioscoPedidos(negocio.id, pedidosHoy);
+
+  // Notificar a pantalla de cocina via SSE
+  emitirKiosco(negocio.id, 'nuevo_pedido', pedido);
+
+  // Notificar al dueño por WhatsApp (opcional, reusa el sistema existente)
+  if (negocio.whatsapp_dueno) {
+    const resumen = items.map(i => `• ${i.nombre} x${i.cantidad} = $${(i.precio*i.cantidad).toFixed(2)}`).join('\n');
+    const msg = `🖥️ *Nuevo pedido kiosco #${numero}*\n\n${resumen}\n\n*Total: $${pedido.total.toFixed(2)}*\n\nEl cliente pagará en ventanilla.`;
+    enviarMensaje(negocio.whatsapp_dueno, msg).catch(() => {});
+  }
+
+  res.json({ ok: true, numero, id: pedido.id });
+});
+
+// ── Obtener pedidos del día ────────────────────────────────────────
+app.get('/kiosco/:slug/pedidos', requireKiosco, (req, res) => {
+  const negocio = req.negocio;
+  const pedidos = getKioscoPedidos(negocio.id);
+  const hoy = new Date().toLocaleDateString('es-EC');
+  res.json(pedidos.filter(p => new Date(p.fecha).toLocaleDateString('es-EC') === hoy));
+});
+
+// ── Marcar pedido como listo (desde cocina) ───────────────────────
+app.post('/kiosco/:slug/pedidos/:id/listo', requireKiosco, (req, res) => {
+  const negocio = req.negocio;
+  const pedidos = getKioscoPedidos(negocio.id);
+  const idx = pedidos.findIndex(p => p.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'Pedido no encontrado' });
+  pedidos[idx].estado = 'listo';
+  pedidos[idx].fecha_listo = new Date().toISOString();
+  saveKioscoPedidos(negocio.id, pedidos);
+  emitirKiosco(negocio.id, 'pedido_listo', { id: req.params.id });
+  res.json({ ok: true });
+});
+
+// ── SSE de cocina — recibe eventos en tiempo real ─────────────────
+app.get('/kiosco/:slug/events', (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
+  if (!negocio || !negocio.kiosco_activo) return res.status(403).end();
+
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+  res.flushHeaders();
+  res.write(': conectado\n\n');
+
+  if (!kioscoSSE[negocio.id]) kioscoSSE[negocio.id] = [];
+  kioscoSSE[negocio.id].push(res);
+
+  // Ping cada 25s para mantener viva la conexión
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch {} }, 25000);
+
+  req.on('close', () => {
+    clearInterval(ping);
+    kioscoSSE[negocio.id] = (kioscoSSE[negocio.id] || []).filter(r => r !== res);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// RUTAS DEL PANEL — Gestión del módulo kiosco
+// ══════════════════════════════════════════════════════════════════
+
+// Activar / desactivar kiosco para un negocio
+app.put('/panel/:slug/kiosco/toggle', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].kiosco_activo = !negocios[idx].kiosco_activo;
+  guardarJSON('negocios', negocios);
+  res.json({ ok: true, kiosco_activo: negocios[idx].kiosco_activo });
+});
+
+// Estado del kiosco
+app.get('/panel/:slug/kiosco/estado', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const pedidosHoy = getKioscoPedidos(negocio.id).filter(p => {
+    const hoy = new Date().toLocaleDateString('es-EC');
+    return new Date(p.fecha).toLocaleDateString('es-EC') === hoy;
+  });
+  res.json({
+    kiosco_activo: !!negocio.kiosco_activo,
+    kiosco_url: `/kiosco/${negocio.slug || negocio.id}`,
+    cocina_url: `/cocina/${negocio.slug || negocio.id}`,
+    pedidos_hoy: pedidosHoy.length,
+    pendientes: pedidosHoy.filter(p => p.estado === 'pendiente').length,
+    total_hoy: pedidosHoy.reduce((s,p) => s + (p.total||0), 0),
+  });
+});
+
+// Pedidos del día para el panel
+app.get('/panel/:slug/kiosco/pedidos', authPanel, (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const hoy = new Date().toLocaleDateString('es-EC');
+  const pedidos = getKioscoPedidos(negocio.id).filter(p =>
+    new Date(p.fecha).toLocaleDateString('es-EC') === hoy
+  );
+  res.json(pedidos);
+});
+
+// ══════════════════════════════════════════════════════════════════
+// RUTA ADMIN — activar kiosco desde el panel admin SaaS
+// ══════════════════════════════════════════════════════════════════
+
+app.put('/admin/negocios/:id/kiosco', authAdmin, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => n.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
+  negocios[idx].kiosco_activo = !!req.body.activo;
+  guardarJSON('negocios', negocios);
+  res.json({ ok: true, kiosco_activo: negocios[idx].kiosco_activo });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// FIN MÓDULO KIOSCO
+// ══════════════════════════════════════════════════════════════════
+
+
 app.listen(PORT, async () => {
   console.log('VendeBot v11.0 iniciado en puerto ' + PORT);
   await inicializarDB();
