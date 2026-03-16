@@ -309,6 +309,7 @@ textarea{resize:vertical;border-radius:8px;}
     <button class="nav-btn" onclick="switchTab('resenas')"><span class="nav-icon">⭐</span>Reseñas</button>
     <div class="nav-group-label">// Sistema</div>
     <button class="nav-btn" onclick="switchTab('whatsapp')"><span class="nav-icon">📱</span>WhatsApp</button>
+    <button class="nav-btn" id="nav-kiosco" style="display:none;" onclick="switchTab('kiosco')"><span class="nav-icon">🖥️</span>Kiosco</button>
     <button class="nav-btn" onclick="switchTab('config')"><span class="nav-icon">⚙️</span>Configuración</button>
   </nav>
   <div class="sidebar-footer">
@@ -910,6 +911,88 @@ textarea{resize:vertical;border-radius:8px;}
 
 </div>
 
+<!-- KIOSCO -->
+<div class="panel" id="tab-kiosco">
+  <div class="section-title">Kiosco</div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:4px;">Estado del kiosco</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--t2);" id="kiosco-status-txt">Los clientes pueden hacer pedidos desde la pantalla táctil</div>
+      </div>
+      <label class="sw" style="flex-shrink:0;" title="Activar/pausar kiosco">
+        <input type="checkbox" id="kiosco-toggle" onchange="toggleKioscoPausa(this.checked)">
+        <div class="sw-track"></div>
+        <div class="sw-knob"></div>
+      </label>
+    </div>
+  </div>
+
+  <div class="stats-grid" style="margin-bottom:14px;">
+    <div class="stat-card">
+      <div class="stat-label">PEDIDOS HOY</div>
+      <div class="stat-val" id="ks-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">PENDIENTES</div>
+      <div class="stat-val" style="color:var(--gold);" id="ks-pend">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">TOTAL DEL DÍA</div>
+      <div class="stat-val" id="ks-monto">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">URLs de acceso</div>
+    <div style="margin-bottom:12px;">
+      <div style="font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--t3);margin-bottom:6px;">KIOSCO — Pantalla de pedidos para el cliente</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;padding:8px 12px;background:var(--s1);border:1px solid var(--b);border-radius:8px;font-family:var(--fm);font-size:12px;color:var(--c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="url-kiosco">—</div>
+        <button class="btn btn-secondary btn-sm" onclick="copiarURL('url-kiosco')">Copiar</button>
+        <button class="btn btn-primary btn-sm" onclick="abrirURL('url-kiosco')">Abrir ↗</button>
+      </div>
+    </div>
+    <div>
+      <div style="font-family:var(--fm);font-size:9px;letter-spacing:.12em;color:var(--t3);margin-bottom:6px;">COCINA — Pantalla de cocina en tiempo real</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;padding:8px 12px;background:var(--s1);border:1px solid var(--b);border-radius:8px;font-family:var(--fm);font-size:12px;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="url-cocina">—</div>
+        <button class="btn btn-secondary btn-sm" onclick="copiarURL('url-cocina')">Copiar</button>
+        <button class="btn btn-primary btn-sm" onclick="abrirURL('url-cocina')">Abrir ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">Apariencia del kiosco</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:13px;color:var(--tx);margin-bottom:3px;">Colores del tema</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--t3);">El kiosco usa los mismos colores que tu catálogo web</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;gap:5px;" id="kiosco-color-dots"></div>
+        <button class="btn btn-secondary btn-sm" onclick="switchTab('config');switchCfgTab('apariencia')">Personalizar ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">Pedidos del día</div>
+      <div style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:10px;color:var(--g);letter-spacing:.1em;">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 8px var(--g);animation:pulse-g 2.5s ease-in-out infinite;"></div>
+        EN VIVO
+      </div>
+    </div>
+    <div id="kiosco-pedidos-list">
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);text-align:center;padding:20px 0;">Cargando pedidos...</div>
+    </div>
+  </div>
+
+</div>
+
     </div>
   </div>
 </div>
@@ -942,7 +1025,7 @@ async function loginPanel(){
   }
 }
 
-const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',comunicaciones:'// COMUNICACIONES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP'};
+const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',comunicaciones:'// COMUNICACIONES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP',kiosco:'// KIOSCO'};
 
 function switchTab(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -962,6 +1045,7 @@ function switchTab(tab){
   else if(tab==='config')cargarConfig();
   else if(tab==='comunicaciones')cargarComunicaciones();
   else if(tab==='promociones')cargarPromociones();
+  else if(tab==='kiosco')cargarKiosco();
 }
 
 async function api(url, opts={}) {
@@ -986,7 +1070,14 @@ async function api(url, opts={}) {
 
 async function cargarTodo(){
   const negocio=await api(`/panel/${SLUG}/negocio`);
-  if(negocio){negocioData=negocio;document.getElementById('negocioName').textContent=negocio.nombre||'';actualizarSwitchBot(negocio.bot_activo!==false);}
+  if(negocio){
+    negocioData=negocio;
+    document.getElementById('negocioName').textContent=negocio.nombre||'';
+    actualizarSwitchBot(negocio.bot_activo!==false);
+    // Mostrar tab kiosco solo si el admin lo activó para este negocio
+    const navKiosco=document.getElementById('nav-kiosco');
+    if(navKiosco)navKiosco.style.display=negocio.kiosco_activo?'':'none';
+  }
   cargarDashboard();
 }
 
@@ -1719,6 +1810,116 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   draw();
 })();
-</script>
+
+// ══════════════════════════════════════
+// KIOSCO
+// ══════════════════════════════════════
+let kioscoSSE=null;
+
+async function cargarKiosco(){
+  const neg=negocioData||await api(`/panel/${SLUG}/negocio`);
+  if(!neg)return;
+
+  // URLs
+  const base=BASE;
+  document.getElementById('url-kiosco').textContent=`${base}/kiosco/${SLUG}`;
+  document.getElementById('url-cocina').textContent=`${base}/cocina/${SLUG}`;
+
+  // Toggle estado (usa kiosco_activo del negocio como proxy de "no pausado")
+  const tog=document.getElementById('kiosco-toggle');
+  tog.checked=neg.kiosco_activo!==false;
+  actualizarTextoKiosco(tog.checked);
+
+  // Dots de colores del catálogo
+  const dots=document.getElementById('kiosco-color-dots');
+  const colores=neg.colores||{};
+  const c1=colores.primario||neg.color_primario||'#111111';
+  const c2=colores.acento||neg.color_acento||'#25D366';
+  const c3=colores.fondo||neg.color_fondo||'#ffffff';
+  dots.innerHTML=[c1,c2,c3].map(c=>`<div style="width:18px;height:18px;border-radius:50%;background:${c};border:2px solid rgba(128,128,128,.2);"></div>`).join('');
+
+  // Pedidos
+  await cargarPedidosKiosco();
+
+  // SSE en tiempo real
+  if(kioscoSSE){kioscoSSE.close();}
+  kioscoSSE=new EventSource(`${BASE}/kiosco/${SLUG}/events`);
+  kioscoSSE.addEventListener('nuevo_pedido',()=>cargarPedidosKiosco());
+  kioscoSSE.addEventListener('pedido_listo',()=>cargarPedidosKiosco());
+}
+
+async function cargarPedidosKiosco(){
+  const data=await api(`/kiosco/${SLUG}/pedidos`);
+  if(!data||!Array.isArray(data)){
+    document.getElementById('kiosco-pedidos-list').innerHTML='<div style="font-family:var(--fm);font-size:11px;color:var(--t3);text-align:center;padding:20px 0;">Sin pedidos hoy</div>';
+    return;
+  }
+
+  // Stats
+  const total=data.length;
+  const pendientes=data.filter(p=>p.estado==='pendiente').length;
+  const monto=data.reduce((s,p)=>s+(p.total||0),0);
+  document.getElementById('ks-total').textContent=total;
+  document.getElementById('ks-pend').textContent=pendientes;
+  document.getElementById('ks-monto').textContent='$'+monto.toFixed(2);
+
+  // Lista
+  if(!data.length){
+    document.getElementById('kiosco-pedidos-list').innerHTML='<div style="font-family:var(--fm);font-size:11px;color:var(--t3);text-align:center;padding:20px 0;">Sin pedidos hoy</div>';
+    return;
+  }
+
+  const estadoPill=(e)=>{
+    if(e==='listo')return`<span style="font-family:var(--fm);font-size:10px;padding:2px 9px;border-radius:20px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:var(--g);">Listo</span>`;
+    return`<span style="font-family:var(--fm);font-size:10px;padding:2px 9px;border-radius:20px;background:rgba(255,208,96,.08);border:1px solid rgba(255,208,96,.25);color:var(--gold);">Pendiente</span>`;
+  };
+
+  document.getElementById('kiosco-pedidos-list').innerHTML=`
+    <table class="table">
+      <thead><tr><th>#</th><th>Productos</th><th>Hora</th><th>Total</th><th>Estado</th></tr></thead>
+      <tbody>${data.map(p=>{
+        const hora=new Date(p.fecha).toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'});
+        const items=(p.items||[]).map(i=>`${i.nombre} x${i.cantidad}`).join(', ');
+        return`<tr>
+          <td style="font-family:var(--fm);color:var(--t2);">#${p.numero}</td>
+          <td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${items}</td>
+          <td style="font-family:var(--fm);font-size:11px;color:var(--t2);">${hora}</td>
+          <td style="font-family:var(--fm);color:var(--c);">$${(p.total||0).toFixed(2)}</td>
+          <td>${estadoPill(p.estado)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+function actualizarTextoKiosco(activo){
+  const el=document.getElementById('kiosco-status-txt');
+  if(el)el.textContent=activo
+    ?'Los clientes pueden hacer pedidos desde la pantalla táctil'
+    :'Kiosco pausado — los clientes verán una pantalla de espera';
+}
+
+async function toggleKioscoPausa(activo){
+  actualizarTextoKiosco(activo);
+  const r=await api(`/panel/${SLUG}/kiosco/pausa`,{method:'POST',body:JSON.stringify({activo})});
+  if(r?.ok!==false){
+    mostrarNotificacion(activo?'// Kiosco activado':'// Kiosco pausado');
+    if(negocioData)negocioData.kiosco_activo=activo;
+  } else {
+    mostrarNotificacion('// Error al cambiar estado');
+    // Revertir toggle si falla
+    document.getElementById('kiosco-toggle').checked=!activo;
+    actualizarTextoKiosco(!activo);
+  }
+}
+
+function copiarURL(elId){
+  const txt=document.getElementById(elId)?.textContent||'';
+  navigator.clipboard.writeText(txt).then(()=>mostrarNotificacion('// URL copiada'));
+}
+
+function abrirURL(elId){
+  const txt=document.getElementById(elId)?.textContent||'';
+  if(txt&&txt!=='—')window.open(txt,'_blank');
+}</script>
 </body>
 </html>

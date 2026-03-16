@@ -2594,6 +2594,7 @@ function requireKiosco(req, res, next) {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
   if (!negocio.kiosco_activo) return res.status(403).json({ error: 'Módulo kiosco no activo para este negocio' });
+  if (negocio.kiosco_pausado) return res.status(503).json({ error: 'Kiosco pausado temporalmente' });
   req.negocio = negocio;
   next();
 }
@@ -2626,12 +2627,12 @@ app.get('/kiosco-data/:slug', (req, res) => {
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
   if (!negocio.kiosco_activo) return res.status(403).json({ error: 'Kiosco no activo' });
   const { password, ...pub } = negocio;
-  // Solo enviar lo necesario al kiosco
   res.json({
     id: pub.id,
     nombre: pub.nombre,
     logo: pub.logo || null,
     emoji: pub.emoji || '🏪',
+    pausado: !!pub.kiosco_pausado,
     catalogo: (pub.catalogo || []).filter(p => p.activo !== false),
   });
 });
@@ -2759,6 +2760,20 @@ app.get('/panel/:slug/kiosco/pedidos', authPanel, (req, res) => {
     new Date(p.fecha).toLocaleDateString('es-EC') === hoy
   );
   res.json(pedidos);
+});
+
+// Pausa/reactiva el kiosco desde el panel del negocio
+app.post('/panel/:slug/kiosco/pausa', authPanel, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
+  // Solo puede pausar/reactivar si el admin ya lo activó
+  if (!negocios[idx].kiosco_activo && req.body.activo) {
+    return res.status(403).json({ error: 'El admin debe activar el módulo kiosco primero' });
+  }
+  negocios[idx].kiosco_pausado = !req.body.activo;
+  guardarJSON('negocios', negocios);
+  res.json({ ok: true, kiosco_pausado: negocios[idx].kiosco_pausado });
 });
 
 // ══════════════════════════════════════════════════════════════════
