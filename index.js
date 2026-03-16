@@ -2518,7 +2518,13 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3000;
 // Restaurar JSONs desde PostgreSQL al arrancar (por si hubo redeploy)
 async function restaurarDesdeDB() {
-  const claves = ['negocios','clientes','cupones','puntos','pedidos_pendientes','promociones','repartidores','resenas','citas'];
+  // Cargar claves kiosco dinámicamente desde DB
+  let clavesKiosco = [];
+  try {
+    const r = await db.query("SELECT clave FROM datos WHERE clave LIKE 'kiosco_pedidos_%'");
+    clavesKiosco = r.rows.map(row => row.clave);
+  } catch {}
+  const claves = ['negocios','clientes','cupones','puntos','pedidos_pendientes','promociones','repartidores','resenas','citas', ...clavesKiosco];
   for (const clave of claves) {
     try {
       const r = await db.query('SELECT valor FROM datos WHERE clave = $1', [clave]);
