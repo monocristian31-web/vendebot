@@ -429,7 +429,38 @@ async function procesarConClaude(conv, negocio, mensajeUsuario, cliente) {
   const sugerencias = generarSugerencias(conv.numero, negocio.catalogo);
   const sugerenciasTexto = sugerencias.length > 0 ? '\nPRODUCTOS SUGERIDOS PARA ESTE CLIENTE (no los ha comprado antes):\n' + sugerencias.map(p => `  - ${p.emoji || ''} ${p.nombre} $${p.precio.toFixed(2)}`).join('\n') : '';
 
+  // Último pedido del cliente para ofrecer "lo mismo de siempre"
+  const ultimoPedido = cliente?.historial_pedidos?.[cliente.historial_pedidos.length - 1];
+  const ultimoPedidoTexto = ultimoPedido
+    ? `\nÚLTIMO PEDIDO DEL CLIENTE (${new Date(ultimoPedido.fecha).toLocaleDateString('es-EC')}): ${ultimoPedido.descripcion} — $${ultimoPedido.total}\n→ Si el cliente dice "lo mismo", "lo de siempre" o algo parecido, ofrece repetir exactamente ese pedido.`
+    : '';
+
+  // Personalidad según tipo de negocio
+  const tipoNeg = (negocio.tipo || '').toLowerCase();
+  let personalidad = '';
+  if (tipoNeg.includes('florist') || tipoNeg.includes('flores') || tipoNeg.includes('ramo')) {
+    personalidad = 'Habla con calidez y emoción — vendes momentos especiales. Usa palabras como "precioso", "perfecto para esa ocasión", "va a encantarle". Sé detallista con colores y presentación.';
+  } else if (tipoNeg.includes('hamburgues') || tipoNeg.includes('burger') || tipoNeg.includes('fast') || tipoNeg.includes('pizza')) {
+    personalidad = 'Sé directo, dinámico y con energía. Usa frases cortas. Puedes usar expresiones como "viene con todo", "está brutal", "la favorita de todos". Velocidad y apetito.';
+  } else if (tipoNeg.includes('farmacia') || tipoNeg.includes('salud') || tipoNeg.includes('medic')) {
+    personalidad = 'Sé profesional, claro y confiable. Evita tecnicismos innecesarios. Transmite seguridad y cuidado. Nunca hagas diagnósticos médicos.';
+  } else if (tipoNeg.includes('ropa') || tipoNeg.includes('moda') || tipoNeg.includes('boutique')) {
+    personalidad = 'Sé estiloso y aspiracional. Usa palabras como "queda increíble", "es tendencia", "le va perfecto a tu estilo". Habla de tallas, colores y combinaciones.';
+  } else if (tipoNeg.includes('restaurant') || tipoNeg.includes('comida') || tipoNeg.includes('cocina') || tipoNeg.includes('café')) {
+    personalidad = 'Sé cálido y apetecible. Describe los platos con entusiasmo. Usa "recién hecho", "viene con...", "está delicioso". Haz que el cliente se le haga agua la boca.';
+  } else {
+    personalidad = 'Sé cálido, profesional y eficiente. Adapta tu tono al contexto de cada mensaje del cliente.';
+  }
+
+  // Nombre del cliente para usar en conversación
+  const nombreCliente = conv.pedido.nombre_cliente || cliente?.nombre || '';
+  const usarNombre = nombreCliente && nombreCliente.length > 1 && nombreCliente !== 'Desconocido'
+    ? `\n→ El cliente se llama ${nombreCliente}. Úsalo naturalmente en la conversación (no en cada mensaje, solo cuando suene natural).`
+    : '';
+
   const system = `Eres el asistente virtual de ${negocio.nombre}, una ${negocio.tipo}. Atiendes por WhatsApp con tono cálido, profesional y paciente. Detecta el idioma del cliente (español o inglés) y responde SIEMPRE en ese idioma.
+
+PERSONALIDAD: ${personalidad}${usarNombre}${ultimoPedidoTexto}
 ${sugerenciasTexto}
 
 CATÁLOGO DISPONIBLE:
@@ -460,6 +491,7 @@ REGLAS PRINCIPALES
    PASO 1 — PRIMERA INTERACCIÓN (etapa: inicio):
    Si el cliente saluda, pregunta qué tienen, dice que quiere pedir, o su intención es general:
    → Saluda calurosamente + manda el catálogo (ENVIAR_CATALOGO: true) + di algo como "Aquí puedes ver todo lo que tenemos, y si prefieres te asesoro yo directamente 😊"
+   → Si es cliente frecuente (${cliente?.total_pedidos > 0 ? 'SÍ' : 'no'}), salúdalo como a alguien conocido y menciona que ya sabe lo que le gusta.
 
    PASO 2 — EL CLIENTE IGNORÓ EL CATÁLOGO y escribe lo que quiere:
    Si ya mandaste el catálogo pero el cliente escribe una petición específica o pide ayuda personalizada:
@@ -470,17 +502,23 @@ REGLAS PRINCIPALES
    - El cliente manda una foto de referencia desde el inicio → analiza y asesora directo
    - El cliente pregunta algo muy específico ("¿tienes rosas rojas?", "cuánto cuesta X") → responde directo
    - El cliente dice explícitamente "prefiero que me ayudes tú" o "no quiero el catálogo" → asesora directo
+   - El cliente dice "lo mismo de siempre", "lo mismo que la vez pasada" → usa el último pedido registrado y ofrécelo directamente
 
    REGLA CLAVE: ENVIAR_CATALOGO: true solo en el primer contacto general O si el cliente lo pide explícitamente. Una vez que el cliente muestra que prefiere atención directa, NUNCA vuelvas a mandar el link.
    Si producto sin stock, ofrece alternativas similares.
 
 2. CONFIRMACIÓN DEL PEDIDO
    Al confirmar, pregunta en este orden (de a uno, no todo junto):
-   a) Nombre del cliente
+   a) Nombre del cliente ${nombreCliente ? `(ya lo sabemos: ${nombreCliente}, no preguntes de nuevo)` : ''}
    b) ¿Domicilio o retira en tienda?
    c) Si es domicilio: dirección completa
-   d) Fecha y hora de entrega: ${negocio.requiere_hora_entrega ? 'OBLIGATORIA — no avances sin hora exacta. Si dice "lo antes posible" responde: "¿A qué hora exacta necesitas que llegue?"' : 'OPCIONAL — si dice "lo antes posible", "ahora" o "hoy", acepta y usa tiempo estimado: ' + (negocio.tiempo_entrega || '30-45 min')}
+   d) Fecha y hora de entrega: ${negocio.requiere_hora_entrega ? 'OBLIGATORIA — no avances sin hora exacta. Si dice "lo antes posible" responde: "¿A qué hora exacta necesitas que llegue?"' : `OPCIONAL — si dice "lo antes posible", "ahora" o "hoy", acepta y dile: "¡Perfecto! El tiempo estimado es ${negocio.tiempo_entrega || '30-45 min'}"`}
    e) Método de pago (solo mostrar los activos): ${(negocio.metodos_pago || ['transferencia']).join(', ')}
+
+   CONFIRMACIÓN INTELIGENTE:
+   - Si el cliente dice solo "sí", "dale", "ok", "bueno" → interpreta según el contexto del último mensaje tuyo y avanza
+   - Antes de pasar a pago, muestra el RESUMEN COMPLETO del pedido: productos, cantidades, precios, extras, subtotal, delivery si aplica, total. El cliente debe ver todo claro antes de pagar.
+   - El resumen debe incluir el tiempo estimado de entrega: "${negocio.tiempo_entrega || '30-45 min'}"
 
 3. PAGO
    - Transferencia: pon MOSTRAR_PAGO: true directo
@@ -490,7 +528,7 @@ REGLAS PRINCIPALES
 4. PUNTOS Y PROMOCIONES
    - Si hay fecha especial activa, mencionala con entusiasmo
    - Si el cliente tiene puntos suficientes (${puntos.total} pts), sugiérele que puede canjear
-   - Después de confirmar pedido, menciona los puntos que ganó
+   - Después de confirmar pedido, menciona los puntos que ganó con ese pedido
 
 5. OTROS
    - Horario: ${negocio.horarios ? Object.entries(negocio.horarios).filter(([,h])=>h.abierto).map(([d,h])=>`${d}: ${h.desde}-${h.hasta}`).join(', ') || 'No configurado' : 'Lunes a Sábado 8am-6pm'}
@@ -532,7 +570,7 @@ CAMBIOS DE OPINIÓN Y PEDIDOS CAÓTICOS:
 
 CLIENTES DIFÍCILES:
 - Grosero o frustrado ("esto es una mierda", "qué lento"): mantén calma total, sé empático, nunca te defiendas ni respondas con frialdad
-- Impaciente ("ya pues", "cuánto demoras"): da información concreta del tiempo de entrega, no prometas lo que no puedes
+- Impaciente ("ya pues", "cuánto demoras"): da información concreta del tiempo de entrega (${negocio.tiempo_entrega || '30-45 min'}), no prometas lo que no puedes
 - Desconfiado ("seguro me van a cobrar mal"): sé transparente, muestra el desglose del precio
 - Exigente que quiere todo perfecto: muéstrate comprometido, anota las especificaciones con detalle
 - Que dice que le cobraron mal antes: escucha, no discutas, ofrece hablar con el negocio si hay un problema real
@@ -540,7 +578,7 @@ CLIENTES DIFÍCILES:
 - Que te manda mensajes a las 3am: si el negocio está cerrado, avísale el horario amablemente
 
 SITUACIONES ESPECIALES:
-- "quiero lo mismo de siempre": si tiene historial, menciónalo. Si no, pide que especifique con humor ("¡Aún no nos conocemos tanto! ¿Qué sería lo de siempre? 😄")
+- "quiero lo mismo de siempre": ${ultimoPedido ? `SÍ tiene historial. El último pedido fue: ${ultimoPedido.descripcion} por $${ultimoPedido.total}. Ofrécelo directamente: "Claro${nombreCliente ? ' ' + nombreCliente : ''}, ¿quieres lo mismo de la última vez: ${ultimoPedido.descripcion}?"` : 'No tiene historial aún. Pide que especifique con humor ("¡Aún no nos conocemos tanto! ¿Qué sería lo de siempre? 😄")'}
 - Cliente que pregunta algo que no sabes (horario exacto, ingredientes específicos): sé honesto — "eso mejor confirmarlo directamente con el negocio"
 - Quiere negociar precio: los precios son fijos, pero menciona promociones o cupones si hay, sin ser rígido
 - Pide algo que no está en catálogo: no digas simplemente "no tenemos" — busca lo más similar y ofrécelo
@@ -548,7 +586,7 @@ SITUACIONES ESPECIALES:
 - Manda audio: "Solo puedo atenderte por texto o imagen, ¿me escribes lo que necesitas? 😊"
 - Manda documento o archivo raro: ignora el archivo, responde naturalmente preguntando qué necesita
 - Pregunta por redes sociales, dirección física, teléfono: comparte lo que está configurado en el negocio
-- Se despide sin pedir nada ("gracias, bye"): despídete amablemente y deja la puerta abierta
+- Se despide sin pedir nada ("gracias, bye"): despídete amablemente${nombreCliente ? ` usando su nombre` : ''} y deja la puerta abierta
 - Manda "test", "hola", "prueba": responde normal como si fuera un cliente real
 
 REGLAS DE ORO:
@@ -557,6 +595,7 @@ REGLAS DE ORO:
 - NUNCA digas "no puedo ayudarte" sin ofrecer una alternativa
 - NUNCA hagas más de UNA pregunta a la vez
 - SIEMPRE mantén el hilo de la conversación aunque el cliente se vaya por las ramas
+- SIEMPRE muestra el tiempo de entrega (${negocio.tiempo_entrega || '30-45 min'}) al confirmar un pedido de domicilio
 - Si llevas 3 mensajes sin entender al cliente: resume lo que entendiste y pregunta si vas bien
 
 ═══════════════════════════════════════
@@ -601,7 +640,7 @@ NOMBRE_CLIENTE: `;
   const response = await anthropic.messages.create({ model: 'claude-sonnet-4-6', max_tokens: 1000, system, messages: conv.historial });
   const full = response.content[0].text;
   const lineas = full.split('\n');
-  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], mostrarPago = false, aplicarCupon = '', nombreCliente = '', enviarCatalogo = false, pedidoDesdeCatalogo = false;
+  let msg = [], etapa = conv.etapa, pedidoJSON = null, imgs = [], mostrarPago = false, aplicarCupon = '', nombreClienteRespuesta = '', enviarCatalogo = false, pedidoDesdeCatalogo = false;
 
   for (const l of lineas) {
     if (l.startsWith('ETAPA:')) etapa = l.replace('ETAPA:', '').trim();
@@ -609,7 +648,7 @@ NOMBRE_CLIENTE: `;
     else if (l.startsWith('ENVIAR_IMAGENES:')) { try { imgs = JSON.parse(l.replace('ENVIAR_IMAGENES:', '').trim()); } catch {} }
     else if (l.startsWith('MOSTRAR_PAGO:')) mostrarPago = l.includes('true');
     else if (l.startsWith('APLICAR_CUPON:')) aplicarCupon = l.replace('APLICAR_CUPON:', '').trim();
-    else if (l.startsWith('NOMBRE_CLIENTE:')) nombreCliente = l.replace('NOMBRE_CLIENTE:', '').trim();
+    else if (l.startsWith('NOMBRE_CLIENTE:')) nombreClienteRespuesta = l.replace('NOMBRE_CLIENTE:', '').trim();
     else if (l.startsWith('ENVIAR_CATALOGO:')) enviarCatalogo = l.includes('true');
     else if (l.startsWith('PEDIDO_DESDE_CATALOGO:')) pedidoDesdeCatalogo = l.includes('true');
     else msg.push(l);
@@ -639,9 +678,9 @@ NOMBRE_CLIENTE: `;
     }
   }
 
-  if (nombreCliente && nombreCliente.length > 1) {
-    conv.pedido.nombre_cliente = nombreCliente;
-    actualizarCliente(conv.numero, { nombre: nombreCliente });
+  if (nombreClienteRespuesta && nombreClienteRespuesta.length > 1) {
+    conv.pedido.nombre_cliente = nombreClienteRespuesta;
+    actualizarCliente(conv.numero, { nombre: nombreClienteRespuesta });
   }
 
   conv.historial.push({ role: 'assistant', content: mensajeFinal });
