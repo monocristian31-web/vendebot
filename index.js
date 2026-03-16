@@ -668,6 +668,14 @@ async function procesarMensajeBaileys(msg, negocioBase, sock) {
     }
 
     if (negocio.bot_activo === false) return;
+
+    // Verificar suscripción activa
+    if (negocio.suscripcion_activa === false) return;
+    if (negocio.fecha_vencimiento) {
+      const venc = new Date(negocio.fecha_vencimiento);
+      venc.setHours(23, 59, 59, 999);
+      if (new Date() > venc) return;
+    }
     if (negocio.modo_vacaciones) {
       await enviar(numero, negocio.mensaje_vacaciones || negocio.mensajes?.vacaciones || ('Hola! ' + negocio.nombre + ' esta de vacaciones. Volvemos pronto!'));
       return;
@@ -1841,6 +1849,56 @@ function authPanel(req, res, next) {
   res.status(401).json({ error: 'No autorizado' });
 }
 
+// ── Middleware suscripción activa ──────────────────────────────────────────
+function requireSuscripcion(req, res, next) {
+  const slug = req.params.slug;
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === slug);
+  if (!negocio) return next(); // si no existe, que lo maneje la ruta
+  if (negocio.suscripcion_activa === false) {
+    // Si es petición de API JSON
+    if (req.headers.accept?.includes('application/json') || req.path.includes('-data') || req.method !== 'GET') {
+      return res.status(402).json({ error: 'Suscripción suspendida', suspendido: true });
+    }
+    // Si es página HTML, devuelve pantalla de suspendido
+    return res.status(402).send(paginaSuspendida(negocio.nombre));
+  }
+  // Verificar vencimiento automático
+  if (negocio.fecha_vencimiento) {
+    const venc = new Date(negocio.fecha_vencimiento);
+    venc.setHours(23, 59, 59, 999);
+    if (new Date() > venc) {
+      if (req.headers.accept?.includes('application/json') || req.path.includes('-data') || req.method !== 'GET') {
+        return res.status(402).json({ error: 'Suscripción vencida', suspendido: true });
+      }
+      return res.status(402).send(paginaSuspendida(negocio.nombre, true));
+    }
+  }
+  next();
+}
+
+function paginaSuspendida(nombre, vencido = false) {
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Servicio suspendido</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',system-ui,sans-serif;background:#020509;color:#cce8ff;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;}
+.box{max-width:420px;}
+.icon{font-size:64px;margin-bottom:24px;}
+h1{font-size:24px;font-weight:700;margin-bottom:12px;color:#fff;}
+p{font-size:15px;color:rgba(255,255,255,.55);line-height:1.6;margin-bottom:24px;}
+.btn{display:inline-block;padding:12px 28px;background:rgba(0,148,255,.15);border:1px solid rgba(0,200,255,.3);color:#00c8ff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;}
+.neg{font-family:monospace;font-size:12px;color:rgba(255,255,255,.2);margin-top:32px;}
+</style></head><body>
+<div class="box">
+  <div class="icon">${vencido ? '⏰' : '⛔'}</div>
+  <h1>${vencido ? 'Suscripción vencida' : 'Servicio suspendido'}</h1>
+  <p>${vencido
+    ? `El plan de mantenimiento de <strong>${nombre}</strong> ha vencido. Renueva tu suscripción para volver a tener acceso.`
+    : `El servicio de <strong>${nombre}</strong> ha sido suspendido temporalmente. Contacta a tu proveedor para reactivarlo.`
+  }</p>
+  <a class="btn" href="https://wa.me/?text=Hola, necesito reactivar mi servicio VendeBot - ${encodeURIComponent(nombre)}">💬 Contactar por WhatsApp</a>
+  <div class="neg">${nombre} · VendeBot</div>
+</div>
+</body></html>`;
+}
+
 // ─── RUTAS DE PANELES ─────────────────────────────────────────────────────────
 const HTML_NO_CACHE = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -1852,12 +1910,12 @@ app.get('/admin', (req, res) => {
   res.set(HTML_NO_CACHE);
   res.sendFile('admin.html', { root: '.' });
 });
-app.get('/panel/:slug', (req, res) => {
+app.get('/panel/:slug', requireSuscripcion, (req, res) => {
   res.set(HTML_NO_CACHE);
   res.sendFile('panel.html', { root: '.' });
 });
 
-app.get('/panel/:slug/negocio', authPanel, (req, res) => {
+app.get('/panel/:slug/negocio', authPanel, requireSuscripcion, (req, res) => {
   const n = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   res.json(n || {});
 });
@@ -2310,7 +2368,7 @@ function estaAbiertoAhora(negocio) {
 
 // ─── CATÁLOGO PÚBLICO ─────────────────────────────────────────
 // FIX PRINCIPAL: no-cache headers para que nunca sirva versión cacheada
-app.get('/catalogo/:slug', (req, res) => {
+app.get('/catalogo/:slug', requireSuscripcion, (req, res) => {
   res.set(HTML_NO_CACHE);
   res.sendFile('catalogo.html', { root: '.' });
 });
@@ -2604,7 +2662,7 @@ function requireKiosco(req, res, next) {
 // ══════════════════════════════════════════════════════════════════
 
 // Sirve la pantalla del kiosco (cliente)
-app.get('/kiosco/:slug', (req, res) => {
+app.get('/kiosco/:slug', requireSuscripcion, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).send('<h1 style="font-family:sans-serif;padding:40px">Negocio no encontrado</h1>');
   if (!negocio.kiosco_activo) return res.status(403).send('<h1 style="font-family:sans-serif;padding:40px">Módulo kiosco no activo</h1>');
@@ -2787,6 +2845,19 @@ app.put('/admin/negocios/:id/kiosco', authAdmin, (req, res) => {
   negocios[idx].kiosco_activo = !!req.body.activo;
   guardarJSON('negocios', negocios);
   res.json({ ok: true, kiosco_activo: negocios[idx].kiosco_activo });
+});
+
+// ── Gestión de suscripción desde el admin ─────────────────────────────────
+app.put('/admin/negocios/:id/suscripcion', authAdmin, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => n.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
+  const { activo, fecha_vencimiento, plan_activo } = req.body;
+  if (activo !== undefined) negocios[idx].suscripcion_activa = !!activo;
+  if (fecha_vencimiento !== undefined) negocios[idx].fecha_vencimiento = fecha_vencimiento || null;
+  if (plan_activo !== undefined) negocios[idx].plan_activo = plan_activo || null;
+  guardarJSON('negocios', negocios);
+  res.json({ ok: true });
 });
 
 // ══════════════════════════════════════════════════════════════════
