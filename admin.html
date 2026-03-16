@@ -325,14 +325,30 @@ async function cargarNegocios(){
           <span class="badge ${n.activo?'badge-on':'badge-off'}">${n.activo?'● ACTIVO':'● INACTIVO'}</span>
           <span class="badge ${n.bot_activo!==false?'badge-bot-on':'badge-bot-off'}">${n.bot_activo!==false?'🤖 BOT ON':'⏸ BOT OFF'}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
-          <span style="font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t3);">NEGOCIO</span>
-          <label class="sw" title="${n.activo?'Desactivar':'Activar'}">
-            <input type="checkbox" ${n.activo?'checked':''} onchange="toggleActivo('${n.id}',this.checked)">
-            <span class="sw-track"></span>
-            <span class="sw-knob"></span>
-          </label>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:10px;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t3);">NEGOCIO</span>
+            <label class="sw" title="${n.activo?'Desactivar':'Activar'}">
+              <input type="checkbox" ${n.activo?'checked':''} onchange="toggleActivo('${n.id}',this.checked)">
+              <span class="sw-track"></span>
+              <span class="sw-knob"></span>
+            </label>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t3);">🖥️ KIOSCO</span>
+            <label class="sw" title="${n.kiosco_activo?'Desactivar kiosco':'Activar kiosco'}">
+              <input type="checkbox" ${n.kiosco_activo?'checked':''} onchange="toggleKiosco('${n.id}',this.checked)">
+              <span class="sw-track"></span>
+              <span class="sw-knob"></span>
+            </label>
+            ${n.kiosco_activo?`<span style="font-size:9px;color:var(--g);font-family:var(--fm);">ON</span>`:`<span style="font-size:9px;color:var(--t3);font-family:var(--fm);">OFF</span>`}
+          </div>
         </div>
+        ${n.kiosco_activo?`
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <a href="/kiosco/${n.slug||n.id}" target="_blank" style="font-size:9px;color:var(--c);font-family:var(--fm);letter-spacing:.06em;text-decoration:none;border:1px solid rgba(0,200,255,.2);padding:3px 8px;border-radius:4px;">🖥️ ABRIR KIOSCO ↗</a>
+          <a href="/cocina/${n.slug||n.id}" target="_blank" style="font-size:9px;color:var(--g);font-family:var(--fm);letter-spacing:.06em;text-decoration:none;border:1px solid rgba(0,255,136,.2);padding:3px 8px;border-radius:4px;">👨‍🍳 ABRIR COCINA ↗</a>
+        </div>`:''}
       </div>
       <div class="neg-actions">
         <a href="/panel/${n.slug||n.id}" target="_blank" class="btn btn-secondary btn-sm" style="text-decoration:none;">Ver panel</a>
@@ -358,6 +374,12 @@ async function crearNegocio(){
 async function toggleActivo(id,activo){
   const res=await api(`/admin/negocios/${id}`,{method:'PUT',body:JSON.stringify({activo})});
   if(res.ok){toast(activo?'// Negocio activado':'// Negocio desactivado');cargarNegocios();}
+}
+
+async function toggleKiosco(id,activo){
+  const res=await api(`/admin/negocios/${id}/kiosco`,{method:'PUT',body:JSON.stringify({activo})});
+  if(res.ok){toast(activo?'// 🖥️ Kiosco activado':'// 🖥️ Kiosco desactivado');cargarNegocios();}
+  else toast('// Error al cambiar kiosco');
 }
 
 async function eliminarNegocio(id,nombre){
