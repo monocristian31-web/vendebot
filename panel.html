@@ -999,64 +999,88 @@ textarea{resize:vertical;border-radius:8px;}
 </div>
 
 <!-- ══ TAB RED DE NEGOCIOS ══ -->
-<div class="panel" id="tab-red">
-  <div class="section-title">Red de negocios</div>
+<div class="panel" id="tab-red" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 60px);">
 
-  <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
-    <div class="card" style="text-align:center;">
-      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">TRANSACCIONES MES</div>
-      <div style="font-size:22px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
+  <!-- Stats bar -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px;border-bottom:1px solid var(--b);flex-shrink:0;">
+    <div style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">PEDIDOS MES</div>
+      <div style="font-size:20px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
     </div>
-    <div class="card" style="text-align:center;">
-      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">TOTAL MOVIDO</div>
-      <div style="font-size:22px;font-weight:700;color:var(--c);" id="red-total-monto">$0.00</div>
+    <div style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">TOTAL MOVIDO</div>
+      <div style="font-size:20px;font-weight:700;color:var(--c);" id="red-total-monto">$0.00</div>
     </div>
-    <div class="card" style="text-align:center;">
-      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">COMISIÓN ACUMULADA</div>
-      <div style="font-size:22px;font-weight:700;color:#f59e0b;" id="red-total-com">$0.00</div>
+    <div style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">COMISIÓN</div>
+      <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="red-total-com">$0.00</div>
     </div>
   </div>
 
-  <!-- Directorio de proveedores -->
-  <div class="card" style="margin-bottom:14px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div style="font-size:14px;font-weight:600;color:var(--tx);">Mis proveedores conectados</div>
-      <button onclick="abrirDirectorio()" style="font-family:var(--fm);font-size:10px;padding:6px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;cursor:pointer;">+ Buscar proveedor</button>
-    </div>
-    <div id="red-proveedores-list">
-      <div style="text-align:center;padding:24px;color:var(--t2);font-size:13px;">Cargando...</div>
-    </div>
-  </div>
+  <!-- Layout chat -->
+  <div style="display:flex;flex:1;min-height:0;">
 
-  <!-- Transacciones recientes -->
-  <div class="card" style="margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:14px;">Transacciones del mes</div>
-    <div id="red-txn-list">
-      <div style="text-align:center;padding:24px;color:var(--t2);font-size:13px;">Sin transacciones este mes</div>
-    </div>
-  </div>
+    <!-- Columna izquierda: lista de chats + pedido inteligente -->
+    <div style="width:260px;border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;">
 
-  <!-- Nueva transacción manual -->
-  <div class="card">
-    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:14px;">Registrar pedido a proveedor</div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <select id="red-prov-sel" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
-        <option value="">Selecciona un proveedor...</option>
-      </select>
-      <input id="red-prod-desc" type="text" placeholder="Descripción del pedido (ej: 10kg carne molida)" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
-      <div style="display:flex;gap:10px;">
-        <input id="red-monto" type="number" placeholder="Monto $" step="0.01" min="0" style="flex:1;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
-        <button onclick="registrarTxnRed()" style="padding:9px 20px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Registrar</button>
+      <!-- Pedido inteligente -->
+      <div style="padding:10px 12px;border-bottom:1px solid var(--b);">
+        <button onclick="abrirPedidoInteligente()" style="width:100%;padding:9px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⚡ Pedido inteligente</button>
       </div>
-      <div style="font-family:var(--fm);font-size:10px;color:var(--t2);">La comisión se calculará automáticamente y aparecerá en tu factura mensual.</div>
+
+      <!-- Buscar proveedor -->
+      <div style="padding:8px 10px;border-bottom:1px solid var(--b);">
+        <input id="red-buscar" type="text" placeholder="Buscar proveedor..." oninput="filtrarChats()" style="width:100%;padding:7px 10px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:12px;">
+      </div>
+
+      <!-- Lista de chats -->
+      <div id="red-chat-list" style="flex:1;overflow-y:auto;"></div>
+
+      <!-- Botón agregar proveedor -->
+      <div style="padding:10px 12px;border-top:1px solid var(--b);">
+        <button onclick="abrirDirectorio()" style="width:100%;padding:8px;background:var(--s1);border:1px solid var(--b);color:var(--t2);border-radius:6px;font-size:11px;cursor:pointer;">+ Buscar nuevo proveedor</button>
+      </div>
+    </div>
+
+    <!-- Columna derecha: chat activo -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;" id="red-chat-area">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;flex-direction:column;gap:10px;">
+        <div style="font-size:32px;">🔗</div>
+        <div>Selecciona un proveedor para chatear</div>
+        <button onclick="abrirPedidoInteligente()" style="padding:10px 20px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:13px;cursor:pointer;">⚡ O lanza un pedido inteligente</button>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- Modal pedido inteligente -->
+<div id="modal-pedido-int" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--s0);border:1px solid var(--b);border-radius:16px;width:94%;max-width:520px;padding:24px;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:var(--tx);">⚡ Pedido inteligente</div>
+      <button onclick="cerrarPedidoInt()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:12px;">Escribe todo lo que necesitas y la IA lo distribuye automáticamente a los proveedores correctos.</div>
+    <textarea id="pedido-int-texto" placeholder="Ej: 20kg de carne molida, 50 panes, 5 litros de aceite para mañana a las 8am" style="width:100%;height:100px;padding:10px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;resize:none;margin-bottom:12px;"></textarea>
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--t2);margin-bottom:4px;">Radio de búsqueda</div>
+        <select id="pedido-int-radio" style="width:100%;padding:8px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:12px;">
+          <option value="2">2 km</option>
+          <option value="5" selected>5 km</option>
+          <option value="10">10 km</option>
+          <option value="999">Sin límite</option>
+        </select>
+      </div>
+    </div>
+    <button onclick="lanzarPedidoInteligente()" id="btn-pedido-int" style="width:100%;padding:12px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Analizar y distribuir</button>
+    <div id="pedido-int-resultado" style="margin-top:16px;"></div>
+  </div>
+</div>
+
 <!-- Modal directorio -->
-<div id="modal-directorio" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
-  <div style="background:var(--s0);border:1px solid var(--b);border-radius:16px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;padding:24px;">
+<div id="modal-directorio" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--s0);border:1px solid var(--b);border-radius:16px;width:94%;max-width:480px;max-height:80vh;overflow-y:auto;padding:24px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div style="font-size:16px;font-weight:700;color:var(--tx);">Directorio de proveedores</div>
       <button onclick="cerrarDirectorio()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer;">✕</button>
@@ -1997,79 +2021,281 @@ function abrirURL(elId){
 
 // ══ RED DE NEGOCIOS ══════════════════════════════════════════
 let directorioData=[];
+let chatProvActivo=null;
+let chatInterval=null;
+let proveedoresConectados=[];
 
 async function cargarRed(){
-  const [stats, txns, provs] = await Promise.all([
+  const [stats,txns] = await Promise.all([
     api(`/panel/${SLUG}/red/stats`),
     api(`/panel/${SLUG}/red/transacciones`),
-    api(`/panel/${SLUG}/red/proveedores`),
   ]);
   if(stats){
     document.getElementById('red-total-txn').textContent=stats.total_txn||0;
     document.getElementById('red-total-monto').textContent='$'+(stats.total_monto||0).toFixed(2);
     document.getElementById('red-total-com').textContent='$'+(stats.total_comision||0).toFixed(2);
   }
-  renderProveedores(provs||[]);
-  renderTxns(txns||[]);
-  poblarSelectProv(provs||[]);
+  await cargarListaChats();
 }
 
-function renderProveedores(provs){
-  const el=document.getElementById('red-proveedores-list');
-  if(!provs.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px;">No tienes proveedores conectados aún. Busca uno en el directorio.</div>';return;}
-  el.innerHTML=provs.map(p=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b);">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--tx);">${p.nombre}</div>
-        <div style="font-size:11px;color:var(--t2);">${p.tipo||'Proveedor'}</div>
+async function cargarListaChats(){
+  const provs=await api(`/panel/${SLUG}/red/proveedores`);
+  proveedoresConectados=provs||[];
+  renderListaChats(proveedoresConectados);
+}
+
+function renderListaChats(lista){
+  const el=document.getElementById('red-chat-list');
+  if(!lista.length){
+    el.innerHTML=`<div style="padding:20px 12px;text-align:center;color:var(--t2);font-size:12px;">Sin proveedores conectados.<br>Busca uno abajo.</div>`;
+    return;
+  }
+  el.innerHTML=lista.map(p=>`
+    <div onclick="abrirChat('${p.id}','${p.nombre}','${p.tipo||''}')"
+      style="padding:12px;border-bottom:1px solid var(--b);cursor:pointer;display:flex;gap:10px;align-items:center;${chatProvActivo===p.id?'background:rgba(0,148,255,.07);border-left:2px solid var(--c);':''}"
+      id="chat-item-${p.id}">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--s1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${p.emoji||'🏪'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.nombre}</div>
+        <div style="font-size:11px;color:var(--t2);">${p.tipo||'Proveedor'}${p.distancia?` · ${p.distancia}km`:''}</div>
       </div>
+      ${p.no_leidos?`<div style="width:18px;height:18px;border-radius:50%;background:var(--c);color:#000;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${p.no_leidos}</div>`:''}
+    </div>`).join('');
+}
+
+function filtrarChats(){
+  const q=document.getElementById('red-buscar').value.toLowerCase();
+  const filtrados=proveedoresConectados.filter(p=>p.nombre.toLowerCase().includes(q)||(p.tipo||'').toLowerCase().includes(q));
+  renderListaChats(filtrados);
+}
+
+async function abrirChat(provId, provNombre, provTipo){
+  chatProvActivo=provId;
+  // Resaltar item activo
+  document.querySelectorAll('[id^="chat-item-"]').forEach(el=>{
+    el.style.background=''; el.style.borderLeft='';
+  });
+  const item=document.getElementById(`chat-item-${provId}`);
+  if(item){item.style.background='rgba(0,148,255,.07)';item.style.borderLeft='2px solid var(--c)';}
+
+  const area=document.getElementById('red-chat-area');
+  area.innerHTML=`
+    <div style="padding:12px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.3);color:#00e5a0;">Conectado</span>
-        <button onclick="desconectarProveedor('${p.id}')" style="font-size:10px;padding:4px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;cursor:pointer;">Desconectar</button>
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--s1);display:flex;align-items:center;justify-content:center;font-size:16px;">🏪</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--tx);">${provNombre}</div>
+          <div style="font-size:11px;color:var(--t2);">${provTipo}</div>
+        </div>
       </div>
+      <button onclick="abrirFormPedido('${provId}','${provNombre}')" style="padding:7px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">📦 Enviar pedido</button>
+    </div>
+    <div id="chat-mensajes" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--s1);"></div>
+    <div style="padding:10px 14px;border-top:1px solid var(--b);display:flex;gap:8px;background:var(--s0);">
+      <input id="chat-input-msg" type="text" placeholder="Escribe un mensaje..."
+        onkeydown="if(event.key==='Enter')enviarMensajeChat('${provId}')"
+        style="flex:1;padding:9px 14px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:20px;font-size:13px;">
+      <button onclick="enviarMensajeChat('${provId}')" style="width:38px;height:38px;border-radius:50%;background:var(--acc);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">→</button>
+    </div>`;
+
+  await renderMensajes(provId);
+  // Polling cada 5 segundos
+  clearInterval(chatInterval);
+  chatInterval=setInterval(()=>renderMensajes(provId),5000);
+}
+
+async function renderMensajes(provId){
+  const msgs=await api(`/panel/${SLUG}/red/chat/${provId}`);
+  const el=document.getElementById('chat-mensajes');
+  if(!el)return;
+  if(!msgs?.length){el.innerHTML=`<div style="text-align:center;color:var(--t2);font-size:12px;padding:20px;">Sin mensajes aún. Empieza enviando un pedido.</div>`;return;}
+  const negId=negocioData?.id||'';
+  el.innerHTML=msgs.map(m=>{
+    const esMio=m.autor===negId;
+    if(m.tipo==='pedido'&&m.pedido_data){
+      const pd=typeof m.pedido_data==='string'?JSON.parse(m.pedido_data):m.pedido_data;
+      return renderBurbujaPedido(m,pd,esMio,negId);
+    }
+    return `<div style="display:flex;justify-content:${esMio?'flex-end':'flex-start'};">
+      <div style="max-width:70%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;
+        ${esMio?'background:rgba(0,148,255,.15);color:var(--tx);border-bottom-right-radius:3px':'background:var(--s0);border:0.5px solid var(--b);color:var(--tx);border-bottom-left-radius:3px'}">
+        ${m.mensaje}
+        <div style="font-size:10px;color:var(--t3);margin-top:3px;text-align:right;">${new Date(m.fecha).toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function renderBurbujaPedido(m,pd,esMio,negId){
+  const items=pd.items||[];
+  const pedidoId=pd.pedido_id||'';
+  const esProveedor=m.autor!==negId&&!esMio;
+  return `<div style="display:flex;justify-content:${esMio?'flex-end':'flex-start'};">
+    <div style="max-width:78%;background:var(--s0);border:1px solid var(--b);border-radius:14px;padding:12px 14px;${esMio?'border-bottom-right-radius:3px':'border-bottom-left-radius:3px'}">
+      <div style="font-size:10px;font-weight:700;color:var(--c);letter-spacing:.1em;margin-bottom:8px;">📦 PEDIDO</div>
+      ${items.map(i=>`<div style="font-size:12px;color:var(--tx);padding:2px 0;">· ${i.cantidad} ${i.unidad||''} ${i.producto}${i.precio_unitario?` — $${i.precio_unitario}/u`:''}${i.subtotal?` = $${i.subtotal}`:''}</div>`).join('')}
+      ${pd.fecha_entrega?`<div style="font-size:11px;color:var(--t2);margin-top:6px;">Entrega: ${pd.fecha_entrega}</div>`:''}
+      ${pd.monto_total?`<div style="font-size:14px;font-weight:700;color:var(--c);margin-top:8px;padding-top:8px;border-top:1px solid var(--b);">Total: $${parseFloat(pd.monto_total).toFixed(2)}</div>`:''}
+      ${pd.estado==='confirmado'?`<div style="margin-top:8px;padding:6px 10px;background:rgba(0,229,160,.1);border-radius:6px;font-size:12px;color:#00e5a0;">✅ Pedido confirmado</div>`:''}
+      ${pd.estado==='rechazado'?`<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,.1);border-radius:6px;font-size:12px;color:#ef4444;">❌ Pedido rechazado</div>`:''}
+      ${!pd.estado&&esProveedor&&pedidoId?`
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="responderPedido('${pedidoId}','${m.autor}')" style="flex:1;padding:7px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Responder con precio</button>
+        </div>`:''}
+      ${!pd.estado&&esMio&&pedidoId?`
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="confirmarPedidoComprador('${pedidoId}',${pd.monto_total||0})" style="flex:1;padding:7px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.3);color:#00e5a0;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">✓ Confirmar</button>
+          <button onclick="rechazarPedido('${pedidoId}','${m.autor}')" style="flex:1;padding:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">✕ Rechazar</button>
+        </div>`:''}
+      <div style="font-size:10px;color:var(--t3);margin-top:4px;text-align:right;">${new Date(m.fecha).toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+  </div>`;
+}
+
+async function enviarMensajeChat(provId){
+  const inp=document.getElementById('chat-input-msg');
+  const msg=inp?.value?.trim();
+  if(!msg)return;
+  inp.value='';
+  await api(`/panel/${SLUG}/red/chat/${provId}`,{method:'POST',body:JSON.stringify({mensaje:msg})});
+  await renderMensajes(provId);
+}
+
+// ── Formulario de pedido estructurado ─────────────────────────────────────
+let pedidoItems=[];
+function abrirFormPedido(provId, provNombre){
+  pedidoItems=[{producto:'',cantidad:'',unidad:'kg'}];
+  const html=`
+    <div id="modal-pedido-form" style="position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:400;display:flex;align-items:center;justify-content:center;">
+      <div style="background:var(--s0);border:1px solid var(--b);border-radius:16px;width:94%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:15px;font-weight:700;color:var(--tx);">📦 Pedido a ${provNombre}</div>
+          <button onclick="document.getElementById('modal-pedido-form').remove()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer;">✕</button>
+        </div>
+        <div id="pedido-items-wrap"></div>
+        <button onclick="agregarItemPedido()" style="width:100%;padding:8px;background:var(--s1);border:1px solid var(--b);color:var(--t2);border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:12px;">+ Agregar producto</button>
+        <input id="pedido-entrega" type="text" placeholder="Fecha/hora de entrega (ej: mañana 8am)" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;margin-bottom:10px;">
+        <input id="pedido-notas" type="text" placeholder="Notas adicionales (opcional)" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;margin-bottom:14px;">
+        <button onclick="enviarPedidoForm('${provId}')" style="width:100%;padding:12px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Enviar pedido</button>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+  renderItemsPedido();
+}
+
+function renderItemsPedido(){
+  const el=document.getElementById('pedido-items-wrap');
+  if(!el)return;
+  el.innerHTML=pedidoItems.map((it,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+      <input type="text" value="${it.producto}" onchange="pedidoItems[${i}].producto=this.value" placeholder="Producto" style="flex:2;padding:8px 10px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:12px;">
+      <input type="number" value="${it.cantidad}" onchange="pedidoItems[${i}].cantidad=this.value" placeholder="Cant." min="0" step="0.1" style="flex:1;padding:8px 8px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:12px;">
+      <select onchange="pedidoItems[${i}].unidad=this.value" style="flex:1;padding:8px 4px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:11px;">
+        ${['kg','g','l','ml','unid','caja','doc'].map(u=>`<option value="${u}"${it.unidad===u?' selected':''}>${u}</option>`).join('')}
+      </select>
+      ${pedidoItems.length>1?`<button onclick="pedidoItems.splice(${i},1);renderItemsPedido()" style="padding:6px 8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;">✕</button>`:''}
     </div>`).join('');
 }
 
-function renderTxns(txns){
-  const el=document.getElementById('red-txn-list');
-  if(!txns.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px;">Sin transacciones este mes</div>';return;}
-  el.innerHTML=txns.map(t=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b);">
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--tx);">${t.proveedor_nombre}</div>
-        <div style="font-size:11px;color:var(--t2);">${t.descripcion} · ${new Date(t.fecha).toLocaleDateString('es-EC')}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:14px;font-weight:600;color:var(--tx);">$${parseFloat(t.monto).toFixed(2)}</div>
-        <div style="font-size:11px;color:#f59e0b;">comisión $${parseFloat(t.comision).toFixed(2)}</div>
-      </div>
-    </div>`).join('');
+function agregarItemPedido(){
+  pedidoItems.push({producto:'',cantidad:'',unidad:'kg'});
+  renderItemsPedido();
 }
 
-function poblarSelectProv(provs){
-  const sel=document.getElementById('red-prov-sel');
-  sel.innerHTML='<option value="">Selecciona un proveedor...</option>'+
-    provs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
-}
-
-async function registrarTxnRed(){
-  const provId=document.getElementById('red-prov-sel').value;
-  const desc=document.getElementById('red-prod-desc').value.trim();
-  const monto=parseFloat(document.getElementById('red-monto').value);
-  if(!provId||!desc||!monto||monto<=0){mostrarNotificacion('// Completa todos los campos');return;}
-  const r=await api(`/panel/${SLUG}/red/transacciones`,{method:'POST',body:JSON.stringify({proveedor_id:provId,descripcion:desc,monto})});
+async function enviarPedidoForm(provId){
+  const items=pedidoItems.filter(i=>i.producto.trim()&&i.cantidad);
+  if(!items.length){mostrarNotificacion('// Agrega al menos un producto');return;}
+  const entrega=document.getElementById('pedido-entrega')?.value||'';
+  const notas=document.getElementById('pedido-notas')?.value||'';
+  const r=await api(`/panel/${SLUG}/red/pedidos`,{method:'POST',body:JSON.stringify({proveedor_id:provId,items,fecha_entrega:entrega,notas})});
   if(r?.ok){
-    mostrarNotificacion('// Transacción registrada');
-    document.getElementById('red-prod-desc').value='';
-    document.getElementById('red-monto').value='';
-    cargarRed();
-  } else mostrarNotificacion('// Error al registrar');
+    document.getElementById('modal-pedido-form')?.remove();
+    mostrarNotificacion('// Pedido enviado');
+    await renderMensajes(provId);
+  } else mostrarNotificacion('// Error al enviar pedido');
 }
 
-async function desconectarProveedor(provId){
-  if(!confirm('¿Desconectar este proveedor?'))return;
-  const r=await api(`/panel/${SLUG}/red/proveedores/${provId}`,{method:'DELETE'});
-  if(r?.ok){mostrarNotificacion('// Proveedor desconectado');cargarRed();}
+// ── Responder pedido como proveedor ───────────────────────────────────────
+async function responderPedido(pedidoId, compradorId){
+  const precio=prompt('Ingresa el precio total del pedido ($):');
+  if(!precio||isNaN(parseFloat(precio)))return;
+  const r=await api(`/panel/${SLUG}/red/pedidos/${pedidoId}/confirmar`,{
+    method:'PUT',
+    body:JSON.stringify({monto_total:parseFloat(precio)})
+  });
+  if(r?.ok){
+    mostrarNotificacion(`// Pedido confirmado — comisión $${r.comision}`);
+    await renderMensajes(chatProvActivo);
+    cargarRed();
+  } else mostrarNotificacion('// '+(r?.error||'Error al confirmar'));
+}
+
+async function confirmarPedidoComprador(pedidoId, monto){
+  if(!confirm(`¿Confirmas el pedido por $${monto}?`))return;
+  mostrarNotificacion('// Pedido confirmado ✅');
+  cargarRed();
+}
+
+async function rechazarPedido(pedidoId, provId){
+  const r=await api(`/panel/${SLUG}/red/pedidos/${pedidoId}/rechazar`,{method:'PUT',body:JSON.stringify({})});
+  if(r?.ok){
+    if(r.siguiente){
+      const buscar=confirm(`Pedido rechazado. ¿Buscar siguiente proveedor?\n${r.siguiente.nombre} (${r.siguiente.tipo})`);
+      if(buscar){
+        // Conectar y abrir chat con el siguiente
+        await api(`/panel/${SLUG}/red/proveedores`,{method:'POST',body:JSON.stringify({proveedor_id:r.siguiente.id})});
+        await cargarListaChats();
+        abrirChat(r.siguiente.id, r.siguiente.nombre, r.siguiente.tipo);
+      }
+    } else {
+      mostrarNotificacion('// Pedido rechazado — no hay más proveedores cercanos de este tipo');
+    }
+  }
+}
+
+// ── Pedido inteligente ─────────────────────────────────────────────────────
+function abrirPedidoInteligente(){document.getElementById('modal-pedido-int').style.display='flex';}
+function cerrarPedidoInt(){document.getElementById('modal-pedido-int').style.display='none';}
+
+async function lanzarPedidoInteligente(){
+  const texto=document.getElementById('pedido-int-texto').value.trim();
+  const radio=document.getElementById('pedido-int-radio').value;
+  if(!texto){mostrarNotificacion('// Escribe lo que necesitas');return;}
+  const btn=document.getElementById('btn-pedido-int');
+  const res=document.getElementById('pedido-int-resultado');
+  btn.textContent='Analizando...'; btn.disabled=true;
+  res.innerHTML='';
+  const r=await api(`/panel/${SLUG}/red/pedido-inteligente`,{method:'POST',body:JSON.stringify({texto,radio})});
+  btn.textContent='Analizar y distribuir'; btn.disabled=false;
+  if(!r?.grupos?.length){res.innerHTML='<div style="color:var(--t2);font-size:13px;">No se encontraron proveedores para lo que necesitas.</div>';return;}
+  res.innerHTML=r.grupos.map((g,gi)=>`
+    <div style="background:var(--s1);border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:10px;">
+      <div style="font-size:12px;font-weight:700;color:var(--c);margin-bottom:8px;">${g.categoria}</div>
+      <div style="font-size:12px;color:var(--tx);margin-bottom:10px;">${g.productos.map(p=>`· ${p}`).join('<br>')}</div>
+      ${g.proveedores_sugeridos?.length?`
+        <div style="font-size:11px;color:var(--t2);margin-bottom:6px;">Proveedores sugeridos:</div>
+        ${g.proveedores_sugeridos.map(pid=>{
+          const pn=proveedoresConectados.find(x=>x.id===pid)||{id:pid,nombre:pid,tipo:''};
+          return `<button onclick="enviarGrupoPedido('${pid}','${pn.nombre}',${gi})" style="width:100%;padding:8px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;font-size:12px;cursor:pointer;margin-bottom:4px;">Enviar a ${pn.nombre}</button>`;
+        }).join('')}`:'<div style="font-size:11px;color:var(--t3);">Sin proveedores conectados para esta categoría</div>'}
+    </div>`).join('');
+  window._pedidoIntGrupos=r.grupos;
+}
+
+async function enviarGrupoPedido(provId, provNombre, grupoIdx){
+  const grupo=window._pedidoIntGrupos?.[grupoIdx];
+  if(!grupo)return;
+  const items=grupo.productos.map(p=>({producto:p,cantidad:'1',unidad:'unid'}));
+  // Conectar si no está conectado
+  await api(`/panel/${SLUG}/red/proveedores`,{method:'POST',body:JSON.stringify({proveedor_id:provId})});
+  const r=await api(`/panel/${SLUG}/red/pedidos`,{method:'POST',body:JSON.stringify({proveedor_id:provId,items})});
+  if(r?.ok){
+    mostrarNotificacion(`// Pedido enviado a ${provNombre}`);
+    await cargarListaChats();
+    cerrarPedidoInt();
+    abrirChat(provId,provNombre,'');
+  }
 }
 
 async function abrirDirectorio(){
@@ -2078,9 +2304,7 @@ async function abrirDirectorio(){
   filtrarDirectorio();
   document.getElementById('modal-directorio').style.display='flex';
 }
-
 function cerrarDirectorio(){document.getElementById('modal-directorio').style.display='none';}
-
 function filtrarDirectorio(){
   const q=document.getElementById('dir-search').value.toLowerCase();
   const filtrados=directorioData.filter(n=>n.nombre.toLowerCase().includes(q)||(n.tipo||'').toLowerCase().includes(q));
@@ -2090,19 +2314,24 @@ function filtrarDirectorio(){
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b);">
       <div>
         <div style="font-size:13px;font-weight:600;color:var(--tx);">${n.nombre}</div>
-        <div style="font-size:11px;color:var(--t2);">${n.tipo||'Negocio'}</div>
+        <div style="font-size:11px;color:var(--t2);">${n.tipo||'Negocio'}${n.distancia?` · ${n.distancia}km`:''}</div>
       </div>
-      <button onclick="solicitarConexion('${n.id}','${n.nombre}')" style="font-size:11px;padding:5px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;cursor:pointer;">Conectar</button>
+      <button onclick="conectarProveedor('${n.id}','${n.nombre}','${n.tipo||''}')" style="font-size:11px;padding:5px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;cursor:pointer;">Conectar</button>
     </div>`).join('');
 }
-
-async function solicitarConexion(provId, provNombre){
+async function conectarProveedor(provId,nombre,tipo){
   const r=await api(`/panel/${SLUG}/red/proveedores`,{method:'POST',body:JSON.stringify({proveedor_id:provId})});
   if(r?.ok){
-    mostrarNotificacion(`// Conectado con ${provNombre}`);
+    mostrarNotificacion(`// Conectado con ${nombre}`);
     cerrarDirectorio();
-    cargarRed();
+    await cargarListaChats();
+    abrirChat(provId,nombre,tipo);
   } else mostrarNotificacion('// '+(r?.error||'Error al conectar'));
+}
+async function desconectarProveedor(provId){
+  if(!confirm('¿Desconectar este proveedor?'))return;
+  const r=await api(`/panel/${SLUG}/red/proveedores/${provId}`,{method:'DELETE'});
+  if(r?.ok){mostrarNotificacion('// Proveedor desconectado');cargarListaChats();}
 }</script>
 </body>
 </html>

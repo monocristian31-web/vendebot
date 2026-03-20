@@ -57,6 +57,35 @@ async function inicializarDB() {
       fecha TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS red_chat (
+      id TEXT PRIMARY KEY,
+      negocio_id TEXT NOT NULL,
+      proveedor_id TEXT NOT NULL,
+      autor TEXT NOT NULL,
+      mensaje TEXT NOT NULL,
+      tipo TEXT DEFAULT 'texto',
+      pedido_data JSONB,
+      leido BOOLEAN DEFAULT FALSE,
+      fecha TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS red_pedidos (
+      id TEXT PRIMARY KEY,
+      negocio_id TEXT NOT NULL,
+      proveedor_id TEXT NOT NULL,
+      proveedor_nombre TEXT NOT NULL,
+      items JSONB NOT NULL,
+      estado TEXT DEFAULT 'pendiente',
+      monto_total NUMERIC(10,2) DEFAULT 0,
+      comision NUMERIC(10,2) DEFAULT 0,
+      notas TEXT DEFAULT '',
+      fecha_entrega TEXT DEFAULT '',
+      fecha TIMESTAMPTZ DEFAULT NOW(),
+      fecha_confirmacion TIMESTAMPTZ
+    )
+  `);
 
   console.log('✓ PostgreSQL conectado');
 }
@@ -3046,11 +3075,247 @@ app.delete('/panel/:slug/red/proveedores/:provId', authPanel, async (req, res) =
 app.get('/panel/:slug/red/directorio', authPanel, async (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
-  // Devolver todos los negocios activos excepto el propio, sin datos sensibles
+  const { radio = 999, categoria } = req.query;
   const todos = cargarNegocios()
-    .filter(n => n.activo && n.id !== negocio.id)
-    .map(n => ({ id: n.id, nombre: n.nombre, tipo: n.tipo, emoji: n.emoji }));
+    .filter(n => n.activo && n.id !== negocio.id && n.red_negocios_activa)
+    .map(n => {
+      let distancia = null;
+      if (negocio.lat && negocio.lng && n.lat && n.lng) {
+        const R = 6371;
+        const dLat = (n.lat - negocio.lat) * Math.PI/180;
+        const dLng = (n.lng - negocio.lng) * Math.PI/180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(negocio.lat*Math.PI/180)*Math.cos(n.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+        distancia = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+      return { id: n.id, nombre: n.nombre, tipo: n.tipo, emoji: n.emoji, distancia: distancia ? +distancia.toFixed(2) : null };
+    })
+    .filter(n => !n.distancia || n.distancia <= parseFloat(radio))
+    .filter(n => !categoria || (n.tipo||'').toLowerCase().includes(categoria.toLowerCase()))
+    .sort((a,b) => (a.distancia||999) - (b.distancia||999));
   res.json(todos);
+});
+
+// ── Red — chat: obtener mensajes de una conversación ──────────────────────
+app.get('/panel/:slug/red/chat/:provId', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const r = await db.query(
+      `SELECT * FROM red_chat WHERE
+       (negocio_id=$1 AND proveedor_id=$2) OR (negocio_id=$2 AND proveedor_id=$1)
+       ORDER BY fecha ASC`,
+      [negocio.id, req.params.provId]
+    );
+    // Marcar como leídos
+    await db.query(
+      `UPDATE red_chat SET leido=TRUE WHERE negocio_id=$2 AND proveedor_id=$1 AND autor=$2 AND leido=FALSE`,
+      [negocio.id, req.params.provId]
+    );
+    res.json(r.rows);
+  } catch(e) { res.json([]); }
+});
+
+// ── Red — chat: enviar mensaje ────────────────────────────────────────────
+app.post('/panel/:slug/red/chat/:provId', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const proveedor = cargarNegocios().find(n => n.id === req.params.provId);
+  if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+  const { mensaje, tipo = 'texto', pedido_data } = req.body;
+  if (!mensaje) return res.status(400).json({ error: 'Falta mensaje' });
+  try {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    await db.query(
+      `INSERT INTO red_chat (id, negocio_id, proveedor_id, autor, mensaje, tipo, pedido_data)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, negocio.id, req.params.provId, negocio.id, mensaje, tipo, pedido_data ? JSON.stringify(pedido_data) : null]
+    );
+    // Notificar al proveedor por WhatsApp
+    if (proveedor.whatsapp_dueno) {
+      try {
+        const link = `https://vendebot-production.up.railway.app/panel/${proveedor.slug||proveedor.id}`;
+        await enviarMensaje(proveedor.whatsapp_dueno,
+          `🔗 *Nuevo mensaje B2B de ${negocio.nombre}*\n\n"${mensaje.length > 80 ? mensaje.slice(0,80)+'...' : mensaje}"\n\nResponde en tu panel:\n${link}`,
+          negocio.id
+        );
+      } catch(e) { console.error('Error notif WA B2B:', e.message); }
+    }
+    res.json({ ok: true, id });
+  } catch(e) { console.error(e); res.status(500).json({ error: 'Error al enviar' }); }
+});
+
+// ── Red — pedido inteligente: analizar y distribuir ───────────────────────
+app.post('/panel/:slug/red/pedido-inteligente', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { texto, radio = 10 } = req.body;
+  if (!texto) return res.status(400).json({ error: 'Falta texto' });
+
+  try {
+    // Usar IA para analizar los productos y categorizarlos
+    const todos = cargarNegocios()
+      .filter(n => n.activo && n.id !== negocio.id && n.red_negocios_activa)
+      .map(n => ({ id: n.id, nombre: n.nombre, tipo: n.tipo }));
+
+    const prompt = `Analiza este pedido de un negocio y extrae los productos con su categoría de proveedor.
+Pedido: "${texto}"
+Proveedores disponibles: ${JSON.stringify(todos)}
+
+Responde SOLO en JSON así:
+{
+  "grupos": [
+    {
+      "categoria": "Carnicería",
+      "productos": ["20kg carne molida", "5kg pollo"],
+      "proveedores_sugeridos": ["id_del_proveedor"]
+    }
+  ]
+}
+No incluyas explicaciones, solo el JSON.`;
+
+    const r = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const raw = r.content[0].text.trim().replace(/```json|```/g,'').trim();
+    const grupos = JSON.parse(raw);
+    res.json(grupos);
+  } catch(e) {
+    console.error('Error pedido inteligente:', e);
+    res.status(500).json({ error: 'Error al analizar pedido' });
+  }
+});
+
+// ── Red — pedidos B2B: crear pedido ──────────────────────────────────────
+app.post('/panel/:slug/red/pedidos', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { proveedor_id, items, notas, fecha_entrega } = req.body;
+  if (!proveedor_id || !items?.length) return res.status(400).json({ error: 'Faltan datos' });
+  const proveedor = cargarNegocios().find(n => n.id === proveedor_id);
+  if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
+  try {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    await db.query(
+      `INSERT INTO red_pedidos (id, negocio_id, proveedor_id, proveedor_nombre, items, notas, fecha_entrega)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, negocio.id, proveedor_id, proveedor.nombre, JSON.stringify(items), notas||'', fecha_entrega||'']
+    );
+    // Enviar como mensaje en el chat
+    const resumen = items.map(i=>`· ${i.cantidad} ${i.unidad} de ${i.producto}`).join('\n');
+    const msgId = Date.now().toString(36)+'a';
+    await db.query(
+      `INSERT INTO red_chat (id, negocio_id, proveedor_id, autor, mensaje, tipo, pedido_data)
+       VALUES ($1,$2,$3,$4,$5,'pedido',$6)`,
+      [msgId, negocio.id, proveedor_id, negocio.id,
+       `Pedido de ${negocio.nombre}:\n${resumen}${fecha_entrega?'\nEntrega: '+fecha_entrega:''}${notas?'\nNotas: '+notas:''}`,
+       JSON.stringify({pedido_id: id, items, notas, fecha_entrega})]
+    );
+    // Notificar por WhatsApp al proveedor
+    if (proveedor.whatsapp_dueno) {
+      try {
+        const link = `https://vendebot-production.up.railway.app/panel/${proveedor.slug||proveedor.id}`;
+        await enviarMensaje(proveedor.whatsapp_dueno,
+          `📦 *Nuevo pedido B2B de ${negocio.nombre}*\n\n${resumen}\n${fecha_entrega?'Entrega: '+fecha_entrega+'\n':''}\nResponde con precio en tu panel:\n${link}`,
+          negocio.id
+        );
+      } catch {}
+    }
+    res.json({ ok: true, id });
+  } catch(e) { console.error(e); res.status(500).json({ error: 'Error al crear pedido' }); }
+});
+
+// ── Red — pedidos B2B: listar ─────────────────────────────────────────────
+app.get('/panel/:slug/red/pedidos', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const r = await db.query(
+      `SELECT * FROM red_pedidos WHERE negocio_id=$1 OR proveedor_id=$1 ORDER BY fecha DESC LIMIT 50`,
+      [negocio.id]
+    );
+    res.json(r.rows);
+  } catch(e) { res.json([]); }
+});
+
+// ── Red — pedidos B2B: confirmar con precio ───────────────────────────────
+app.put('/panel/:slug/red/pedidos/:pedidoId/confirmar', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { monto_total, items_con_precio } = req.body;
+  if (!monto_total) return res.status(400).json({ error: 'Falta monto_total' });
+  try {
+    const pedR = await db.query(`SELECT * FROM red_pedidos WHERE id=$1`, [req.params.pedidoId]);
+    if (!pedR.rows.length) return res.status(404).json({ error: 'Pedido no encontrado' });
+    const ped = pedR.rows[0];
+    // Solo el proveedor puede confirmar
+    if (ped.proveedor_id !== negocio.id) return res.status(403).json({ error: 'Solo el proveedor puede confirmar' });
+    const compradorNeg = cargarNegocios().find(n => n.id === ped.negocio_id);
+    const pct = compradorNeg?.red_comision ?? 3;
+    const comision = parseFloat((monto_total * pct / 100).toFixed(2));
+    await db.query(
+      `UPDATE red_pedidos SET estado='confirmado', monto_total=$1, comision=$2, fecha_confirmacion=NOW(), items=$3
+       WHERE id=$4`,
+      [monto_total, comision, JSON.stringify(items_con_precio||ped.items), req.params.pedidoId]
+    );
+    // Registrar en transacciones para factura
+    const txId = Date.now().toString(36)+'t';
+    const desc = (ped.items||[]).map?.(i=>`${i.cantidad} ${i.unidad} ${i.producto}`).join(', ') || 'Pedido B2B';
+    await db.query(
+      `INSERT INTO red_transacciones (id,negocio_id,proveedor_id,proveedor_nombre,descripcion,monto,comision)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [txId, ped.negocio_id, ped.proveedor_id, ped.proveedor_nombre, desc, monto_total, comision]
+    );
+    // Notificar al comprador
+    if (compradorNeg?.whatsapp_dueno) {
+      try {
+        await enviarMensaje(compradorNeg.whatsapp_dueno,
+          `✅ *Pedido confirmado por ${negocio.nombre}*\n\nTotal: $${parseFloat(monto_total).toFixed(2)}\n\nVe a tu panel para confirmar o rechazar:\nhttps://vendebot-production.up.railway.app/panel/${compradorNeg.slug||compradorNeg.id}`,
+          negocio.id
+        );
+      } catch {}
+    }
+    res.json({ ok: true, comision });
+  } catch(e) { console.error(e); res.status(500).json({ error: 'Error al confirmar' }); }
+});
+
+// ── Red — pedidos B2B: rechazar y buscar siguiente ────────────────────────
+app.put('/panel/:slug/red/pedidos/:pedidoId/rechazar', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const pedR = await db.query(`SELECT * FROM red_pedidos WHERE id=$1`, [req.params.pedidoId]);
+    if (!pedR.rows.length) return res.status(404).json({ error: 'Pedido no encontrado' });
+    const ped = pedR.rows[0];
+    await db.query(`UPDATE red_pedidos SET estado='rechazado' WHERE id=$1`, [req.params.pedidoId]);
+    // Buscar siguiente proveedor de la misma categoría
+    const provActual = cargarNegocios().find(n => n.id === ped.proveedor_id);
+    const compradorNeg = cargarNegocios().find(n => n.id === ped.negocio_id);
+    const categoriaActual = provActual?.tipo || '';
+    // Obtener proveedores ya contactados para este grupo de productos
+    const yaContactados = [ped.proveedor_id];
+    const siguiente = cargarNegocios().find(n =>
+      n.activo && n.red_negocios_activa &&
+      n.id !== ped.negocio_id &&
+      !yaContactados.includes(n.id) &&
+      (n.tipo||'').toLowerCase().includes(categoriaActual.toLowerCase().split(' ')[0])
+    );
+    res.json({ ok: true, siguiente: siguiente ? { id: siguiente.id, nombre: siguiente.nombre, tipo: siguiente.tipo } : null });
+  } catch(e) { console.error(e); res.status(500).json({ error: 'Error al rechazar' }); }
+});
+
+// ── Red — mensajes no leídos (para badge en nav) ──────────────────────────
+app.get('/panel/:slug/red/no-leidos', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug||n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const r = await db.query(
+      `SELECT COUNT(*) as total FROM red_chat
+       WHERE proveedor_id=$1 AND autor!=$1 AND leido=FALSE`,
+      [negocio.id]
+    );
+    res.json({ total: parseInt(r.rows[0].total) });
+  } catch(e) { res.json({ total: 0 }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
