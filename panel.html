@@ -999,10 +999,10 @@ textarea{resize:vertical;border-radius:8px;}
 </div>
 
 <!-- ══ TAB RED DE NEGOCIOS ══ -->
-<div class="panel" id="tab-red" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 60px);">
+<div class="panel" id="tab-red" style="padding:0;margin:-20px;display:flex;flex-direction:column;height:calc(100vh - 56px);overflow:hidden;">
 
   <!-- Stats bar -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px;border-bottom:1px solid var(--b);flex-shrink:0;">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;border-bottom:1px solid var(--b);flex-shrink:0;">
     <div style="text-align:center;">
       <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">PEDIDOS MES</div>
       <div style="font-size:20px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
@@ -1128,6 +1128,12 @@ function switchTab(tab){
   const btn=Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.getAttribute('onclick')===`switchTab('${tab}')`);
   if(btn)btn.classList.add('active');
   document.getElementById('topbarTitle').textContent=TAB_TITLES[tab]||'// PANEL';
+  // Red de negocios ocupa toda el área sin padding
+  const ms=document.querySelector('.main-scroll');
+  if(ms){
+    ms.style.padding=tab==='red'?'0':'20px';
+    ms.style.overflow=tab==='red'?'hidden':'auto';
+  }
   closeSidebar();
   if(tab==='catalogo')cargarCatalogo();
   else if(tab==='clientes')cargarClientes();
