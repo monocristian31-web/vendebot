@@ -132,7 +132,7 @@ aside.sidebar::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1
 .main-scroll{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,148,255,.2) transparent;padding:20px;}
 .panel{display:none;}
 .panel.active{display:block;}
-.panel.active#tab-red{display:flex;flex-direction:column;}
+.panel.active#tab-red{display:block;}
 .panel.active{display:block;}
 
 /* ── SECTION TITLE ── */
@@ -1001,10 +1001,10 @@ textarea{resize:vertical;border-radius:8px;}
 </div>
 
 <!-- ══ TAB RED DE NEGOCIOS ══ -->
-<div class="panel" id="tab-red" style="padding:0;margin:-20px;height:calc(100vh - 56px);overflow:hidden;">
+<div class="panel" id="tab-red" style="padding:0;margin:-20px;position:relative;height:calc(100vh - 56px);overflow:hidden;">
 
   <!-- Stats bar -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;border-bottom:1px solid var(--b);flex-shrink:0;">
+  <div style="position:absolute;top:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;border-bottom:1px solid var(--b);background:var(--bg);z-index:2;">
     <div style="text-align:center;">
       <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">PEDIDOS MES</div>
       <div style="font-size:20px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
@@ -1019,39 +1019,32 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
   </div>
 
-  <!-- Layout chat -->
-  <div style="display:flex;flex:1;min-height:0;">
+  <!-- Layout chat — debajo de stats -->
+  <div style="position:absolute;top:58px;bottom:0;left:0;right:0;display:flex;">
 
-    <!-- Columna izquierda: lista de chats + pedido inteligente -->
-    <div style="width:260px;border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;">
-
-      <!-- Pedido inteligente -->
-      <div style="padding:10px 12px;border-bottom:1px solid var(--b);">
+    <!-- Columna izquierda -->
+    <div style="width:260px;border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;height:100%;">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--b);flex-shrink:0;">
         <button onclick="abrirPedidoInteligente()" style="width:100%;padding:9px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⚡ Pedido inteligente</button>
       </div>
-
-      <!-- Buscar proveedor -->
-      <div style="padding:8px 10px;border-bottom:1px solid var(--b);">
+      <div style="padding:8px 10px;border-bottom:1px solid var(--b);flex-shrink:0;">
         <input id="red-buscar" type="text" placeholder="Buscar proveedor..." oninput="filtrarChats()" style="width:100%;padding:7px 10px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:6px;font-size:12px;">
       </div>
-
-      <!-- Lista de chats -->
       <div id="red-chat-list" style="flex:1;overflow-y:auto;"></div>
-
-      <!-- Botón agregar proveedor -->
-      <div style="padding:10px 12px;border-top:1px solid var(--b);">
+      <div style="padding:10px 12px;border-top:1px solid var(--b);flex-shrink:0;">
         <button onclick="abrirDirectorio()" style="width:100%;padding:8px;background:var(--s1);border:1px solid var(--b);color:var(--t2);border-radius:6px;font-size:11px;cursor:pointer;">+ Buscar nuevo proveedor</button>
       </div>
     </div>
 
     <!-- Columna derecha: chat activo -->
-    <div style="flex:1;display:flex;flex-direction:column;min-width:0;" id="red-chat-area">
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;height:100%;" id="red-chat-area">
       <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;flex-direction:column;gap:10px;">
         <div style="font-size:32px;">🔗</div>
         <div>Selecciona un proveedor para chatear</div>
         <button onclick="abrirPedidoInteligente()" style="padding:10px 20px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:13px;cursor:pointer;">⚡ O lanza un pedido inteligente</button>
       </div>
     </div>
+
   </div>
 </div>
 
