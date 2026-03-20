@@ -130,10 +130,10 @@ aside.sidebar::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1
 
 /* ── SCROLL & PANELS ── */
 .main-scroll{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,148,255,.2) transparent;padding:20px;}
-.main-scroll.red-activo{padding:0;overflow:hidden;display:flex;flex-direction:column;}
+.main-scroll.red-activo{padding:0;overflow:hidden;display:flex;flex-direction:column;height:100%;}
 .panel{display:none;}
 .panel.active{display:block;}
-#tab-red.active{display:flex;flex-direction:column;height:100%;}
+#tab-red.active{display:flex;flex-direction:column;flex:1;min-height:0;}
 
 /* ── SECTION TITLE ── */
 .section-title{font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
@@ -996,10 +996,6 @@ textarea{resize:vertical;border-radius:8px;}
 
 </div>
 
-    </div>
-  </div>
-</div>
-
 <!-- ══ TAB RED DE NEGOCIOS ══ -->
 <div class="panel" id="tab-red">
 
@@ -1082,6 +1078,11 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
     <input id="dir-search" type="text" placeholder="Buscar por nombre o tipo..." oninput="filtrarDirectorio()" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;margin-bottom:14px;">
     <div id="dir-list"></div>
+  </div>
+</div>
+
+
+    </div>
   </div>
 </div>
 
