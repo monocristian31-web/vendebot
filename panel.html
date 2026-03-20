@@ -132,8 +132,8 @@ aside.sidebar::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1
 .main-scroll{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(0,148,255,.2) transparent;padding:20px;}
 .panel{display:none;}
 .panel.active{display:block;}
-.panel.active#tab-red{display:block;}
-.panel.active{display:block;}
+/* Red de negocios ocupa todo sin scroll externo */
+#tab-red.active{display:flex;flex-direction:column;}
 
 /* ── SECTION TITLE ── */
 .section-title{font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
@@ -1001,10 +1001,10 @@ textarea{resize:vertical;border-radius:8px;}
 </div>
 
 <!-- ══ TAB RED DE NEGOCIOS ══ -->
-<div class="panel" id="tab-red" style="padding:0;margin:-20px;position:relative;height:calc(100vh - 56px);overflow:hidden;">
+<div class="panel" id="tab-red">
 
   <!-- Stats bar -->
-  <div style="position:absolute;top:0;left:0;right:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;border-bottom:1px solid var(--b);background:var(--bg);z-index:2;">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 0 16px;border-bottom:1px solid var(--b);margin-bottom:14px;">
     <div style="text-align:center;">
       <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;">PEDIDOS MES</div>
       <div style="font-size:20px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
@@ -1019,11 +1019,11 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
   </div>
 
-  <!-- Layout chat — debajo de stats -->
-  <div style="position:absolute;top:58px;bottom:0;left:0;right:0;display:flex;">
+  <!-- Layout chat dos columnas -->
+  <div style="display:grid;grid-template-columns:260px 1fr;gap:0;border:1px solid var(--b);border-radius:12px;overflow:hidden;height:calc(100vh - 220px);">
 
     <!-- Columna izquierda -->
-    <div style="width:260px;border-right:1px solid var(--b);display:flex;flex-direction:column;flex-shrink:0;height:100%;">
+    <div style="border-right:1px solid var(--b);display:flex;flex-direction:column;background:var(--s0);">
       <div style="padding:10px 12px;border-bottom:1px solid var(--b);flex-shrink:0;">
         <button onclick="abrirPedidoInteligente()" style="width:100%;padding:9px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">⚡ Pedido inteligente</button>
       </div>
@@ -1037,9 +1037,9 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
 
     <!-- Columna derecha: chat activo -->
-    <div style="flex:1;display:flex;flex-direction:column;min-width:0;height:100%;" id="red-chat-area">
-      <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;flex-direction:column;gap:10px;">
-        <div style="font-size:32px;">🔗</div>
+    <div id="red-chat-area" style="display:flex;flex-direction:column;background:var(--bg);">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:13px;flex-direction:column;gap:12px;">
+        <div style="font-size:36px;">🔗</div>
         <div>Selecciona un proveedor para chatear</div>
         <button onclick="abrirPedidoInteligente()" style="padding:10px 20px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:8px;font-size:13px;cursor:pointer;">⚡ O lanza un pedido inteligente</button>
       </div>
@@ -1123,12 +1123,6 @@ function switchTab(tab){
   const btn=Array.from(document.querySelectorAll('.nav-btn')).find(b=>b.getAttribute('onclick')===`switchTab('${tab}')`);
   if(btn)btn.classList.add('active');
   document.getElementById('topbarTitle').textContent=TAB_TITLES[tab]||'// PANEL';
-  // Red de negocios ocupa toda el área sin padding
-  const ms=document.querySelector('.main-scroll');
-  if(ms){
-    ms.style.padding=tab==='red'?'0':'20px';
-    ms.style.overflow=tab==='red'?'hidden':'auto';
-  }
   closeSidebar();
   if(tab==='catalogo')cargarCatalogo();
   else if(tab==='clientes')cargarClientes();
