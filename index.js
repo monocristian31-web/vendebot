@@ -34,6 +34,30 @@ async function inicializarDB() {
       valor JSONB NOT NULL
     )
   `);
+
+  // Tablas para red de negocios
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS red_conexiones (
+      id TEXT PRIMARY KEY,
+      negocio_id TEXT NOT NULL,
+      proveedor_id TEXT NOT NULL,
+      fecha TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(negocio_id, proveedor_id)
+    )
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS red_transacciones (
+      id TEXT PRIMARY KEY,
+      negocio_id TEXT NOT NULL,
+      proveedor_id TEXT NOT NULL,
+      proveedor_nombre TEXT NOT NULL,
+      descripcion TEXT NOT NULL,
+      monto NUMERIC(10,2) NOT NULL,
+      comision NUMERIC(10,2) NOT NULL,
+      fecha TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   console.log('✓ PostgreSQL conectado');
 }
 
@@ -2897,6 +2921,136 @@ app.put('/admin/negocios/:id/suscripcion', authAdmin, (req, res) => {
   if (plan_activo !== undefined) negocios[idx].plan_activo = plan_activo || null;
   guardarJSON('negocios', negocios);
   res.json({ ok: true });
+});
+
+// ── Red de negocios — admin activa/desactiva y configura comisión ──────────
+app.put('/admin/negocios/:id/red', authAdmin, (req, res) => {
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => n.id === req.params.id);
+  if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
+  const { activo, comision } = req.body;
+  if (activo !== undefined) negocios[idx].red_negocios_activa = !!activo;
+  if (comision !== undefined) negocios[idx].red_comision = parseFloat(comision) || 3;
+  guardarJSON('negocios', negocios);
+  res.json({ ok: true });
+});
+
+// ── Red — stats del mes ────────────────────────────────────────────────────
+app.get('/panel/:slug/red/stats', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const inicio = new Date(); inicio.setDate(1); inicio.setHours(0,0,0,0);
+    const r = await db.query(
+      `SELECT COUNT(*) as total_txn, COALESCE(SUM(monto),0) as total_monto, COALESCE(SUM(comision),0) as total_comision
+       FROM red_transacciones WHERE negocio_id=$1 AND fecha >= $2`,
+      [negocio.id, inicio]
+    );
+    const row = r.rows[0];
+    res.json({ total_txn: parseInt(row.total_txn), total_monto: parseFloat(row.total_monto), total_comision: parseFloat(row.total_comision) });
+  } catch(e) { res.json({ total_txn:0, total_monto:0, total_comision:0 }); }
+});
+
+// ── Red — transacciones del mes ────────────────────────────────────────────
+app.get('/panel/:slug/red/transacciones', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const inicio = new Date(); inicio.setDate(1); inicio.setHours(0,0,0,0);
+    const r = await db.query(
+      `SELECT * FROM red_transacciones WHERE negocio_id=$1 AND fecha >= $2 ORDER BY fecha DESC`,
+      [negocio.id, inicio]
+    );
+    res.json(r.rows);
+  } catch(e) { res.json([]); }
+});
+
+// ── Red — registrar transacción ────────────────────────────────────────────
+app.post('/panel/:slug/red/transacciones', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { proveedor_id, descripcion, monto } = req.body;
+  if (!proveedor_id || !descripcion || !monto) return res.status(400).json({ error: 'Faltan datos' });
+  try {
+    // Verificar que el proveedor está conectado
+    const conn = await db.query(
+      `SELECT * FROM red_conexiones WHERE negocio_id=$1 AND proveedor_id=$2`,
+      [negocio.id, proveedor_id]
+    );
+    if (!conn.rows.length) return res.status(400).json({ error: 'Proveedor no conectado' });
+    const proveedor = cargarNegocios().find(n => n.id === proveedor_id);
+    const pct = negocio.red_comision ?? 3;
+    const comision = parseFloat((monto * pct / 100).toFixed(2));
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    await db.query(
+      `INSERT INTO red_transacciones (id, negocio_id, proveedor_id, proveedor_nombre, descripcion, monto, comision)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, negocio.id, proveedor_id, proveedor?.nombre || proveedor_id, descripcion, monto, comision]
+    );
+    // Notificar al proveedor por WhatsApp
+    if (proveedor?.whatsapp_dueno) {
+      try {
+        await enviarMensaje(proveedor.whatsapp_dueno,
+          `🔗 *Nuevo pedido de ${negocio.nombre}*\n\n${descripcion}\nMonto: $${parseFloat(monto).toFixed(2)}\n\n_Pedido registrado en VendeBot_`,
+          negocio.id
+        );
+      } catch {}
+    }
+    res.json({ ok: true, comision });
+  } catch(e) { console.error(e); res.status(500).json({ error: 'Error al registrar' }); }
+});
+
+// ── Red — mis proveedores conectados ──────────────────────────────────────
+app.get('/panel/:slug/red/proveedores', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    const r = await db.query(`SELECT proveedor_id as id FROM red_conexiones WHERE negocio_id=$1`, [negocio.id]);
+    const todos = cargarNegocios();
+    const provs = r.rows.map(row => {
+      const n = todos.find(x => x.id === row.id);
+      return n ? { id: n.id, nombre: n.nombre, tipo: n.tipo } : null;
+    }).filter(Boolean);
+    res.json(provs);
+  } catch(e) { res.json([]); }
+});
+
+// ── Red — conectar proveedor ───────────────────────────────────────────────
+app.post('/panel/:slug/red/proveedores', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const { proveedor_id } = req.body;
+  if (!proveedor_id) return res.status(400).json({ error: 'Falta proveedor_id' });
+  if (proveedor_id === negocio.id) return res.status(400).json({ error: 'No puedes conectarte contigo mismo' });
+  try {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    await db.query(
+      `INSERT INTO red_conexiones (id, negocio_id, proveedor_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+      [id, negocio.id, proveedor_id]
+    );
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: 'Error al conectar' }); }
+});
+
+// ── Red — desconectar proveedor ────────────────────────────────────────────
+app.delete('/panel/:slug/red/proveedores/:provId', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  try {
+    await db.query(`DELETE FROM red_conexiones WHERE negocio_id=$1 AND proveedor_id=$2`, [negocio.id, req.params.provId]);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: 'Error al desconectar' }); }
+});
+
+// ── Red — directorio de todos los negocios disponibles ────────────────────
+app.get('/panel/:slug/red/directorio', authPanel, async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  // Devolver todos los negocios activos excepto el propio, sin datos sensibles
+  const todos = cargarNegocios()
+    .filter(n => n.activo && n.id !== negocio.id)
+    .map(n => ({ id: n.id, nombre: n.nombre, tipo: n.tipo, emoji: n.emoji }));
+  res.json(todos);
 });
 
 // ══════════════════════════════════════════════════════════════════

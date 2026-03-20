@@ -310,6 +310,7 @@ textarea{resize:vertical;border-radius:8px;}
     <div class="nav-group-label">// Sistema</div>
     <button class="nav-btn" onclick="switchTab('whatsapp')"><span class="nav-icon">📱</span>WhatsApp</button>
     <button class="nav-btn" id="nav-kiosco" style="display:none;" onclick="switchTab('kiosco')"><span class="nav-icon">🖥️</span>Kiosco</button>
+    <button class="nav-btn" id="nav-red" style="display:none;" onclick="switchTab('red')"><span class="nav-icon">🔗</span>Red de negocios</button>
     <button class="nav-btn" onclick="switchTab('config')"><span class="nav-icon">⚙️</span>Configuración</button>
   </nav>
   <div class="sidebar-footer">
@@ -996,6 +997,75 @@ textarea{resize:vertical;border-radius:8px;}
     </div>
   </div>
 </div>
+
+<!-- ══ TAB RED DE NEGOCIOS ══ -->
+<div class="panel" id="tab-red">
+  <div class="section-title">Red de negocios</div>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;">
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">TRANSACCIONES MES</div>
+      <div style="font-size:22px;font-weight:700;color:var(--tx);" id="red-total-txn">0</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">TOTAL MOVIDO</div>
+      <div style="font-size:22px;font-weight:700;color:var(--c);" id="red-total-monto">$0.00</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:4px;">COMISIÓN ACUMULADA</div>
+      <div style="font-size:22px;font-weight:700;color:#f59e0b;" id="red-total-com">$0.00</div>
+    </div>
+  </div>
+
+  <!-- Directorio de proveedores -->
+  <div class="card" style="margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:600;color:var(--tx);">Mis proveedores conectados</div>
+      <button onclick="abrirDirectorio()" style="font-family:var(--fm);font-size:10px;padding:6px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;cursor:pointer;">+ Buscar proveedor</button>
+    </div>
+    <div id="red-proveedores-list">
+      <div style="text-align:center;padding:24px;color:var(--t2);font-size:13px;">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Transacciones recientes -->
+  <div class="card" style="margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:14px;">Transacciones del mes</div>
+    <div id="red-txn-list">
+      <div style="text-align:center;padding:24px;color:var(--t2);font-size:13px;">Sin transacciones este mes</div>
+    </div>
+  </div>
+
+  <!-- Nueva transacción manual -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:14px;">Registrar pedido a proveedor</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <select id="red-prov-sel" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
+        <option value="">Selecciona un proveedor...</option>
+      </select>
+      <input id="red-prod-desc" type="text" placeholder="Descripción del pedido (ej: 10kg carne molida)" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
+      <div style="display:flex;gap:10px;">
+        <input id="red-monto" type="number" placeholder="Monto $" step="0.01" min="0" style="flex:1;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;">
+        <button onclick="registrarTxnRed()" style="padding:9px 20px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Registrar</button>
+      </div>
+      <div style="font-family:var(--fm);font-size:10px;color:var(--t2);">La comisión se calculará automáticamente y aparecerá en tu factura mensual.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal directorio -->
+<div id="modal-directorio" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--s0);border:1px solid var(--b);border-radius:16px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;padding:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:var(--tx);">Directorio de proveedores</div>
+      <button onclick="cerrarDirectorio()" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <input id="dir-search" type="text" placeholder="Buscar por nombre o tipo..." oninput="filtrarDirectorio()" style="width:100%;padding:9px 12px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:8px;font-size:13px;margin-bottom:14px;">
+    <div id="dir-list"></div>
+  </div>
+</div>
+
 </div><!-- /app-wrap -->
 
 <div id="notif"></div>
@@ -1025,7 +1095,7 @@ async function loginPanel(){
   }
 }
 
-const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',comunicaciones:'// COMUNICACIONES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP',kiosco:'// KIOSCO'};
+const TAB_TITLES={dashboard:'// DASHBOARD',catalogo:'// CATÁLOGO',promociones:'// PROMOCIONES',clientes:'// CLIENTES',comunicaciones:'// COMUNICACIONES',chat:'// CHAT EN VIVO',masivo:'// ENVÍO MASIVO',reportes:'// REPORTES',resenas:'// RESEÑAS',config:'// CONFIGURACIÓN',citas:'// CITAS',whatsapp:'// WHATSAPP',kiosco:'// KIOSCO',red:'// RED DE NEGOCIOS'};
 
 function switchTab(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -1046,6 +1116,7 @@ function switchTab(tab){
   else if(tab==='comunicaciones')cargarComunicaciones();
   else if(tab==='promociones')cargarPromociones();
   else if(tab==='kiosco')cargarKiosco();
+  else if(tab==='red')cargarRed();
 }
 
 async function api(url, opts={}) {
@@ -1077,6 +1148,8 @@ async function cargarTodo(){
     // Mostrar tab kiosco solo si el admin lo activó para este negocio
     const navKiosco=document.getElementById('nav-kiosco');
     if(navKiosco)navKiosco.style.display=negocio.kiosco_activo?'':'none';
+    const navRed=document.getElementById('nav-red');
+    if(navRed)navRed.style.display=negocio.red_negocios_activa?'':'none';
   }
   cargarDashboard();
 }
@@ -1920,6 +1993,116 @@ function copiarURL(elId){
 function abrirURL(elId){
   const txt=document.getElementById(elId)?.textContent||'';
   if(txt&&txt!=='—')window.open(txt,'_blank');
+}
+
+// ══ RED DE NEGOCIOS ══════════════════════════════════════════
+let directorioData=[];
+
+async function cargarRed(){
+  const [stats, txns, provs] = await Promise.all([
+    api(`/panel/${SLUG}/red/stats`),
+    api(`/panel/${SLUG}/red/transacciones`),
+    api(`/panel/${SLUG}/red/proveedores`),
+  ]);
+  if(stats){
+    document.getElementById('red-total-txn').textContent=stats.total_txn||0;
+    document.getElementById('red-total-monto').textContent='$'+(stats.total_monto||0).toFixed(2);
+    document.getElementById('red-total-com').textContent='$'+(stats.total_comision||0).toFixed(2);
+  }
+  renderProveedores(provs||[]);
+  renderTxns(txns||[]);
+  poblarSelectProv(provs||[]);
+}
+
+function renderProveedores(provs){
+  const el=document.getElementById('red-proveedores-list');
+  if(!provs.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px;">No tienes proveedores conectados aún. Busca uno en el directorio.</div>';return;}
+  el.innerHTML=provs.map(p=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b);">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);">${p.nombre}</div>
+        <div style="font-size:11px;color:var(--t2);">${p.tipo||'Proveedor'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;padding:3px 10px;border-radius:20px;background:rgba(0,229,160,.08);border:1px solid rgba(0,229,160,.3);color:#00e5a0;">Conectado</span>
+        <button onclick="desconectarProveedor('${p.id}')" style="font-size:10px;padding:4px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;border-radius:6px;cursor:pointer;">Desconectar</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderTxns(txns){
+  const el=document.getElementById('red-txn-list');
+  if(!txns.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px;">Sin transacciones este mes</div>';return;}
+  el.innerHTML=txns.map(t=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--b);">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);">${t.proveedor_nombre}</div>
+        <div style="font-size:11px;color:var(--t2);">${t.descripcion} · ${new Date(t.fecha).toLocaleDateString('es-EC')}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:14px;font-weight:600;color:var(--tx);">$${parseFloat(t.monto).toFixed(2)}</div>
+        <div style="font-size:11px;color:#f59e0b;">comisión $${parseFloat(t.comision).toFixed(2)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function poblarSelectProv(provs){
+  const sel=document.getElementById('red-prov-sel');
+  sel.innerHTML='<option value="">Selecciona un proveedor...</option>'+
+    provs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join('');
+}
+
+async function registrarTxnRed(){
+  const provId=document.getElementById('red-prov-sel').value;
+  const desc=document.getElementById('red-prod-desc').value.trim();
+  const monto=parseFloat(document.getElementById('red-monto').value);
+  if(!provId||!desc||!monto||monto<=0){mostrarNotificacion('// Completa todos los campos');return;}
+  const r=await api(`/panel/${SLUG}/red/transacciones`,{method:'POST',body:JSON.stringify({proveedor_id:provId,descripcion:desc,monto})});
+  if(r?.ok){
+    mostrarNotificacion('// Transacción registrada');
+    document.getElementById('red-prod-desc').value='';
+    document.getElementById('red-monto').value='';
+    cargarRed();
+  } else mostrarNotificacion('// Error al registrar');
+}
+
+async function desconectarProveedor(provId){
+  if(!confirm('¿Desconectar este proveedor?'))return;
+  const r=await api(`/panel/${SLUG}/red/proveedores/${provId}`,{method:'DELETE'});
+  if(r?.ok){mostrarNotificacion('// Proveedor desconectado');cargarRed();}
+}
+
+async function abrirDirectorio(){
+  const todos=await api(`/panel/${SLUG}/red/directorio`);
+  directorioData=todos||[];
+  filtrarDirectorio();
+  document.getElementById('modal-directorio').style.display='flex';
+}
+
+function cerrarDirectorio(){document.getElementById('modal-directorio').style.display='none';}
+
+function filtrarDirectorio(){
+  const q=document.getElementById('dir-search').value.toLowerCase();
+  const filtrados=directorioData.filter(n=>n.nombre.toLowerCase().includes(q)||(n.tipo||'').toLowerCase().includes(q));
+  const el=document.getElementById('dir-list');
+  if(!filtrados.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--t2);font-size:13px;">No se encontraron negocios</div>';return;}
+  el.innerHTML=filtrados.map(n=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--b);">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);">${n.nombre}</div>
+        <div style="font-size:11px;color:var(--t2);">${n.tipo||'Negocio'}</div>
+      </div>
+      <button onclick="solicitarConexion('${n.id}','${n.nombre}')" style="font-size:11px;padding:5px 14px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;cursor:pointer;">Conectar</button>
+    </div>`).join('');
+}
+
+async function solicitarConexion(provId, provNombre){
+  const r=await api(`/panel/${SLUG}/red/proveedores`,{method:'POST',body:JSON.stringify({proveedor_id:provId})});
+  if(r?.ok){
+    mostrarNotificacion(`// Conectado con ${provNombre}`);
+    cerrarDirectorio();
+    cargarRed();
+  } else mostrarNotificacion('// '+(r?.error||'Error al conectar'));
 }</script>
 </body>
 </html>

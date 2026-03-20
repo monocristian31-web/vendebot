@@ -353,7 +353,24 @@ async function cargarNegocios(){
               <span class="sw-knob"></span>
             </label>
           </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--t3);">🔗 RED NEGOCIOS</span>
+            <label class="sw" title="${n.red_negocios_activa?'Desactivar red':'Activar red de negocios'}">
+              <input type="checkbox" ${n.red_negocios_activa?'checked':''} onchange="toggleRed('${n.id}',this.checked)">
+              <span class="sw-track"></span>
+              <span class="sw-knob"></span>
+            </label>
+          </div>
         </div>
+        ${n.red_negocios_activa?`
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <span style="font-family:var(--fm);font-size:9px;color:var(--t3);">COMISIÓN B2B:</span>
+          <input type="number" value="${n.red_comision??3}" min="0" max="20" step="0.5"
+            onchange="actualizarComision('${n.id}',this.value)"
+            style="width:60px;font-family:var(--fm);font-size:11px;padding:3px 8px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:5px;text-align:center;">
+          <span style="font-family:var(--fm);font-size:9px;color:var(--t3);">% por transacción</span>
+          <span style="font-family:var(--fm);font-size:9px;color:var(--g);">· Este mes: $${(n.red_comision_mes||0).toFixed(2)}</span>
+        </div>`:''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;">
           <span style="font-family:var(--fm);font-size:9px;color:var(--t3);">VENCE:</span>
           <input type="date" value="${n.fecha_vencimiento||''}" onchange="actualizarVencimiento('${n.id}',this.value)" style="font-family:var(--fm);font-size:10px;padding:3px 8px;background:var(--s1);border:1px solid var(--b);color:var(--tx);border-radius:5px;cursor:pointer;">
@@ -421,6 +438,18 @@ async function actualizarPlan(id,plan){
   const res=await api(`/admin/negocios/${id}/suscripcion`,{method:'PUT',body:JSON.stringify({plan_activo:plan||null})});
   if(res.ok)toast('// Plan actualizado: '+(plan||'Sin plan'));
   else toast('// Error al actualizar plan');
+}
+
+async function toggleRed(id,activo){
+  const res=await api(`/admin/negocios/${id}/red`,{method:'PUT',body:JSON.stringify({activo})});
+  if(res.ok){toast(activo?'// 🔗 Red de negocios activada':'// 🔗 Red de negocios desactivada');cargarNegocios();}
+  else toast('// Error al cambiar red');
+}
+
+async function actualizarComision(id,pct){
+  const res=await api(`/admin/negocios/${id}/red`,{method:'PUT',body:JSON.stringify({comision:parseFloat(pct)||3})});
+  if(res.ok)toast('// Comisión actualizada: '+pct+'%');
+  else toast('// Error al actualizar comisión');
 }
 
 async function eliminarNegocio(id,nombre){
