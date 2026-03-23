@@ -119,7 +119,7 @@ async function restaurarTokens() {
 // Reemplaza cargarJSON — lee de Postgres, cae a archivo si falla
 async function cargarDB(clave, defecto) {
   try {
-    const r = await db.query('SELECT valor FROM datos WHERE clave = ', [clave]);
+    const r = await db.query('SELECT valor FROM datos WHERE clave = $1', [clave]);
     if (r.rows.length > 0) return r.rows[0].valor;
   } catch {}
   // Fallback a archivo local
