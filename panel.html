@@ -495,40 +495,31 @@ textarea{resize:vertical;border-radius:8px;}
   <div class="section-title">Comunicaciones</div>
   <div class="alert" id="comAlert"></div>
 
+  <!-- Número del bot conectado -->
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title">🤖 Bot de WhatsApp</div>
+    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Estado actual de la conexión del bot.</div>
+    <div style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--s1);border:1px solid var(--b);border-radius:8px;">
+      <div id="com_bot_dot" style="width:10px;height:10px;border-radius:50%;background:var(--t3);flex-shrink:0;"></div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);" id="com_bot_estado">Sin conexión</div>
+        <div style="font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:2px;" id="com_bot_numero">Escanea el QR en la sección WhatsApp para conectar</div>
+      </div>
+      <button onclick="switchTab('whatsapp')" style="margin-left:auto;padding:7px 16px;background:rgba(0,148,255,.1);border:1px solid rgba(0,200,255,.3);color:var(--c);border-radius:6px;font-size:11px;cursor:pointer;font-family:var(--fm);">Ir a WhatsApp →</button>
+    </div>
+  </div>
+
   <div class="card">
-    <div class="card-title">📞 Números del negocio</div>
-    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot notifica pedidos y pagos a estos números.</div>
+    <div class="card-title">📞 Número del dueño</div>
+    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot envía notificaciones de pedidos y pagos a este número.</div>
     <div class="form-row">
       <div>
         <label class="form-label">WhatsApp dueño (recibe pedidos)</label>
         <input type="text" class="form-input" id="com_whatsapp" placeholder="593912345678">
       </div>
-      <div>
-        <label class="form-label">Banco</label>
-        <input type="text" class="form-input" id="com_banco" placeholder="Banco Pichincha">
-      </div>
-    </div>
-    <div class="form-row">
-      <div>
-        <label class="form-label">N° de cuenta</label>
-        <input type="text" class="form-input" id="com_cuenta" placeholder="2200123456789">
-      </div>
-      <div>
-        <label class="form-label">Titular de la cuenta</label>
-        <input type="text" class="form-input" id="com_titular" placeholder="Nombre completo">
-      </div>
-    </div>
-    <div class="form-row">
-      <div>
-        <label class="form-label">Tipo de cuenta</label>
-        <select class="form-input" id="com_tipo_cuenta">
-          <option value="Ahorros">Ahorros</option>
-          <option value="Corriente">Corriente</option>
-        </select>
-      </div>
       <div></div>
     </div>
-    <button class="btn btn-success" onclick="guardarComunicaciones()" style="width:100%;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR NÚMEROS Y BANCO</button>
+    <button class="btn btn-success" onclick="guardarComunicaciones()" style="width:100%;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR NÚMERO</button>
   </div>
 
   <div class="card">
@@ -1269,6 +1260,20 @@ async function eliminarCupon(id){await api(`/panel/${SLUG}/cupones/${id}`,{metho
 async function cargarComunicaciones(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;
   ['whatsapp','banco','cuenta','titular'].forEach(k=>{const el=document.getElementById('com_'+k);if(el)el.value=neg[k]||'';});
+  // Cargar estado del bot conectado
+  const wa=await api(`/panel/${SLUG}/whatsapp/estado`);
+  const dot=document.getElementById('com_bot_dot');
+  const estado=document.getElementById('com_bot_estado');
+  const numero=document.getElementById('com_bot_numero');
+  if(wa?.conectado){
+    if(dot){dot.style.background='var(--g)';dot.style.boxShadow='0 0 8px var(--g)';}
+    if(estado)estado.textContent='Bot conectado ✓';
+    if(numero)numero.textContent=wa.numero?`Número: +${wa.numero}`:'Número conectado';
+  } else {
+    if(dot){dot.style.background='var(--t3)';}
+    if(estado)estado.textContent='Sin conexión';
+    if(numero)numero.textContent='Escanea el QR en la sección WhatsApp para conectar';
+  }
   const tc=document.getElementById('com_tipo_cuenta');if(tc)tc.value=neg.tipo_cuenta||'Ahorros';
   const reps=neg.repartidores||[];
   document.getElementById('repartidoresList').innerHTML=reps.length
@@ -1279,17 +1284,13 @@ async function cargarComunicaciones(){
 async function guardarComunicaciones(){
   const data={
     whatsapp:document.getElementById('com_whatsapp').value.trim(),
-    banco:document.getElementById('com_banco').value.trim(),
-    cuenta:document.getElementById('com_cuenta').value.trim(),
-    titular:document.getElementById('com_titular').value.trim(),
-    tipo_cuenta:document.getElementById('com_tipo_cuenta').value,
   };
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
   const al=document.getElementById('comAlert');
   al.className='alert '+(r?.ok!==false?'ok':'err');
-  al.textContent=r?.ok!==false?'// Números y datos bancarios guardados':'// Error al guardar';
+  al.textContent=r?.ok!==false?'// Número guardado correctamente':'// Error al guardar';
   setTimeout(()=>al.textContent='',3000);
-  if(r?.ok!==false)mostrarNotificacion('// Comunicaciones guardadas');
+  if(r?.ok!==false)mostrarNotificacion('// Número del dueño guardado');
 }
 async function crearRepartidor(){const n=document.getElementById('rep_nombre').value,w=document.getElementById('rep_whatsapp').value;if(!n||!w)return;await api(`/panel/${SLUG}/repartidores`,{method:'POST',body:JSON.stringify({nombre:n,whatsapp:w})});document.getElementById('rep_nombre').value='';document.getElementById('rep_whatsapp').value='';cargarComunicaciones();mostrarNotificacion('// Repartidor agregado');}
 async function eliminarRepartidor(id){if(!confirm('¿Eliminar repartidor?'))return;await api(`/panel/${SLUG}/repartidores/${id}`,{method:'DELETE'});cargarComunicaciones();}
@@ -1459,6 +1460,56 @@ async function subirImagen(input){
   if(d.url){document.getElementById('p_imagen').value=d.url;document.getElementById('p_imagen_status').textContent='// Foto cargada';document.getElementById('p_imagen_preview').innerHTML=`<img src="${d.url}" style="max-height:80px;clip-path:polygon(4px 0%,100% 0%,100% calc(100% - 4px),calc(100% - 4px) 100%,0% 100%,0% 4px);border:1px solid var(--b);">`;}
 }
 
+async function subirLogo(input){
+  const file=input.files[0];if(!file)return;
+  const wrap=document.getElementById('logoPreviewWrap');
+  const prev=document.getElementById('logoPreview');
+  if(wrap)wrap.style.display='block';
+  if(prev)prev.src='';
+  // Mostrar preview local inmediato
+  const reader=new FileReader();
+  reader.onload=e=>{
+    if(prev){prev.src=e.target.result;prev.style.maxHeight='80px';prev.style.borderRadius='8px';}
+    if(wrap)wrap.style.display='block';
+  };
+  reader.readAsDataURL(file);
+  // Subir a servidor
+  const fd=new FormData();fd.append('imagen',file);
+  mostrarNotificacion('// Subiendo logo...');
+  const r=await fetch(`${BASE}/panel/${SLUG}/upload`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+  const d=await r.json();
+  if(d.url){
+    document.getElementById('cfg_logo').value=d.url;
+    mostrarNotificacion('// ✓ Logo subido — presiona Guardar para aplicar');
+  } else {
+    mostrarNotificacion('// Error al subir logo');
+  }
+}
+
+async function subirBanner(input){
+  const file=input.files[0];if(!file)return;
+  const wrap=document.getElementById('bannerPreviewWrap');
+  const prev=document.getElementById('bannerPreview');
+  // Mostrar preview local inmediato
+  const reader=new FileReader();
+  reader.onload=e=>{
+    if(prev){prev.src=e.target.result;prev.style.maxHeight='80px';prev.style.width='100%';prev.style.objectFit='cover';prev.style.borderRadius='8px';}
+    if(wrap)wrap.style.display='block';
+  };
+  reader.readAsDataURL(file);
+  // Subir a servidor
+  const fd=new FormData();fd.append('imagen',file);
+  mostrarNotificacion('// Subiendo banner...');
+  const r=await fetch(`${BASE}/panel/${SLUG}/upload`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
+  const d=await r.json();
+  if(d.url){
+    document.getElementById('cfg_banner').value=d.url;
+    mostrarNotificacion('// ✓ Banner subido — presiona Guardar para aplicar');
+  } else {
+    mostrarNotificacion('// Error al subir banner');
+  }
+}
+
 async function cargarConfig(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;negocioData=neg;
   ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','logo','banner','costo_delivery','instagram','facebook','tiktok','web','email','bienvenida','ausencia','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
@@ -1469,7 +1520,7 @@ async function cargarConfig(){
   });
   ['transferencia','efectivo','tarjeta','qr'].forEach(p=>{const el=document.getElementById('pago_'+p);if(el)el.checked=(neg.metodos_pago||[]).includes(p);});
   const tv=document.getElementById('toggleVacaciones');if(tv){tv.classList.toggle('on',!!neg.modo_vacaciones);document.getElementById('vacacionesLabel').textContent=neg.modo_vacaciones?'Activado':'Desactivado';}
-  if(neg.logo)document.getElementById('logoPreview').innerHTML=`<img src="${neg.logo}" style="max-height:60px;clip-path:polygon(4px 0%,100% 0%,100% calc(100% - 4px),calc(100% - 4px) 100%,0% 100%,0% 4px);border:1px solid var(--b);">`;
+  if(neg.logo){const lp=document.getElementById("logoPreview");const lw=document.getElementById("logoPreviewWrap");if(lp){lp.src=neg.logo;}if(lw)lw.style.display="block";document.getElementById("cfg_logo").value=neg.logo;}if(neg.banner){const bp=document.getElementById("bannerPreview");const bw=document.getElementById("bannerPreviewWrap");if(bp){bp.src=neg.banner;}if(bw)bw.style.display="block";document.getElementById("cfg_banner").value=neg.banner;}
   const mtm=document.getElementById('cfg_tiene_mitad_mitad');if(mtm)mtm.checked=!!neg.tiene_mitad_mitad;
   const rh=document.getElementById('cfg_requiere_hora');if(rh)rh.checked=!!neg.requiere_hora_entrega;
   renderHorarios(neg.horarios||{});
@@ -1491,11 +1542,22 @@ function obtenerHorarios(){
 function toggleVacaciones(){const t=document.getElementById('toggleVacaciones');t.classList.toggle('on');document.getElementById('vacacionesLabel').textContent=t.classList.contains('on')?'Activado':'Desactivado';}
 
 async function guardarConfig(){
+  const btn=document.activeElement;
+  const originalText=btn?.textContent||'';
+  if(btn&&btn.classList.contains('btn')){btn.textContent='💾 Guardando...';btn.disabled=true;}
   const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,tiktok:document.getElementById('cfg_tiktok')?.value||'',web:document.getElementById('cfg_web')?.value||'',email:document.getElementById('cfg_email')?.value||'',bienvenida:document.getElementById('cfg_bienvenida').value,ausencia:document.getElementById('cfg_ausencia')?.value||'',devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
-  const al=document.getElementById('configAlert');al.className='alert '+(r?.ok!==false?'ok':'err');al.textContent=r?.ok!==false?'// Configuración guardada':'// Error al guardar';
-  setTimeout(()=>al.textContent='',3000);
-  if(r?.ok!==false)mostrarNotificacion('// Config guardada');
+  const ok=r?.ok!==false;
+  if(btn&&btn.classList.contains('btn')){
+    btn.textContent=ok?'✓ Guardado':'✗ Error';
+    btn.style.background=ok?'rgba(0,229,160,.15)':'rgba(255,26,74,.15)';
+    btn.style.borderColor=ok?'var(--g)':'var(--r)';
+    btn.style.color=ok?'var(--g)':'var(--r)';
+    setTimeout(()=>{btn.textContent=originalText;btn.disabled=false;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+  }
+  const al=document.getElementById('configAlert');
+  if(al){al.className='alert '+(ok?'ok':'err');al.textContent=ok?'// Configuración guardada correctamente':'// Error al guardar';setTimeout(()=>al.textContent='',3000);}
+  if(ok)mostrarNotificacion('// ✓ Configuración guardada');
 }
 
 function actualizarSwitchBot(activo){const t=document.getElementById('botToggle');const d=document.getElementById('botDot');t.classList.toggle('on',activo);if(d){d.className='bot-status-dot'+(activo?'':' off');}document.getElementById('botStatusText').textContent=activo?'Bot activo':'Bot pausado';}
