@@ -127,13 +127,14 @@ async function cargarDB(clave, defecto) {
 
 async function guardarDB(clave, data) {
   try {
-    // Si data es string, parsearlo a objeto para que PostgreSQL JSONB lo acepte
-    const valor = typeof data === 'string' ? JSON.parse(data) : data;
+    // pg driver convierte objetos JS a JSONB automáticamente
+    // NO usar JSON.stringify — pasar el objeto directo
+    const valor = (typeof data === 'string') ? JSON.parse(data) : data;
     await db.query(
-      'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2',
-      [clave, valor]
+      'INSERT INTO datos (clave, valor) VALUES ($1, $2::jsonb) ON CONFLICT (clave) DO UPDATE SET valor = $2::jsonb',
+      [clave, JSON.stringify(valor)]
     );
-  } catch (e) { console.error('Error guardando en DB:', e.message); }
+  } catch (e) { console.error('Error guardando en DB [' + clave + ']:', e.message); }
 }
 
 const app = express();
