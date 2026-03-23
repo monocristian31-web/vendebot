@@ -127,9 +127,11 @@ async function cargarDB(clave, defecto) {
 
 async function guardarDB(clave, data) {
   try {
+    // Si data es string, parsearlo a objeto para que PostgreSQL JSONB lo acepte
+    const valor = typeof data === 'string' ? JSON.parse(data) : data;
     await db.query(
       'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2',
-      [clave, data]
+      [clave, valor]
     );
   } catch (e) { console.error('Error guardando en DB:', e.message); }
 }
@@ -971,7 +973,7 @@ Máximo 4 líneas de respuesta.` }
       ultimoPedido.esperando_resena = false;
       const todosClientes = cargarClientes();
       todosClientes[numero] = clienteData;
-      (cache['clientes']=todosClientes, guardarDB('clientes',todosClientes).catch(e=>console.error('[DB]',e.message)));
+      cache['clientes']=todosClientes; guardarDB('clientes',todosClientes).catch(e=>console.error('[DB]',e.message));
       await enviar(numero, `Gracias por tu calificacion ${estrellas}\n\nTu opinion nos ayuda a mejorar. Vuelve pronto!`);
       notificarPanel(negocio.slug || negocio.id, { tipo: 'nueva_resena', cliente: clienteData?.nombre || numero, calificacion });
       return;
@@ -1370,10 +1372,10 @@ function cargarClientes() { return cache.clientes; }
 function cargarPromociones() { return cache.promociones; }
 function cargarRepartidores() { return cache.repartidores; }
 function cargarPedidosPendientes() { return cache.pedidos_pendientes; }
-function guardarPedidosPendientes(p) { (cache['pedidos_pendientes']=p, guardarDB('pedidos_pendientes',p).catch(e=>console.error('[DB]',e.message))); }
+function guardarPedidosPendientes(p) { cache['pedidos_pendientes']=p; guardarDB('pedidos_pendientes',p).catch(e=>console.error('[DB]',e.message)); }
 function cargarCupones() { return cache.cupones; }
 function cargarPuntos() { return cache.puntos; }
-function guardarPuntos(p) { (cache['puntos']=p, guardarDB('puntos',p).catch(e=>console.error('[DB]',e.message))); }
+function guardarPuntos(p) { cache['puntos']=p; guardarDB('puntos',p).catch(e=>console.error('[DB]',e.message)); }
 
 // ─── SISTEMA DE PUNTOS ────────────────────────────────────────────────────────
 const PUNTOS_POR_DOLAR = 10;
@@ -1424,7 +1426,7 @@ function usarCupon(codigo) {
   const idx = cupones.findIndex(c => c.codigo.toUpperCase() === codigo.toUpperCase());
   if (idx >= 0) {
     cupones[idx].usos_actuales = (cupones[idx].usos_actuales || 0) + 1;
-    (cache['cupones']=cupones, guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message)));
+    cache['cupones']=cupones; guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message));
   }
 }
 
@@ -1449,7 +1451,7 @@ function obtenerCliente(numero) {
   const clientes = cargarClientes();
   if (!clientes[numero]) {
     clientes[numero] = { numero, nombre: '', primera_visita: new Date().toISOString(), ultima_visita: new Date().toISOString(), total_pedidos: 0, total_gastado: 0, historial_pedidos: [], es_frecuente: false, codigo_referido_usado: '' };
-    (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+    cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
   }
   return clientes[numero];
 }
@@ -1458,7 +1460,7 @@ function actualizarCliente(numero, datos) {
   const clientes = cargarClientes();
   clientes[numero] = { ...(clientes[numero] || {}), ...datos, ultima_visita: new Date().toISOString() };
   if (clientes[numero].total_pedidos >= 3) clientes[numero].es_frecuente = true;
-  (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+  cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
 }
 
 function registrarPedido(numero, pedido, negocioNombre) {
@@ -1472,7 +1474,7 @@ function registrarPedido(numero, pedido, negocioNombre) {
   if (c.historial_pedidos.length > 20) c.historial_pedidos = c.historial_pedidos.slice(-20);
   if (c.total_pedidos >= 3) c.es_frecuente = true;
   clientes[numero] = c;
-  (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+  cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
   const pendientes = cargarPedidosPendientes();
   pendientes.push({ numero, negocio: negocioNombre, pedido, fecha: new Date().toISOString(), recordatorio_enviado: false, entrega_confirmada: false });
   guardarPedidosPendientes(pendientes);
@@ -1656,12 +1658,12 @@ setInterval(async () => {
           const cupones = cargarCupones();
           if (!cupones.find(c => c.codigo === 'VUELVE10' && c.para_numero === numero)) {
             cupones.push({ codigo: 'VUELVE10_' + numero.slice(-4), tipo: 'porcentaje', valor: 10, activo: true, usos_maximos: 1, usos_actuales: 0, para_numero: numero, descripcion: 'Descuento reactivacion' });
-            (cache['cupones']=cupones, guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message)));
+            cache['cupones']=cupones; guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message));
           }
         }
       }
     }
-    (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+    cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
   }
 }, 5 * 60 * 1000);
 
@@ -1680,7 +1682,7 @@ setInterval(async () => {
       }
     }
   }
-  if (cambios) (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+  if (cambios) cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
 }, 60 * 60 * 1000);
 
 // ─── RECORDATORIO Y REASIGNACIÓN DE REPARTIDOR ────────────────────────────────
@@ -1798,7 +1800,7 @@ app.post('/admin/negocios', authAdmin, (req, res) => {
   const negocios = cargarNegocios();
   const nuevo = { id: 'negocio_' + Date.now(), activo: true, catalogo: [], modo_vacaciones: false, tiempo_entrega: '30-45 minutos', politica_devoluciones: '', mensajes: { bienvenida: 'Hola! Bienvenido/a. En que puedo ayudarte?', tono: 'amigable' }, ...req.body };
   negocios.push(nuevo);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, negocio: nuevo });
 });
 app.put('/admin/negocios/:id', authAdmin, (req, res) => {
@@ -1806,12 +1808,12 @@ app.put('/admin/negocios/:id', authAdmin, (req, res) => {
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.delete('/admin/negocios/:id', authAdmin, (req, res) => {
   const negocios = cargarNegocios().filter(n => n.id !== req.params.id);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.put('/admin/negocios/:id/vacaciones', authAdmin, (req, res) => {
@@ -1820,7 +1822,7 @@ app.put('/admin/negocios/:id/vacaciones', authAdmin, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].modo_vacaciones = req.body.activo;
   negocios[idx].mensaje_vacaciones = req.body.mensaje || '';
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.get('/admin/clientes', authAdmin, (req, res) => res.json(cargarClientes()));
@@ -1830,7 +1832,7 @@ app.post('/admin/cupones', authAdmin, (req, res) => {
   const cupones = cargarCupones();
   const nuevo = { id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body };
   cupones.push(nuevo);
-  (cache['cupones']=cupones, guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message)));
+  cache['cupones']=cupones; guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, cupon: nuevo });
 });
 app.delete('/admin/cupones/:id', authAdmin, (req, res) => { const d=cargarCupones().filter(c=>c.id!==req.params.id); cache['cupones']=d; guardarDB('cupones',d).catch(e=>console.error('[DB]',e.message)); res.json({ok:true}); });
@@ -1840,14 +1842,14 @@ app.post('/admin/repartidores', authAdmin, (req, res) => {
   const reps = cargarRepartidores();
   const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
   reps.push(nuevo);
-  (cache['repartidores']=reps, guardarDB('repartidores',reps).catch(e=>console.error('[DB]',e.message)));
+  cache['repartidores']=reps; guardarDB('repartidores',reps).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.get('/admin/promociones', authAdmin, (req, res) => res.json(cargarPromociones()));
 app.post('/admin/promociones', authAdmin, (req, res) => {
   const promos = cargarPromociones();
   promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
-  (cache['promociones']=promos, guardarDB('promociones',promos).catch(e=>console.error('[DB]',e.message)));
+  cache['promociones']=promos; guardarDB('promociones',promos).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.delete('/admin/promociones/:id', authAdmin, (req, res) => { const d=cargarPromociones().filter(p=>p.id!==req.params.id); cache['promociones']=d; guardarDB('promociones',d).catch(e=>console.error('[DB]',e.message)); res.json({ok:true}); });
@@ -2001,7 +2003,7 @@ app.put('/panel/:slug/negocio', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx] = { ...negocios[idx], ...req.body };
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
@@ -2009,7 +2011,7 @@ app.put('/panel/:slug/bot-activo', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].bot_activo = req.body.activo;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
 app.get('/panel/:slug/stats', authPanel, (req, res) => {
@@ -2034,7 +2036,7 @@ app.get('/panel/:slug/promociones', authPanel, (req, res) => res.json(cargarProm
 app.post('/panel/:slug/promociones', authPanel, (req, res) => {
   const promos = cargarPromociones();
   promos.push({ id: 'promo_' + Date.now(), activa: true, ...req.body });
-  (cache['promociones']=promos, guardarDB('promociones',promos).catch(e=>console.error('[DB]',e.message)));
+  cache['promociones']=promos; guardarDB('promociones',promos).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.delete('/panel/:slug/promociones/:id', authPanel, (req, res) => { (()=>{const _d=cargarPromociones().filter(p => p.id !== req.params.id);cache['promociones']=_d;guardarDB('promociones',_d).catch(e=>console.error('[DB]',e.message));})(); res.json({ ok: true }); });
@@ -2042,7 +2044,7 @@ app.get('/panel/:slug/cupones', authPanel, (req, res) => res.json(cargarCupones(
 app.post('/panel/:slug/cupones', authPanel, (req, res) => {
   const cupones = cargarCupones();
   cupones.push({ id: 'cupon_' + Date.now(), activo: true, usos_actuales: 0, ...req.body });
-  (cache['cupones']=cupones, guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message)));
+  cache['cupones']=cupones; guardarDB('cupones',cupones).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.delete('/panel/:slug/cupones/:id', authPanel, (req, res) => { (()=>{const _d=cargarCupones().filter(c => c.id !== req.params.id);cache['cupones']=_d;guardarDB('cupones',_d).catch(e=>console.error('[DB]',e.message));})(); res.json({ ok: true }); });
@@ -2058,7 +2060,7 @@ app.post('/panel/:slug/repartidores', authPanel, (req, res) => {
   if (!negocios[idx].repartidores) negocios[idx].repartidores = [];
   const nuevo = { id: 'rep_' + Date.now(), activo: true, disponible: true, ...req.body };
   negocios[idx].repartidores.push(nuevo);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, ...nuevo });
 });
 app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
@@ -2066,7 +2068,7 @@ app.delete('/panel/:slug/repartidores/:id', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].repartidores = (negocios[idx].repartidores || []).filter(r => r.id !== req.params.id);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 app.post('/panel/:slug/masivo', authPanel, async (req, res) => {
@@ -2113,7 +2115,7 @@ setInterval(async () => {
       if (p.stock === 0 && p.activo !== false) { p.activo = false; cambios = true; }
       if (p.stock > 0 && p.activo === false) { p.activo = true; cambios = true; }
     });
-    if (cambios) (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+    if (cambios) cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   }
 }, 60 * 60 * 1000);
 
@@ -2207,7 +2209,7 @@ app.post('/panel/:slug/bot', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].bot_activo = req.body.activo;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, bot_activo: negocios[idx].bot_activo });
 });
 
@@ -2219,7 +2221,7 @@ app.put('/panel/:slug/catalogo/:id', authPanel, (req, res) => {
   const pIdx = negocios[idx].catalogo.findIndex(p => p.id == req.params.id);
   if (pIdx === -1) return res.status(404).json({ error: 'Producto no encontrado' });
   negocios[idx].catalogo[pIdx] = { ...negocios[idx].catalogo[pIdx], ...req.body };
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 
@@ -2234,7 +2236,7 @@ app.put('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
   negocios[idx].catalogo[pIdx].stock = req.body.delta !== undefined
     ? Math.max(0, actual + req.body.delta)
     : req.body.stock;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, stock: negocios[idx].catalogo[pIdx].stock });
 });
 app.post('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
@@ -2247,7 +2249,7 @@ app.post('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
   negocios[idx].catalogo[pIdx].stock = req.body.delta !== undefined
     ? Math.max(0, actual + req.body.delta)
     : req.body.stock;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, stock: negocios[idx].catalogo[pIdx].stock });
 });
 
@@ -2261,7 +2263,7 @@ app.post('/panel/:slug/catalogo', authPanel, (req, res) => {
   const maxId = negocios[idx].catalogo.reduce((m, p) => Math.max(m, p.id || 0), 0);
   const nuevo = { id: maxId + 1, activo: true, ...req.body };
   negocios[idx].catalogo.push(nuevo);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, id: nuevo.id, ...nuevo });
 });
 
@@ -2270,7 +2272,7 @@ app.delete('/panel/:slug/catalogo/:id', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].catalogo = (negocios[idx].catalogo || []).filter(p => String(p.id) !== String(req.params.id));
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 // ─── CITAS CONFIG ─────────────────────────────────────────────────────────────
@@ -2285,7 +2287,7 @@ app.post('/panel/:slug/citas/config', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].citas_config = { ...negocios[idx].citas_config, ...req.body, activo: true };
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 
@@ -2326,7 +2328,7 @@ app.get('/panel/:slug/reporte', authPanel, (req, res) => {
 
 // ─── RESEÑAS ─────────────────────────────────────────────────
 function cargarResenas() { return cache.resenas; }
-function guardarResenas(r) { (cache['resenas']=r, guardarDB('resenas',r).catch(e=>console.error('[DB]',e.message))); }
+function guardarResenas(r) { cache['resenas']=r; guardarDB('resenas',r).catch(e=>console.error('[DB]',e.message)); }
 
 function agregarResena(numero, negocioNombre, calificacion, comentario, pedidoDesc) {
   const resenas = cargarResenas();
@@ -2352,7 +2354,7 @@ setInterval(async () => {
       }
     }
   }
-  if (cambios) (cache['clientes']=clientes, guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message)));
+  if (cambios) cache['clientes']=clientes; guardarDB('clientes',clientes).catch(e=>console.error('[DB]',e.message));
 }, 30 * 60 * 1000);
 
 app.get('/panel/:slug/resenas', authPanel, (req, res) => {
@@ -2382,7 +2384,7 @@ app.get('/sw.js', (req, res) => {
 
 // ─── CITAS ────────────────────────────────────────────────────
 function cargarCitas() { return cache.citas; }
-function guardarCitas(c) { (cache['citas']=c, guardarDB('citas',c).catch(e=>console.error('[DB]',e.message))); }
+function guardarCitas(c) { cache['citas']=c; guardarDB('citas',c).catch(e=>console.error('[DB]',e.message)); }
 
 app.get('/panel/:slug/citas', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
@@ -2571,7 +2573,7 @@ app.post('/panel/:slug/lista-blanca', authPanel, (req, res) => {
   if (!negocios[idx].lista_blanca) negocios[idx].lista_blanca = [];
   if (!negocios[idx].lista_blanca.includes(numero)) {
     negocios[idx].lista_blanca.push(numero);
-    (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+    cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   }
   res.json({ ok: true, lista_blanca: negocios[idx].lista_blanca });
 });
@@ -2583,7 +2585,7 @@ app.delete('/panel/:slug/lista-blanca/:numero', authPanel, (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   const numero = req.params.numero.replace(/\D/g, '');
   negocios[idx].lista_blanca = (negocios[idx].lista_blanca || []).filter(n => n.replace(/\D/g, '') !== numero);
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, lista_blanca: negocios[idx].lista_blanca });
 });
 
@@ -2626,7 +2628,7 @@ app.put('/panel/:slug/tema', authPanel, (req, res) => {
     if (req.body[campo] !== undefined) temaActualizado[campo] = req.body[campo];
   }
   negocios[idx].tema = temaActualizado;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, tema: { ...TEMA_DEFAULT, ...temaActualizado } });
 });
 
@@ -2636,7 +2638,7 @@ app.post('/panel/:slug/tema/reset', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].tema = { ...TEMA_DEFAULT };
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, tema: TEMA_DEFAULT });
 });
 
@@ -2856,7 +2858,7 @@ app.put('/panel/:slug/kiosco/toggle', authPanel, (req, res) => {
   const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
   if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].kiosco_activo = !negocios[idx].kiosco_activo;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, kiosco_activo: negocios[idx].kiosco_activo });
 });
 
@@ -2899,7 +2901,7 @@ app.post('/panel/:slug/kiosco/pausa', authPanel, (req, res) => {
     return res.status(403).json({ error: 'El admin debe activar el módulo kiosco primero' });
   }
   negocios[idx].kiosco_pausado = !req.body.activo;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, kiosco_pausado: negocios[idx].kiosco_pausado });
 });
 
@@ -2912,7 +2914,7 @@ app.put('/admin/negocios/:id/kiosco', authAdmin, (req, res) => {
   const idx = negocios.findIndex(n => n.id === req.params.id);
   if (idx < 0) return res.status(404).json({ error: 'No encontrado' });
   negocios[idx].kiosco_activo = !!req.body.activo;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true, kiosco_activo: negocios[idx].kiosco_activo });
 });
 
@@ -2925,7 +2927,7 @@ app.put('/admin/negocios/:id/suscripcion', authAdmin, (req, res) => {
   if (activo !== undefined) negocios[idx].suscripcion_activa = !!activo;
   if (fecha_vencimiento !== undefined) negocios[idx].fecha_vencimiento = fecha_vencimiento || null;
   if (plan_activo !== undefined) negocios[idx].plan_activo = plan_activo || null;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 
@@ -2937,7 +2939,7 @@ app.put('/admin/negocios/:id/red', authAdmin, (req, res) => {
   const { activo, comision } = req.body;
   if (activo !== undefined) negocios[idx].red_negocios_activa = !!activo;
   if (comision !== undefined) negocios[idx].red_comision = parseFloat(comision) || 3;
-  (cache['negocios']=negocios, guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message)));
+  cache['negocios']=negocios; guardarDB('negocios',negocios).catch(e=>console.error('[DB]',e.message));
   res.json({ ok: true });
 });
 
