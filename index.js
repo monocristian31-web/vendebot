@@ -121,9 +121,7 @@ async function cargarDB(clave, defecto) {
   try {
     const r = await db.query('SELECT valor FROM datos WHERE clave = $1', [clave]);
     if (r.rows.length > 0) return r.rows[0].valor;
-  } catch {}
-  // Fallback a archivo local
-  try { return JSON.parse(fs.readFileSync('./' + clave + '.json', 'utf8')); } catch {}
+  } catch (e) { console.error('Error leyendo DB:', e.message); }
   return defecto;
 }
 
@@ -132,11 +130,9 @@ async function guardarDB(clave, data) {
   try {
     await db.query(
       'INSERT INTO datos (clave, valor) VALUES ($1, $2) ON CONFLICT (clave) DO UPDATE SET valor = $2',
-      [clave, JSON.stringify(data)]
+      [clave, data]
     );
   } catch (e) { console.error('Error guardando en DB:', e.message); }
-  // También guardar en archivo como backup
-  try { fs.writeFileSync('./' + clave + '.json', JSON.stringify(data, null, 2)); } catch {}
 }
 
 const app = express();
@@ -1366,8 +1362,7 @@ const cache = {
 function cargarJSON(archivo, defecto) {
   const clave = archivo.replace('./', '').replace('.json', '');
   if (cache[clave] !== undefined) return cache[clave];
-  // Fallback a archivo si existe
-  try { return JSON.parse(fs.readFileSync(archivo, 'utf8')); } catch { return defecto; }
+  return defecto;
 }
 
 // Guardar: actualiza cache + escribe en PostgreSQL inmediatamente
@@ -1377,11 +1372,8 @@ function guardarJSON(archivo, data) {
   if (cache[clave] !== undefined) cache[clave] = data;
   // 2. Guardar en PostgreSQL (permanente)
   guardarDB(clave, data).catch(() => {
-    // Si falla, reintentar en 2 segundos
     setTimeout(() => guardarDB(clave, data).catch(() => {}), 2000);
   });
-  // 3. Archivo local como triple seguro
-  try { fs.writeFileSync(archivo, JSON.stringify(data, null, 2)); } catch {}
 }
 
 function cargarNegocios() { return cache.negocios; }
@@ -2668,7 +2660,6 @@ setInterval(async () => {
 const PORT = process.env.PORT || 3000;
 // Restaurar JSONs desde PostgreSQL al arrancar (por si hubo redeploy)
 async function restaurarDesdeDB() {
-  // Cargar claves kiosco dinámicamente desde DB
   let clavesKiosco = [];
   try {
     const r = await db.query("SELECT clave FROM datos WHERE clave LIKE 'kiosco_pedidos_%'");
@@ -2679,28 +2670,17 @@ async function restaurarDesdeDB() {
     try {
       const r = await db.query('SELECT valor FROM datos WHERE clave = $1', [clave]);
       if (r.rows.length > 0) {
-        const dataDB = r.rows[0].valor;
-        // Cargar en cache siempre (aunque esté vacío, es el estado real)
-        cache[clave] = dataDB;
-        // También escribir en archivo local como respaldo
-        try { fs.writeFileSync('./' + clave + '.json', JSON.stringify(dataDB, null, 2)); } catch {}
-        const cantidad = Array.isArray(dataDB) ? dataDB.length + ' registros' : Object.keys(dataDB).length + ' entradas';
+        cache[clave] = r.rows[0].valor;
+        const cantidad = Array.isArray(cache[clave]) ? cache[clave].length + ' registros' : Object.keys(cache[clave]).length + ' entradas';
         console.log('✓ Cache cargado desde DB:', clave, '(' + cantidad + ')');
       } else {
-        // No hay datos en DB todavía — intentar cargar desde archivo local
-        try {
-          const local = JSON.parse(fs.readFileSync('./' + clave + '.json', 'utf8'));
-          cache[clave] = local;
-          // Guardar en DB para que la próxima vez ya esté ahí
-          await guardarDB(clave, local);
-          console.log('✓ Cache cargado desde archivo local:', clave, '(migrado a DB)');
-        } catch {}
+        console.log('⚠ Sin datos en DB para:', clave);
       }
     } catch (e) {
       console.error('Error cargando', clave, e.message);
     }
   }
-  console.log('✓ Negocios en memoria:', cache.negocios.length);
+  console.log('✓ Negocios en memoria:', cache.negocios?.length || 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════
