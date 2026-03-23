@@ -1494,21 +1494,18 @@ async function subirImagen(input){
 }
 
 function actualizarPreviewCatalogo(){
-  const logo=document.getElementById('cfg_logo').value;
-  const banner=document.getElementById('cfg_banner').value;
+  const logo=document.getElementById('cfg_logo')?.value||negocioData?.logo||'';
+  const banner=document.getElementById('cfg_banner')?.value||negocioData?.banner||'';
   const nombre=document.getElementById('cfg_nombre')?.value||negocioData?.nombre||'Tu negocio';
   const tipo=document.getElementById('cfg_tipo')?.value||negocioData?.tipo||'Tipo de negocio';
-  // Logo
   const pli=document.getElementById('prevLogoImg');
   const plp=document.getElementById('prevLogoPlaceholder');
   if(logo&&pli){pli.src=logo;pli.style.display='block';if(plp)plp.style.display='none';}
   else{if(pli)pli.style.display='none';if(plp)plp.style.display='block';}
-  // Banner
   const pbi=document.getElementById('prevBannerImg');
   const pbp=document.getElementById('prevBannerPlaceholder');
   if(banner&&pbi){pbi.src=banner;pbi.style.display='block';if(pbp)pbp.style.display='none';}
   else{if(pbi)pbi.style.display='none';if(pbp)pbp.style.display='block';}
-  // Nombre y tipo
   const pn=document.getElementById('prevNombre');const pt=document.getElementById('prevTipo');
   if(pn)pn.textContent=nombre;if(pt)pt.textContent=tipo;
 }
@@ -1632,7 +1629,20 @@ async function guardarConfig(e){
   const btn=e?.target||e;
   const originalText=btn?.textContent||'💾 GUARDAR';
   if(btn&&btn.tagName==='BUTTON'){btn.textContent='⏳ Guardando...';btn.disabled=true;}
-  const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,tiktok:document.getElementById('cfg_tiktok')?.value||'',web:document.getElementById('cfg_web')?.value||'',email:document.getElementById('cfg_email')?.value||'',bienvenida:document.getElementById('cfg_bienvenida').value,ausencia:document.getElementById('cfg_ausencia')?.value||'',devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
+  const g=id=>document.getElementById(id)?.value||'';
+  const data={
+    nombre:g('cfg_nombre'),tipo:g('cfg_tipo'),direccion:g('cfg_direccion'),
+    tiempo:g('cfg_tiempo'),zonas:g('cfg_zonas'),pedido_minimo:g('cfg_pedido_minimo'),
+    logo:g('cfg_logo'),banner:g('cfg_banner'),costo_delivery:g('cfg_costo_delivery'),
+    instagram:g('cfg_instagram'),facebook:g('cfg_facebook'),tiktok:g('cfg_tiktok'),
+    web:g('cfg_web'),email:g('cfg_email'),bienvenida:g('cfg_bienvenida'),
+    ausencia:g('cfg_ausencia'),devoluciones:g('cfg_devoluciones'),vacaciones:g('cfg_vacaciones'),
+    modo_vacaciones:document.getElementById('toggleVacaciones')?.classList.contains('on')||false,
+    metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),
+    horarios:obtenerHorarios(),
+    tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,
+    requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false
+  };
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
   const ok=r!==null&&r?.ok!==false;
   if(btn&&btn.tagName==='BUTTON'){
@@ -1643,7 +1653,7 @@ async function guardarConfig(e){
     setTimeout(()=>{btn.textContent=originalText;btn.disabled=false;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2500);
   }
   const al=document.getElementById('configAlert');
-  if(al){al.className='alert '+(ok?'ok':'err');al.textContent=ok?'// Configuración guardada':'// Error — recarga la página e intenta de nuevo';setTimeout(()=>al.textContent='',4000);}
+  if(al){al.className='alert '+(ok?'ok':'err');al.textContent=ok?'// Configuración guardada':'// Error al guardar';setTimeout(()=>al.textContent='',4000);}
   if(ok)mostrarNotificacion('// ✓ Guardado correctamente');
 }
 
