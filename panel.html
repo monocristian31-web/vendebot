@@ -787,7 +787,7 @@ textarea{resize:vertical;border-radius:8px;}
       </div>
     </div>
 
-    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR NEGOCIO</button>
+    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR NEGOCIO</button>
   </div>
 
   <!-- ══════════ APARIENCIA ══════════ -->
@@ -886,7 +886,7 @@ textarea{resize:vertical;border-radius:8px;}
       <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot responde según este horario. Fuera de horario manda mensaje automático.</div>
       <div id="horariosContainer"></div>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR HORARIOS</button>
+    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR HORARIOS</button>
   </div>
 
   <!-- ══════════ BOT ══════════ -->
@@ -918,7 +918,7 @@ textarea{resize:vertical;border-radius:8px;}
       <label>Política de devoluciones</label>
       <textarea id="cfg_devoluciones" rows="2" placeholder="No se aceptan devoluciones después de..."></textarea>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR BOT</button>
+    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR BOT</button>
   </div>
 
   <!-- ══════════ VACACIONES ══════════ -->
@@ -933,7 +933,7 @@ textarea{resize:vertical;border-radius:8px;}
       <label>Mensaje de vacaciones</label>
       <textarea id="cfg_vacaciones" rows="3" placeholder="¡Estamos de vacaciones! Volvemos el 15 de enero. Gracias por tu paciencia 🙏"></textarea>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR</button>
+    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR</button>
   </div>
 
 </div>
@@ -1515,27 +1515,35 @@ function actualizarPreviewCatalogo(){
 
 async function subirLogo(input){
   const file=input.files[0];if(!file)return;
-  // Preview local inmediato
   const reader=new FileReader();
   reader.onload=e=>{
-    const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');
-    if(lp)lp.src=e.target.result;if(lw)lw.style.display='block';
+    // Preview inmediato con imagen local
+    const lp=document.getElementById('logoPreview');
+    const lw=document.getElementById('logoPreviewWrap');
+    const pli=document.getElementById('prevLogoImg');
+    const plp=document.getElementById('prevLogoPlaceholder');
+    if(lp){lp.src=e.target.result;}
+    if(lw)lw.style.display='block';
+    if(pli){pli.src=e.target.result;pli.style.display='block';}
+    if(plp)plp.style.display='none';
+    // Guardar temporalmente para que guardarConfig lo use
     document.getElementById('cfg_logo').value=e.target.result;
-    actualizarPreviewCatalogo();
   };
   reader.readAsDataURL(file);
-  // Subir al servidor y guardar
+  // Subir al servidor
   mostrarNotificacion('// Subiendo logo...');
   const fd=new FormData();fd.append('imagen',file);
   const r=await fetch(`${BASE}/panel/${SLUG}/upload`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
   const d=await r.json();
   if(d.url){
+    // Guardar URL real (reemplaza el base64 temporal)
     document.getElementById('cfg_logo').value=d.url;
     const lp=document.getElementById('logoPreview');if(lp)lp.src=d.url;
-    actualizarPreviewCatalogo();
-    // Guardar automáticamente en el servidor
+    const pli=document.getElementById('prevLogoImg');if(pli)pli.src=d.url;
+    // Guardar en servidor inmediatamente para que no se revierta
     await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify({logo:d.url})});
-    mostrarNotificacion('// ✓ Logo guardado correctamente');
+    actualizarPreviewCatalogo();
+    mostrarNotificacion('// ✓ Logo guardado');
   } else {
     mostrarNotificacion('// Error al subir logo');
   }
@@ -1543,16 +1551,20 @@ async function subirLogo(input){
 
 async function subirBanner(input){
   const file=input.files[0];if(!file)return;
-  // Preview local inmediato
   const reader=new FileReader();
   reader.onload=e=>{
-    const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');
-    if(bp)bp.src=e.target.result;if(bw)bw.style.display='block';
+    const bp=document.getElementById('bannerPreview');
+    const bw=document.getElementById('bannerPreviewWrap');
+    const pbi=document.getElementById('prevBannerImg');
+    const pbp=document.getElementById('prevBannerPlaceholder');
+    if(bp){bp.src=e.target.result;}
+    if(bw)bw.style.display='block';
+    if(pbi){pbi.src=e.target.result;pbi.style.display='block';}
+    if(pbp)pbp.style.display='none';
     document.getElementById('cfg_banner').value=e.target.result;
     actualizarPreviewCatalogo();
   };
   reader.readAsDataURL(file);
-  // Subir al servidor y guardar
   mostrarNotificacion('// Subiendo banner...');
   const fd=new FormData();fd.append('imagen',file);
   const r=await fetch(`${BASE}/panel/${SLUG}/upload`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
@@ -1560,10 +1572,11 @@ async function subirBanner(input){
   if(d.url){
     document.getElementById('cfg_banner').value=d.url;
     const bp=document.getElementById('bannerPreview');if(bp)bp.src=d.url;
-    actualizarPreviewCatalogo();
-    // Guardar automáticamente en el servidor
+    const pbi=document.getElementById('prevBannerImg');if(pbi)pbi.src=d.url;
+    // Guardar en servidor inmediatamente
     await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify({banner:d.url})});
-    mostrarNotificacion('// ✓ Banner guardado correctamente');
+    actualizarPreviewCatalogo();
+    mostrarNotificacion('// ✓ Banner guardado');
   } else {
     mostrarNotificacion('// Error al subir banner');
   }
@@ -1571,7 +1584,33 @@ async function subirBanner(input){
 
 async function cargarConfig(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;negocioData=neg;
-  ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','logo','banner','costo_delivery','instagram','facebook','tiktok','web','email','bienvenida','ausencia','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
+  ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','costo_delivery','instagram','facebook','tiktok','web','email','bienvenida','ausencia','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
+  // Solo cargar logo/banner desde servidor si no hay uno ya cargado localmente
+  const logoActual=document.getElementById('cfg_logo')?.value;
+  const bannerActual=document.getElementById('cfg_banner')?.value;
+  if(!logoActual&&neg.logo){
+    document.getElementById('cfg_logo').value=neg.logo;
+    const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');
+    if(lp)lp.src=neg.logo;if(lw)lw.style.display='block';
+  }
+  if(!bannerActual&&neg.banner){
+    document.getElementById('cfg_banner').value=neg.banner;
+    const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');
+    if(bp)bp.src=neg.banner;if(bw)bw.style.display='block';
+  }
+  // Si ya hay logo/banner guardado previamente, mostrar preview
+  if(logoActual||neg.logo){
+    const src=logoActual||neg.logo;
+    const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');
+    if(lp&&src)lp.src=src;if(lw)lw.style.display='block';
+    if(!logoActual&&neg.logo)document.getElementById('cfg_logo').value=neg.logo;
+  }
+  if(bannerActual||neg.banner){
+    const src=bannerActual||neg.banner;
+    const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');
+    if(bp&&src)bp.src=src;if(bw)bw.style.display='block';
+    if(!bannerActual&&neg.banner)document.getElementById('cfg_banner').value=neg.banner;
+  }
   // Highlight métodos de pago activos
   ['transferencia','efectivo','tarjeta','qr'].forEach(p => {
     const cb = document.getElementById('pago_'+p);
@@ -1601,14 +1640,15 @@ function obtenerHorarios(){
 
 function toggleVacaciones(){const t=document.getElementById('toggleVacaciones');t.classList.toggle('on');document.getElementById('vacacionesLabel').textContent=t.classList.contains('on')?'Activado':'Desactivado';}
 
-async function guardarConfig(btn){
+async function guardarConfig(e){
+  const btn=e?.currentTarget||e?.target;
   const originalText=btn?.textContent||'💾 GUARDAR';
   if(btn){btn.textContent='⏳ Guardando...';btn.disabled=true;}
   const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,tiktok:document.getElementById('cfg_tiktok')?.value||'',web:document.getElementById('cfg_web')?.value||'',email:document.getElementById('cfg_email')?.value||'',bienvenida:document.getElementById('cfg_bienvenida').value,ausencia:document.getElementById('cfg_ausencia')?.value||'',devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
-  const ok=r?.ok!==false;
+  const ok=r?.ok===true;
   if(btn){
-    btn.textContent=ok?'✓ Guardado':'✗ Error';
+    btn.textContent=ok?'✓ Guardado':'✗ Error al guardar';
     btn.style.background=ok?'rgba(0,229,160,.15)':'rgba(255,26,74,.15)';
     btn.style.borderColor=ok?'var(--g)':'var(--r)';
     btn.style.color=ok?'var(--g)':'var(--r)';
