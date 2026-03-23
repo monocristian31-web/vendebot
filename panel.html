@@ -787,7 +787,7 @@ textarea{resize:vertical;border-radius:8px;}
       </div>
     </div>
 
-    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR NEGOCIO</button>
+    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR NEGOCIO</button>
   </div>
 
   <!-- ══════════ APARIENCIA ══════════ -->
@@ -886,7 +886,7 @@ textarea{resize:vertical;border-radius:8px;}
       <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">El bot responde según este horario. Fuera de horario manda mensaje automático.</div>
       <div id="horariosContainer"></div>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR HORARIOS</button>
+    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR HORARIOS</button>
   </div>
 
   <!-- ══════════ BOT ══════════ -->
@@ -918,7 +918,7 @@ textarea{resize:vertical;border-radius:8px;}
       <label>Política de devoluciones</label>
       <textarea id="cfg_devoluciones" rows="2" placeholder="No se aceptan devoluciones después de..."></textarea>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR BOT</button>
+    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR BOT</button>
   </div>
 
   <!-- ══════════ VACACIONES ══════════ -->
@@ -933,7 +933,7 @@ textarea{resize:vertical;border-radius:8px;}
       <label>Mensaje de vacaciones</label>
       <textarea id="cfg_vacaciones" rows="3" placeholder="¡Estamos de vacaciones! Volvemos el 15 de enero. Gracias por tu paciencia 🙏"></textarea>
     </div>
-    <button class="btn btn-success" onclick="guardarConfig(event)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR</button>
+    <button class="btn btn-success" onclick="guardarConfig(this)" style="width:100%;padding:14px;font-family:var(--fh);font-size:12px;letter-spacing:.15em;">💾 GUARDAR</button>
   </div>
 
 </div>
@@ -1585,40 +1585,28 @@ async function subirBanner(input){
 async function cargarConfig(){
   const neg=await api(`/panel/${SLUG}/negocio`);if(!neg)return;negocioData=neg;
   ['nombre','tipo','direccion','tiempo','zonas','pedido_minimo','costo_delivery','instagram','facebook','tiktok','web','email','bienvenida','ausencia','devoluciones','vacaciones'].forEach(k=>{const el=document.getElementById('cfg_'+k);if(el)el.value=neg[k]||'';});
-  // Solo cargar logo/banner desde servidor si no hay uno ya cargado localmente
-  const logoActual=document.getElementById('cfg_logo')?.value;
-  const bannerActual=document.getElementById('cfg_banner')?.value;
-  if(!logoActual&&neg.logo){
-    document.getElementById('cfg_logo').value=neg.logo;
+  // Logo: solo cargar si no hay uno ya en pantalla
+  const logoEl=document.getElementById('cfg_logo');
+  const bannerEl=document.getElementById('cfg_banner');
+  if(logoEl&&!logoEl.value&&neg.logo){
+    logoEl.value=neg.logo;
     const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');
     if(lp)lp.src=neg.logo;if(lw)lw.style.display='block';
+  } else if(logoEl&&!logoEl.value){
+    // no hay logo
   }
-  if(!bannerActual&&neg.banner){
-    document.getElementById('cfg_banner').value=neg.banner;
+  if(bannerEl&&!bannerEl.value&&neg.banner){
+    bannerEl.value=neg.banner;
     const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');
     if(bp)bp.src=neg.banner;if(bw)bw.style.display='block';
   }
-  // Si ya hay logo/banner guardado previamente, mostrar preview
-  if(logoActual||neg.logo){
-    const src=logoActual||neg.logo;
-    const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');
-    if(lp&&src)lp.src=src;if(lw)lw.style.display='block';
-    if(!logoActual&&neg.logo)document.getElementById('cfg_logo').value=neg.logo;
-  }
-  if(bannerActual||neg.banner){
-    const src=bannerActual||neg.banner;
-    const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');
-    if(bp&&src)bp.src=src;if(bw)bw.style.display='block';
-    if(!bannerActual&&neg.banner)document.getElementById('cfg_banner').value=neg.banner;
-  }
-  // Highlight métodos de pago activos
-  ['transferencia','efectivo','tarjeta','qr'].forEach(p => {
-    const cb = document.getElementById('pago_'+p);
-    if(cb) { setTimeout(() => highlightPago(p), 100); }
-  });
-  ['transferencia','efectivo','tarjeta','qr'].forEach(p=>{const el=document.getElementById('pago_'+p);if(el)el.checked=(neg.metodos_pago||[]).includes(p);});
+  // Mostrar previews si ya tienen valor
+  const logoSrc=logoEl?.value||neg.logo;
+  const bannerSrc=bannerEl?.value||neg.banner;
+  if(logoSrc){const lp=document.getElementById('logoPreview');const lw=document.getElementById('logoPreviewWrap');if(lp)lp.src=logoSrc;if(lw)lw.style.display='block';}
+  if(bannerSrc){const bp=document.getElementById('bannerPreview');const bw=document.getElementById('bannerPreviewWrap');if(bp)bp.src=bannerSrc;if(bw)bw.style.display='block';}
+  ['transferencia','efectivo','tarjeta','qr'].forEach(p=>{const cb=document.getElementById('pago_'+p);if(cb){cb.checked=(neg.metodos_pago||[]).includes(p);setTimeout(()=>highlightPago(p),100);}});
   const tv=document.getElementById('toggleVacaciones');if(tv){tv.classList.toggle('on',!!neg.modo_vacaciones);document.getElementById('vacacionesLabel').textContent=neg.modo_vacaciones?'Activado':'Desactivado';}
-  if(neg.logo){const lp=document.getElementById("logoPreview");const lw=document.getElementById("logoPreviewWrap");if(lp){lp.src=neg.logo;}if(lw)lw.style.display="block";document.getElementById("cfg_logo").value=neg.logo;}if(neg.banner){const bp=document.getElementById("bannerPreview");const bw=document.getElementById("bannerPreviewWrap");if(bp){bp.src=neg.banner;}if(bw)bw.style.display="block";document.getElementById("cfg_banner").value=neg.banner;}
   const mtm=document.getElementById('cfg_tiene_mitad_mitad');if(mtm)mtm.checked=!!neg.tiene_mitad_mitad;
   const rh=document.getElementById('cfg_requiere_hora');if(rh)rh.checked=!!neg.requiere_hora_entrega;
   renderHorarios(neg.horarios||{});
@@ -1641,21 +1629,21 @@ function obtenerHorarios(){
 function toggleVacaciones(){const t=document.getElementById('toggleVacaciones');t.classList.toggle('on');document.getElementById('vacacionesLabel').textContent=t.classList.contains('on')?'Activado':'Desactivado';}
 
 async function guardarConfig(e){
-  const btn=e?.currentTarget||e?.target;
+  const btn=e?.target||e;
   const originalText=btn?.textContent||'💾 GUARDAR';
-  if(btn){btn.textContent='⏳ Guardando...';btn.disabled=true;}
+  if(btn&&btn.tagName==='BUTTON'){btn.textContent='⏳ Guardando...';btn.disabled=true;}
   const data={nombre:document.getElementById('cfg_nombre').value,tipo:document.getElementById('cfg_tipo').value,direccion:document.getElementById('cfg_direccion').value,tiempo:document.getElementById('cfg_tiempo').value,zonas:document.getElementById('cfg_zonas').value,pedido_minimo:document.getElementById('cfg_pedido_minimo').value,logo:document.getElementById('cfg_logo').value,banner:document.getElementById('cfg_banner').value,costo_delivery:document.getElementById('cfg_costo_delivery').value,instagram:document.getElementById('cfg_instagram').value,facebook:document.getElementById('cfg_facebook').value,tiktok:document.getElementById('cfg_tiktok')?.value||'',web:document.getElementById('cfg_web')?.value||'',email:document.getElementById('cfg_email')?.value||'',bienvenida:document.getElementById('cfg_bienvenida').value,ausencia:document.getElementById('cfg_ausencia')?.value||'',devoluciones:document.getElementById('cfg_devoluciones').value,vacaciones:document.getElementById('cfg_vacaciones').value,modo_vacaciones:document.getElementById('toggleVacaciones').classList.contains('on'),metodos_pago:['transferencia','efectivo','tarjeta','qr'].filter(p=>document.getElementById('pago_'+p)?.checked),horarios:obtenerHorarios(),tiene_mitad_mitad:document.getElementById('cfg_tiene_mitad_mitad')?.checked||false,requiere_hora_entrega:document.getElementById('cfg_requiere_hora')?.checked||false};
   const r=await api(`/panel/${SLUG}/config`,{method:'POST',body:JSON.stringify(data)});
-  const ok=r?.ok===true;
-  if(btn){
-    btn.textContent=ok?'✓ Guardado':'✗ Error al guardar';
+  const ok=r!==null&&r?.ok!==false;
+  if(btn&&btn.tagName==='BUTTON'){
+    btn.textContent=ok?'✓ Guardado':'✗ Error';
     btn.style.background=ok?'rgba(0,229,160,.15)':'rgba(255,26,74,.15)';
     btn.style.borderColor=ok?'var(--g)':'var(--r)';
     btn.style.color=ok?'var(--g)':'var(--r)';
     setTimeout(()=>{btn.textContent=originalText;btn.disabled=false;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2500);
   }
   const al=document.getElementById('configAlert');
-  if(al){al.className='alert '+(ok?'ok':'err');al.textContent=ok?'// Configuración guardada':'// Error al guardar';setTimeout(()=>al.textContent='',3000);}
+  if(al){al.className='alert '+(ok?'ok':'err');al.textContent=ok?'// Configuración guardada':'// Error — recarga la página e intenta de nuevo';setTimeout(()=>al.textContent='',4000);}
   if(ok)mostrarNotificacion('// ✓ Guardado correctamente');
 }
 
