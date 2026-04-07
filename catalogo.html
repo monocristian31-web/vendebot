@@ -73,6 +73,8 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .hero-vignette{position:absolute;inset:0;background:linear-gradient(to top,var(--bg) 0%,rgba(0,0,0,.25) 40%,transparent 100%);}
 .hero-glow{position:absolute;top:-80px;right:-80px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,var(--s2),transparent 70%);}
 .hero-content{position:relative;z-index:2;}
+.hero-content{animation:heroIn .5s ease both;}
+@keyframes heroIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 .hero-status{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .status-dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 10px var(--g),0 0 20px rgba(0,229,160,.3);animation:blink 2s ease infinite;}
 .status-dot.closed{background:var(--r);box-shadow:0 0 10px var(--r);animation:none;}
@@ -291,6 +293,9 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ── TOAST ── */
 .toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(4,8,16,.97);backdrop-filter:blur(20px);border:1px solid var(--b);border-left:2px solid var(--c);color:var(--tx);padding:10px 20px;font-family:var(--fm);font-size:13px;z-index:9999;opacity:0;pointer-events:none;transition:all .22s;white-space:nowrap;box-shadow:0 0 24px var(--s3),0 8px 24px rgba(0,0,0,.4);border-radius:8px;}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important;}
+}
 </style>
 </head>
 <body>

@@ -22,8 +22,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;background:ra
 body::after{content:'';position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:38px 38px;mask-image:radial-gradient(circle at 50% 25%,black 20%,transparent 80%);opacity:.3;z-index:0;}
 
 /* ── PANTALLAS ── */
-.screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .35s ease;}
-.screen.active{opacity:1;pointer-events:all;}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(8px) scale(.995);transition:opacity .35s ease,transform .35s ease;}
+.screen.active{opacity:1;pointer-events:all;transform:none;}
 
 /* ══ IDLE ══ */
 #s-idle{background:var(--prim);align-items:center;justify-content:center;text-align:center;cursor:pointer;}
@@ -82,6 +82,11 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background-ima
 .prod-card .add-btn{background:linear-gradient(180deg,var(--acc),var(--acc2));color:#fff;border:none;border-radius:10px;width:34px;height:34px;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;box-shadow:0 8px 16px var(--glow);}
 .prod-card .badge-agotado{position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px;}
 .prod-card .badge-mods{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:600;padding:3px 8px;border-radius:100px;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.14);}
+.prod-card.appear{animation:cardIn .35s ease both;}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
+.skeleton-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(160px,22vw,240px),1fr));gap:14px;}
+.skeleton-card{height:240px;border-radius:18px;border:1px solid var(--border);background:linear-gradient(90deg,var(--glass) 20%,rgba(255,255,255,.12) 50%,var(--glass) 80%);background-size:220% 100%;animation:shimmer 1.2s linear infinite;}
+@keyframes shimmer{to{background-position:-120% 0;}}
 
 /* ══ CARRITO ══ */
 #s-cart{background:var(--prim);flex-direction:column;}
@@ -214,6 +219,10 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;background-ima
 /* ── PRINT ── */
 @media print{body>*:not(#print-area){display:none!important;}#print-area{display:block!important;position:fixed;inset:0;background:#fff;padding:20px;}.ticket-paper{box-shadow:none;border-radius:0;max-width:100%;}}
 #print-area{display:none;}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important;}
+  .screen{transform:none!important;}
+}
 </style>
 </head>
 <body>
@@ -307,6 +316,7 @@ const slug = location.pathname.split('/')[2];
 let negocio=null, catalogo=[], carrito=[];
 let categoriaActiva='todas', idleTimer=null, tickCountdown=null;
 const IDLE_SECS=60, TICK_SECS=30;
+let primeraPintadaProductos=true;
 
 // Estado modal producto
 let modalProd=null, modalQty=1;
@@ -394,6 +404,12 @@ function renderProductos(){
     return true;
   });
   const wrap=document.getElementById('products-grid-wrap');
+  if(primeraPintadaProductos){
+    wrap.innerHTML=`<div class="skeleton-grid">${Array.from({length:8}).map(()=>'<div class="skeleton-card"></div>').join('')}</div>`;
+    primeraPintadaProductos=false;
+    setTimeout(()=>renderProductos(),120);
+    return;
+  }
   let html='';
 
   // Banner combo
@@ -402,12 +418,12 @@ function renderProductos(){
     html+=`<div class="combo-banner" onclick="abrirCombo()"><div><div class="cb-title">🎯 Arma tu combo</div><div class="cb-sub">${comboDef.map(s=>s.label).join(' + ')}</div></div><div class="cb-emojis">${comboDef.map(s=>s.emoji||'').join('')}</div>${pc>0?`<div class="cb-price">$${pc.toFixed(2)}</div>`:''}</div>`;
   }
 
-  html+=`<div class="products-grid">${activos.map(p=>{
+  html+=`<div class="products-grid">${activos.map((p,idx)=>{
     const mods=p.modificadores||[];
     const ings=p.ingredientes||[];
     const hasMods=mods.length>0, hasIngs=ings.length>0;
     const modsCount=mods.reduce((s,g)=>s+g.opciones.length,0);
-    return`<div class="prod-card ${p.stock===0?'agotado':''}" onclick="${p.stock===0?'':'abrirModal('+p.id+')'}">
+    return`<div class="prod-card appear ${p.stock===0?'agotado':''}" style="animation-delay:${Math.min(idx*30,240)}ms" onclick="${p.stock===0?'':'abrirModal('+p.id+')'}">
       <div class="img-wrap">${p.imagen?`<img src="${p.imagen}" alt="${p.nombre}" loading="lazy">`:`<span>${p.emoji||'📦'}</span>`}</div>
       ${hasMods||hasIngs?`<div class="badge-mods">${hasMods?`${modsCount} opciones`:'Personalizable'}</div>`:''}
       ${p.stock===0?'<div class="badge-agotado">Agotado</div>':''}
