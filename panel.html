@@ -795,6 +795,8 @@ textarea{resize:vertical;border-radius:8px;}
     <!-- IMÁGENES -->
     <div class="card">
       <div class="card-title">🖼️ Imágenes del catálogo</div>
+      <input type="hidden" id="cfg_logo" value="">
+      <input type="hidden" id="cfg_banner" value="">
       <div class="form-row">
         <div>
           <label class="form-label">Logo del negocio</label>
@@ -1512,6 +1514,7 @@ function actualizarPreviewCatalogo(){
 
 async function subirLogo(input){
   const file=input.files[0];if(!file)return;
+  const cfgLogoEl=document.getElementById('cfg_logo');
   const reader=new FileReader();
   reader.onload=e=>{
     // Preview inmediato con imagen local
@@ -1524,7 +1527,7 @@ async function subirLogo(input){
     if(pli){pli.src=e.target.result;pli.style.display='block';}
     if(plp)plp.style.display='none';
     // Guardar temporalmente para que guardarConfig lo use
-    document.getElementById('cfg_logo').value=e.target.result;
+    if(cfgLogoEl)cfgLogoEl.value=e.target.result;
   };
   reader.readAsDataURL(file);
   // Subir al servidor
@@ -1534,7 +1537,7 @@ async function subirLogo(input){
   const d=await r.json();
   if(d.url){
     // Guardar URL real (reemplaza el base64 temporal)
-    document.getElementById('cfg_logo').value=d.url;
+    if(cfgLogoEl)cfgLogoEl.value=d.url;
     const lp=document.getElementById('logoPreview');if(lp)lp.src=d.url;
     const pli=document.getElementById('prevLogoImg');if(pli)pli.src=d.url;
     // Guardar en servidor inmediatamente para que no se revierta
@@ -1548,6 +1551,7 @@ async function subirLogo(input){
 
 async function subirBanner(input){
   const file=input.files[0];if(!file)return;
+  const cfgBannerEl=document.getElementById('cfg_banner');
   const reader=new FileReader();
   reader.onload=e=>{
     const bp=document.getElementById('bannerPreview');
@@ -1558,7 +1562,7 @@ async function subirBanner(input){
     if(bw)bw.style.display='block';
     if(pbi){pbi.src=e.target.result;pbi.style.display='block';}
     if(pbp)pbp.style.display='none';
-    document.getElementById('cfg_banner').value=e.target.result;
+    if(cfgBannerEl)cfgBannerEl.value=e.target.result;
     actualizarPreviewCatalogo();
   };
   reader.readAsDataURL(file);
@@ -1567,7 +1571,7 @@ async function subirBanner(input){
   const r=await fetch(`${BASE}/panel/${SLUG}/upload`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN},body:fd});
   const d=await r.json();
   if(d.url){
-    document.getElementById('cfg_banner').value=d.url;
+    if(cfgBannerEl)cfgBannerEl.value=d.url;
     const bp=document.getElementById('bannerPreview');if(bp)bp.src=d.url;
     const pbi=document.getElementById('prevBannerImg');if(pbi)pbi.src=d.url;
     // Guardar en servidor inmediatamente
