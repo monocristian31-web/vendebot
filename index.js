@@ -138,6 +138,26 @@ async function guardarDB(clave, data) {
 }
 
 const app = express();
+
+function hashPassword(plainText) {
+  const salt = crypto.randomBytes(16);
+  const hash = crypto.scryptSync(String(plainText), salt, 64);
+  return `scrypt$${salt.toString('hex')}$${hash.toString('hex')}`;
+}
+
+function verifyPassword(plainText, storedValue) {
+  if (!storedValue) return false;
+  if (!String(storedValue).startsWith('scrypt$')) {
+    return String(plainText) === String(storedValue);
+  }
+  const parts = String(storedValue).split('$');
+  if (parts.length !== 3) return false;
+  const salt = Buffer.from(parts[1], 'hex');
+  const expected = Buffer.from(parts[2], 'hex');
+  const calculated = crypto.scryptSync(String(plainText), salt, expected.length);
+  if (calculated.length !== expected.length) return false;
+  return crypto.timingSafeEqual(calculated, expected);
+}
 app.use(express.json());
 app.use(express.static('.', { extensions: [], index: false }));
 
@@ -1880,14 +1900,20 @@ app.get('/admin/stats', authAdmin, (req, res) => {
 app.get('/', (req, res) => res.json({ status: 'VendeBot v10.0 activo', conversaciones: conversaciones.size, en_horario: estaEnHorario() }));
 
 // ─── AUTENTICACIÓN ────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vendebot2024admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const tokens = new Map();
+if (!ADMIN_PASSWORD) {
+  console.warn('⚠ ADMIN_PASSWORD no está configurado. El login admin quedará deshabilitado.');
+}
 
 function generarToken() { return crypto.randomBytes(32).toString('hex'); }
 function verificarToken(token) { return tokens.has(token) && Date.now() - tokens.get(token).tiempo < 24 * 60 * 60 * 1000; }
 function verificarTokenPanel(token, slug) { const t = tokens.get(token); return t && t.slug === slug && Date.now() - t.tiempo < 7 * 24 * 60 * 60 * 1000; }
 
 app.post('/auth/admin', (req, res) => {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).json({ ok: false, error: 'ADMIN_PASSWORD no configurado en entorno' });
+  }
   if (req.body.password === ADMIN_PASSWORD) {
     const token = generarToken();
     tokens.set(token, { tipo: 'admin', tiempo: Date.now() });
@@ -1897,8 +1923,15 @@ app.post('/auth/admin', (req, res) => {
 
 app.post('/auth/panel/:slug', (req, res) => {
   const negocios = cargarNegocios();
-  const negocio = negocios.find(n => (n.slug || n.id) === req.params.slug && n.activo);
-  if (negocio && req.body.password === negocio.password) {
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug && n.activo);
+  const negocio = idx >= 0 ? negocios[idx] : null;
+  if (negocio && verifyPassword(req.body.password, negocio.password)) {
+    // Migración transparente: si aún estaba en texto plano, se guarda hasheada.
+    if (!String(negocio.password || '').startsWith('scrypt$')) {
+      negocios[idx].password = hashPassword(req.body.password);
+      cache['negocios'] = negocios;
+      guardarDB('negocios', negocios).catch(e => console.error('[DB]', e.message));
+    }
     const token = generarToken();
     tokens.set(token, { tipo: 'panel', slug: req.params.slug, tiempo: Date.now() });
     res.json({ ok: true, token });
@@ -1927,6 +1960,14 @@ function authPanel(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (verificarTokenPanel(token, req.params.slug)) return next();
   res.status(401).json({ error: 'No autorizado' });
+}
+
+function authKioscoPrivado(req, res, next) {
+  const bearer = req.headers.authorization?.replace('Bearer ', '');
+  const queryToken = req.query.token;
+  const token = bearer || queryToken;
+  if (verificarTokenPanel(token, req.params.slug)) return next();
+  res.status(401).json({ error: 'Acceso restringido a personal autorizado' });
 }
 
 // ── Middleware suscripción activa ──────────────────────────────────────────
@@ -2743,7 +2784,7 @@ app.get('/kiosco/:slug', requireSuscripcion, (req, res) => {
 });
 
 // Sirve la pantalla de cocina
-app.get('/cocina/:slug', (req, res) => {
+app.get('/cocina/:slug', authKioscoPrivado, requireSuscripcion, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio) return res.status(404).send('<h1 style="font-family:sans-serif;padding:40px">Negocio no encontrado</h1>');
   if (!negocio.kiosco_activo) return res.status(403).send('<h1 style="font-family:sans-serif;padding:40px">Módulo kiosco no activo</h1>');
@@ -2804,7 +2845,7 @@ app.post('/kiosco/:slug/pedido', requireKiosco, (req, res) => {
 });
 
 // ── Obtener pedidos del día ────────────────────────────────────────
-app.get('/kiosco/:slug/pedidos', requireKiosco, (req, res) => {
+app.get('/kiosco/:slug/pedidos', authKioscoPrivado, requireKiosco, (req, res) => {
   const negocio = req.negocio;
   const pedidos = getKioscoPedidos(negocio.id);
   const hoy = new Date().toLocaleDateString('es-EC');
@@ -2812,7 +2853,7 @@ app.get('/kiosco/:slug/pedidos', requireKiosco, (req, res) => {
 });
 
 // ── Marcar pedido como listo (desde cocina) ───────────────────────
-app.post('/kiosco/:slug/pedidos/:id/listo', requireKiosco, (req, res) => {
+app.post('/kiosco/:slug/pedidos/:id/listo', authKioscoPrivado, requireKiosco, (req, res) => {
   const negocio = req.negocio;
   const pedidos = getKioscoPedidos(negocio.id);
   const idx = pedidos.findIndex(p => p.id === req.params.id);
@@ -2825,7 +2866,7 @@ app.post('/kiosco/:slug/pedidos/:id/listo', requireKiosco, (req, res) => {
 });
 
 // ── SSE de cocina — recibe eventos en tiempo real ─────────────────
-app.get('/kiosco/:slug/events', (req, res) => {
+app.get('/kiosco/:slug/events', authKioscoPrivado, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug && n.activo);
   if (!negocio || !negocio.kiosco_activo) return res.status(403).end();
 
@@ -2867,6 +2908,10 @@ app.put('/panel/:slug/kiosco/toggle', authPanel, (req, res) => {
 app.get('/panel/:slug/kiosco/estado', authPanel, (req, res) => {
   const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
   if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const cocinaUrl = token
+    ? `/cocina/${negocio.slug || negocio.id}?token=${encodeURIComponent(token)}`
+    : `/cocina/${negocio.slug || negocio.id}`;
   const pedidosHoy = getKioscoPedidos(negocio.id).filter(p => {
     const hoy = new Date().toLocaleDateString('es-EC');
     return new Date(p.fecha).toLocaleDateString('es-EC') === hoy;
@@ -2874,7 +2919,7 @@ app.get('/panel/:slug/kiosco/estado', authPanel, (req, res) => {
   res.json({
     kiosco_activo: !!negocio.kiosco_activo,
     kiosco_url: `/kiosco/${negocio.slug || negocio.id}`,
-    cocina_url: `/cocina/${negocio.slug || negocio.id}`,
+    cocina_url: cocinaUrl,
     pedidos_hoy: pedidosHoy.length,
     pendientes: pedidosHoy.filter(p => p.estado === 'pendiente').length,
     total_hoy: pedidosHoy.reduce((s,p) => s + (p.total||0), 0),

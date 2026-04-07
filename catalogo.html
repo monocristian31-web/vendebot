@@ -351,7 +351,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 <div class="toast" id="toast"></div>
 
 <script>
-const SLUG=window.location.pathname.split('/')[2];const BASE='https://vendebot-production.up.railway.app';
+const SLUG=window.location.pathname.split('/')[2];const BASE=window.location.origin;
 let neg=null,cart=[],prod=null,sels={},qty=1,notas='',searchOpen=false,mitadSels={1:null,2:null};
 async function init(){try{const r=await fetch(BASE+'/catalogo-data/'+SLUG);if(!r.ok){errLoader('NEGOCIO NO ENCONTRADO');return;}neg=await r.json();aplicarTema(neg.tema);renderAll();fadeLoader();}catch(e){errLoader('ERROR DE CONEXIÓN');}}
 function fadeLoader(){const l=document.getElementById('loader');l.classList.add('out');setTimeout(()=>{l.style.display='none';document.getElementById('app').style.display='block';},500);}
@@ -474,11 +474,11 @@ function aplicarTema(tema){
     const styleLayout=document.createElement('style');
     styleLayout.id='tema-layout-style';
     if(tema.layout==='1'){
-      styleLayout.textContent=`.prod-grid{grid-template-columns:1fr!important;}`;
+      styleLayout.textContent=`.products-grid{grid-template-columns:1fr!important;}`;
     } else if(tema.layout==='3'){
-      styleLayout.textContent=`.prod-grid{grid-template-columns:repeat(3,1fr)!important;} @media(max-width:500px){.prod-grid{grid-template-columns:repeat(2,1fr)!important;}}`;
+      styleLayout.textContent=`.products-grid{grid-template-columns:repeat(3,1fr)!important;} @media(max-width:500px){.products-grid{grid-template-columns:repeat(2,1fr)!important;}}`;
     } else {
-      styleLayout.textContent=`.prod-grid{grid-template-columns:repeat(2,1fr)!important;} @media(max-width:400px){.prod-grid{grid-template-columns:1fr!important;}}`;
+      styleLayout.textContent=`.products-grid{grid-template-columns:repeat(2,1fr)!important;} @media(max-width:400px){.products-grid{grid-template-columns:1fr!important;}}`;
     }
     document.getElementById('tema-layout-style')?.remove();
     document.head.appendChild(styleLayout);

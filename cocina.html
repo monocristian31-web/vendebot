@@ -187,6 +187,8 @@ html,body{min-height:100vh;background:var(--prim);font-family:'Segoe UI',system-
 
 <script>
 const slug = location.pathname.split('/')[2];
+const token = new URLSearchParams(location.search).get('token') || '';
+const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 let negocio = null;
 let pedidos = [];
 let tabActiva = 'pendiente';
@@ -195,6 +197,9 @@ let audioCtx = null;
 // ══════ INIT ══════
 async function init() {
   try {
+    if (!token) {
+      throw new Error('Falta token de acceso. Abre la URL desde el panel.');
+    }
     const r = await fetch(`/kiosco-data/${slug}`);
     negocio = await r.json();
     if (negocio.logo) {
@@ -213,7 +218,7 @@ async function init() {
 // ══════ CARGAR PEDIDOS ══════
 async function cargarPedidos() {
   try {
-    const r = await fetch(`/kiosco/${slug}/pedidos`);
+    const r = await fetch(`/kiosco/${slug}/pedidos`, { headers: authHeaders });
     pedidos = await r.json();
     renderBoard();
   } catch(e) { console.error(e); }
@@ -221,7 +226,7 @@ async function cargarPedidos() {
 
 // ══════ SSE — TIEMPO REAL ══════
 function conectarSSE() {
-  const es = new EventSource(`/kiosco/${slug}/events`);
+  const es = new EventSource(`/kiosco/${slug}/events?token=${encodeURIComponent(token)}`);
   es.addEventListener('nuevo_pedido', e => {
     const p = JSON.parse(e.data);
     pedidos.unshift(p);
@@ -296,7 +301,7 @@ function setTab(tab) {
 // ══════ MARCAR LISTO ══════
 async function marcarListo(id) {
   try {
-    await fetch(`/kiosco/${slug}/pedidos/${id}/listo`, {method:'POST'});
+    await fetch(`/kiosco/${slug}/pedidos/${id}/listo`, { method:'POST', headers: authHeaders });
     const idx = pedidos.findIndex(p=>p.id===id);
     if (idx>=0) { pedidos[idx].estado='listo'; renderBoard(); }
     toast('✅ Pedido marcado como listo');
