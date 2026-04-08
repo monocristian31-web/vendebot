@@ -515,7 +515,12 @@
       const tipo = g.tipo==='unico' ? 'unico' : (g.tipo==='multiple'?'multiple':(g.tipo?g.tipo:'unico'));
       if(tipo==='unico'){
         const oi=selsUnico[gi]; if(oi!=null) e+=Number(g.opciones?.[oi]?.precio||0);
-      } else (selsMulti[gi]||new Set()).forEach(oi=>{ e+=Number(g.opciones?.[oi]?.precio||0); });
+      } else {
+        const counts = selsMulti[gi] || {};
+        Object.entries(counts).forEach(([oi, qtySel])=>{
+          e += (Number(g.opciones?.[Number(oi)]?.precio||0) * (Number(qtySel)||0));
+        });
+      }
     });
     return e;
   }
@@ -526,7 +531,11 @@
       const g=prod.modificadores[gi]; if(!g.obligatorio) continue;
       const tipo=g.tipo==='unico'?'unico':(g.tipo==='multiple'?'multiple':(g.tipo?g.tipo:'unico'));
       if(tipo==='unico' && selsUnico[gi]==null) return false;
-      if(tipo!=='unico' && (!selsMulti[gi]||!selsMulti[gi].size)) return false;
+      if(tipo!=='unico'){
+        const counts = selsMulti[gi] || {};
+        const totalSel = Object.values(counts).reduce((s,n)=>s+(Number(n)||0),0);
+        if(totalSel === 0) return false;
+      }
     }
     if(prod.mitad_mitad && (prod.ingredientes_mitad||[]).length){
       if(!mitad[1]||!mitad[2]) return false;
@@ -541,7 +550,16 @@
       if(tipo==='unico'){
         const oi=selsUnico[gi]; const op=g.opciones?.[oi]; if(op) parts.push(`${g.nombre}: ${op.nombre}`);
       } else {
-        const st=selsMulti[gi]; if(st&&st.size) parts.push(`${g.nombre}: ${[...st].map(oi=>g.opciones?.[oi]?.nombre).filter(Boolean).join(', ')}`);
+        const counts=selsMulti[gi]||{};
+        const names = Object.entries(counts)
+          .filter(([,q]) => Number(q) > 0)
+          .map(([oi,q]) => {
+            const n = g.opciones?.[Number(oi)]?.nombre;
+            if(!n) return null;
+            return Number(q) > 1 ? `${n} x${Number(q)}` : n;
+          })
+          .filter(Boolean);
+        if(names.length) parts.push(`${g.nombre}: ${names.join(', ')}`);
       }
     });
     if(prod.mitad_mitad && mitad[1]&&mitad[2]) parts.push(`Mitad 1: ${mitad[1]} · Mitad 2: ${mitad[2]}`);
@@ -556,7 +574,7 @@
     prod=p; qty=1; selsUnico={}; selsMulti={}; sinSet=new Set(); mitad={1:null,2:null};
     (p.modificadores||[]).forEach((g,gi)=>{
       const tipo=g.tipo==='unico'?'unico':(g.tipo==='multiple'?'multiple':(g.tipo?g.tipo:'unico'));
-      if(tipo==='unico') selsUnico[gi]=null; else selsMulti[gi]=new Set();
+      if(tipo==='unico') selsUnico[gi]=null; else selsMulti[gi]={};
     });
 
     const hero=document.getElementById('pdHero');
@@ -591,13 +609,25 @@
           <div class="grp-t"><h3>${g.nombre}${g.obligatorio?'<span class="req">*</span>':''}</h3>
           <span class="grp-hint">${tipo==='unico'?'Elige una':'Elige varias'}</span></div>`;
         (g.opciones||[]).forEach((op,oi)=>{
-          const sel = tipo==='unico' ? selsUnico[gi]===oi : (selsMulti[gi]?.has(oi));
+          const sel = tipo==='unico' ? selsUnico[gi]===oi : ((Number(selsMulti?.[gi]?.[oi]||0))>0);
+          const qtyOpt = Number(selsMulti?.[gi]?.[oi]||0);
           const pr=Number(op.precio||0);
           const px = pr===0 ? 'Incl.' : (pr>0?'+'+money(pr):'–'+money(Math.abs(pr)));
-          html+=`<div class="opt ${sel?'sel':''}" data-gi="${gi}" data-oi="${oi}" data-tipo="${tipo}">
-            <div class="opt-ctrl ${tipo==='multiple'?'sq':''}">${tipo==='multiple'&&sel?'✓':''}</div>
-            <div class="opt-mid"><div class="opt-name">${op.nombre}</div></div>
-            <div class="opt-extra">${px}</div></div>`;
+          if(tipo==='multiple'){
+            html+=`<div class="opt ${sel?'sel':''}" data-gi="${gi}" data-oi="${oi}" data-tipo="${tipo}">
+              <div class="opt-mid"><div class="opt-name">${op.nombre}</div></div>
+              <div class="opt-extra" style="display:flex;align-items:center;gap:8px;">
+                <span>${px}</span>
+                <button type="button" data-mact="dec" data-gi="${gi}" data-oi="${oi}" class="qbtn" style="width:32px;height:32px;">−</button>
+                <strong style="min-width:16px;text-align:center;">${qtyOpt}</strong>
+                <button type="button" data-mact="inc" data-gi="${gi}" data-oi="${oi}" class="qbtn" style="width:32px;height:32px;">+</button>
+              </div></div>`;
+          } else {
+            html+=`<div class="opt ${sel?'sel':''}" data-gi="${gi}" data-oi="${oi}" data-tipo="${tipo}">
+              <div class="opt-ctrl"></div>
+              <div class="opt-mid"><div class="opt-name">${op.nombre}</div></div>
+              <div class="opt-extra">${px}</div></div>`;
+          }
         });
         html+=`</div>`;
       });
@@ -619,10 +649,25 @@
       document.getElementById('pdBody').innerHTML = html;
 
       document.querySelectorAll('#pdBody .opt[data-gi]').forEach(el=>{
-        el.onclick=()=>{
+        el.onclick=(ev)=>{
           const gi=+el.dataset.gi, oi=+el.dataset.oi, tipo=el.dataset.tipo;
+          if(tipo==='multiple' && ev.target?.closest?.('[data-mact]')) return;
           if(tipo==='unico') selsUnico[gi]=selsUnico[gi]===oi?null:oi;
-          else{ if(!selsMulti[gi]) selsMulti[gi]=new Set(); selsMulti[gi].has(oi)?selsMulti[gi].delete(oi):selsMulti[gi].add(oi); }
+          else{
+            if(!selsMulti[gi]) selsMulti[gi]={};
+            const cur = Number(selsMulti[gi][oi]||0);
+            selsMulti[gi][oi] = cur > 0 ? 0 : 1;
+          }
+          paint();
+        };
+      });
+      document.querySelectorAll('#pdBody [data-mact]').forEach(btn=>{
+        btn.onclick=(ev)=>{
+          ev.stopPropagation();
+          const gi=Number(btn.dataset.gi), oi=Number(btn.dataset.oi);
+          if(!selsMulti[gi]) selsMulti[gi]={};
+          const cur = Number(selsMulti[gi][oi]||0);
+          selsMulti[gi][oi] = btn.dataset.mact==='inc' ? cur + 1 : Math.max(0, cur - 1);
           paint();
         };
       });

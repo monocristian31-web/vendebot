@@ -492,7 +492,7 @@
       (p.modificadores || []).forEach((g, gi) => {
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
         if(tipo === 'unico') modalSelUnico[gi] = null;
-        else modalSelMulti[gi] = new Set();
+        else modalSelMulti[gi] = {};
       });
       document.getElementById('qVal').textContent = '1';
       const body = shBody();
@@ -527,7 +527,12 @@
         if(tipo === 'unico'){
           const oi = modalSelUnico[gi];
           if(oi != null) extra += Number(g.opciones?.[oi]?.precio || 0);
-        } else (modalSelMulti[gi] || new Set()).forEach(oi => { extra += Number(g.opciones?.[oi]?.precio || 0); });
+        } else {
+          const counts = modalSelMulti[gi] || {};
+          Object.entries(counts).forEach(([oi, qtySel]) => {
+            extra += (Number(g.opciones?.[Number(oi)]?.precio || 0) * (Number(qtySel) || 0));
+          });
+        }
       });
       return extra;
     }
@@ -538,7 +543,11 @@
         if(!g.obligatorio) return;
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
         if(tipo === 'unico' && modalSelUnico[gi] == null) ok = false;
-        if(tipo !== 'unico' && (!modalSelMulti[gi] || modalSelMulti[gi].size === 0)) ok = false;
+        if(tipo !== 'unico'){
+          const counts = modalSelMulti[gi] || {};
+          const totalSel = Object.values(counts).reduce((s,n)=>s+(Number(n)||0),0);
+          if(totalSel === 0) ok = false;
+        }
       });
       return ok;
     }
@@ -585,22 +594,43 @@
             <div style="display:flex;flex-wrap:wrap;gap:8px;" data-gi="${gi}"></div>`;
           const optWrap = sec.querySelector('[data-gi]');
           (g.opciones || []).forEach((op, oi) => {
-            const selected = tipo === 'unico' ? modalSelUnico[gi] === oi : modalSelMulti[gi]?.has(oi);
+            const selected = tipo === 'unico' ? modalSelUnico[gi] === oi : (Number(modalSelMulti?.[gi]?.[oi] || 0) > 0);
+            const qtyOpt = Number(modalSelMulti?.[gi]?.[oi] || 0);
             const ext = Number(op.precio || 0);
             const label = `${op.nombre}${ext !== 0 ? ` <span style="opacity:.75;font-weight:700">(${ext > 0 ? '+' : ''}${money(Math.abs(ext))})</span>` : ''}`;
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.style.cssText = optBtnStyle(selected);
-            btn.innerHTML = label;
-            btn.onclick = () => {
-              if(tipo === 'unico') modalSelUnico[gi] = modalSelUnico[gi] === oi ? null : oi;
-              else{
-                if(!modalSelMulti[gi]) modalSelMulti[gi] = new Set();
-                modalSelMulti[gi].has(oi) ? modalSelMulti[gi].delete(oi) : modalSelMulti[gi].add(oi);
-              }
-              renderModalFull();
-            };
-            optWrap.appendChild(btn);
+            if(tipo === 'multiple'){
+              const row = document.createElement('div');
+              row.style.cssText = `display:flex;align-items:center;gap:8px;${optBtnStyle(selected)}padding:8px 10px;`;
+              row.innerHTML = `
+                <div style="flex:1">${label}</div>
+                <button type="button" data-mact="dec" style="width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:900;">−</button>
+                <strong style="min-width:16px;text-align:center;">${qtyOpt}</strong>
+                <button type="button" data-mact="inc" style="width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:900;">+</button>
+              `;
+              row.querySelector('[data-mact="inc"]').onclick = () => {
+                if(!modalSelMulti[gi]) modalSelMulti[gi] = {};
+                const cur = Number(modalSelMulti[gi][oi] || 0);
+                modalSelMulti[gi][oi] = cur + 1;
+                renderModalFull();
+              };
+              row.querySelector('[data-mact="dec"]').onclick = () => {
+                if(!modalSelMulti[gi]) modalSelMulti[gi] = {};
+                const cur = Number(modalSelMulti[gi][oi] || 0);
+                modalSelMulti[gi][oi] = Math.max(0, cur - 1);
+                renderModalFull();
+              };
+              optWrap.appendChild(row);
+            } else {
+              const btn = document.createElement('button');
+              btn.type = 'button';
+              btn.style.cssText = optBtnStyle(selected);
+              btn.innerHTML = label;
+              btn.onclick = () => {
+                modalSelUnico[gi] = modalSelUnico[gi] === oi ? null : oi;
+                renderModalFull();
+              };
+              optWrap.appendChild(btn);
+            }
           });
           wrap.appendChild(sec);
         });
@@ -644,11 +674,16 @@
           const oi = modalSelUnico[gi];
           if(oi != null) parts.push(`${g.nombre}: ${g.opciones?.[oi]?.nombre || ''}`.trim());
         } else{
-          const set = modalSelMulti[gi] || new Set();
-          if(set.size){
-            const names = [...set].map(oi => g.opciones?.[oi]?.nombre).filter(Boolean);
+          const counts = modalSelMulti[gi] || {};
+          const names = Object.entries(counts)
+            .filter(([,q]) => Number(q) > 0)
+            .map(([oi,q]) => {
+              const n = g.opciones?.[Number(oi)]?.nombre;
+              if(!n) return null;
+              return Number(q) > 1 ? `${n} x${Number(q)}` : n;
+            })
+            .filter(Boolean);
             if(names.length) parts.push(`${g.nombre}: ${names.join(', ')}`);
-          }
         }
       });
       const ings = p.ingredientes || [];
