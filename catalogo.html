@@ -111,6 +111,11 @@
     .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
     @media(min-width:520px){.grid-2{grid-template-columns:repeat(3,1fr);}}
 
+    .cat-sec{margin-top:14px;}
+    .cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:18px 0 10px;}
+    .cat-head h2{font-size:16px;font-weight:900;letter-spacing:.01em;}
+    .cat-head small{color:var(--muted);font-weight:800;}
+
     .p-card{
       background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
       display:flex;flex-direction:column;box-shadow:0 4px 14px rgba(0,0,0,.06);position:relative;
@@ -491,7 +496,15 @@
     const pills = [{k:'todas',l:'Todo'},...cats.map(c=>({k:c,l:c}))];
     row.innerHTML = pills.map(p=>`<button type="button" class="cat-pill ${catAct===p.k?'on':''}" data-cat="${p.k}">${p.l}</button>`).join('');
     row.querySelectorAll('.cat-pill').forEach(b=>{
-      b.onclick=()=>{ catAct=b.dataset.cat; renderCats(); renderGrid(); };
+      b.onclick=()=>{
+        catAct=b.dataset.cat;
+        renderCats();
+        if(catAct==='todas'){ window.scrollTo({top:0,behavior:'smooth'}); }
+        else{
+          const id = 'cat-' + slugify(catAct);
+          document.getElementById(id)?.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      };
     });
   }
 
@@ -513,10 +526,11 @@
     renderCats();
     renderComboSlot();
     const list = filteredList();
-    document.getElementById('gridTitle').textContent = qFilter.trim().length>=2 ? `Resultados (${list.length})` : (catAct==='todas'?'Menú':catAct);
+    document.getElementById('gridTitle').textContent = qFilter.trim().length>=2 ? `Resultados (${list.length})` : 'Menú';
 
     const grid = document.getElementById('grid');
-    grid.innerHTML = list.map(p=>{
+    if(qFilter.trim().length>=2){
+      grid.innerHTML = list.map(p=>{
       const sold = p.stock===0;
       const hasOpts = (p.modificadores||[]).length || (p.ingredientes||[]).length || p.mitad_mitad;
       const from = (p.modificadores||[]).length ? '<span class="p-from">Desde</span>' : '';
@@ -534,7 +548,45 @@
           </div>
         </div>
       </article>`;
-    }).join('') || '<p style="grid-column:1/-1;text-align:center;color:var(--muted);padding:24px;">Sin productos</p>';
+      }).join('') || '<p style="grid-column:1/-1;text-align:center;color:var(--muted);padding:24px;">Sin resultados</p>';
+    } else {
+      const cats = buildCats(list);
+      const order = [...cats.keys()];
+      const sections = order.map(catName=>{
+        const items = cats.get(catName)||[];
+        const secId = 'cat-' + slugify(catName);
+        return `
+          <section class="cat-sec" id="${secId}">
+            <div class="cat-head">
+              <h2>${catName}</h2>
+              <small>${items.length} item${items.length===1?'':'s'}</small>
+            </div>
+            <div class="grid-2">
+              ${items.map(p=>{
+                const sold = p.stock===0;
+                const hasOpts = (p.modificadores||[]).length || (p.ingredientes||[]).length || p.mitad_mitad;
+                const from = (p.modificadores||[]).length ? '<span class="p-from">Desde</span>' : '';
+                return `<article class="p-card ${sold?'agotado':''}" data-id="${p.id}">
+                  <div class="p-img-wrap">
+                    ${sold?'<span class="badge-soon">Agotado</span>':''}
+                    ${p.imagen?`<img class="p-img" src="${p.imagen}" alt="" loading="lazy">`:`<div class="p-emoji">${p.emoji||'🍽️'}</div>`}
+                  </div>
+                  <div class="p-body">
+                    <div class="p-name">${p.nombre}</div>
+                    <div class="p-desc">${p.descripcion||''}</div>
+                    <div class="p-foot">
+                      <div>${from}<div class="p-price">${money(p.precio)}</div></div>
+                      ${sold?'':`<button type="button" class="btn-add" data-quick="${hasOpts?'0':'1'}" data-id="${p.id}">Añadir</button>`}
+                    </div>
+                  </div>
+                </article>`;
+              }).join('')}
+            </div>
+          </section>
+        `;
+      }).join('');
+      grid.innerHTML = sections || '<p style="text-align:center;color:var(--muted);padding:24px;">Sin productos</p>';
+    }
 
     grid.querySelectorAll('.p-card').forEach(card=>{
       card.addEventListener('click',(e)=>{

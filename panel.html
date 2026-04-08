@@ -855,29 +855,69 @@ textarea{resize:vertical;border-radius:8px;}
       </div>
     </div>
 
-    <!-- SELECTOR DE TEMAS -->
+    <!-- ESTILO DE MARCA (nuevo) -->
     <div class="card">
-      <div class="card-title">🎨 Tema del catálogo</div>
-      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Elige el look completo de tu tienda — cada tema incluye colores, tipografía y fondo.</div>
-      <div id="temaFiltros" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
-        <button class="tema-f-btn active" onclick="filtrarTemas('todos',this)">Todos</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('dark',this)">🌑 Dark</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('light',this)">☀️ Claro</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('neon',this)">⚡ Neón</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('food',this)">🍔 Comida</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('luxury',this)">💎 Lujo</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('nature',this)">🌿 Natural</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('fun',this)">🎉 Fun</button>
-        <button class="tema-f-btn" onclick="filtrarTemas('minimal',this)">▣ Minimal</button>
+      <div class="card-title">✨ Estilo de marca</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">
+        Elige una base de diseño (estructura + sensación) y solo ajusta 2 cosas. El sistema se encarga del contraste para que siempre se vea premium.
       </div>
-      <div id="temaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:480px;overflow-y:auto;padding-right:4px;"></div>
-      <input type="hidden" id="wl_tema_seleccionado" value="obsidian_noir">
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;">
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('premium_dark')" style="justify-content:flex-start;">🌑 Premium oscuro</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('clean_light')" style="justify-content:flex-start;">☀️ Limpio claro</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('fastfood')" style="justify-content:flex-start;">🍔 Comida rápida</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('boutique')" style="justify-content:flex-start;">💎 Boutique elegante</button>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Color de marca</label>
+          <input type="color" id="wl_pri_picker" value="#00c8ff" onchange="syncMarcaFromPickers()">
+        </div>
+        <div>
+          <label>Fondo</label>
+          <input type="color" id="wl_bg_picker" value="#020509" onchange="syncMarcaFromPickers()">
+        </div>
+      </div>
+
+      <div style="margin-top:6px;">
+        <label class="form-label">Vibrancia <span id="wl_vibe_val">60%</span></label>
+        <input type="range" id="wl_vibe" min="0" max="1" step="0.05" value="0.6" style="width:100%;accent-color:var(--c);"
+          oninput="document.getElementById('wl_vibe_val').textContent=Math.round(this.value*100)+'%';syncMarcaFromPickers();">
+      </div>
+
+      <div style="margin-top:10px;">
+        <label class="form-label">Redondeo <span id="wl_round_val">14px</span></label>
+        <input type="range" id="wl_round" min="6" max="24" step="1" value="14" style="width:100%;accent-color:var(--c);"
+          oninput="document.getElementById('wl_round_val').textContent=this.value+'px';syncMarcaFromPickers();">
+      </div>
+
+      <input type="hidden" id="wl_tema_seleccionado" value="brand_style_v2">
+
       <div style="display:flex;gap:8px;margin-top:16px;">
-        <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR TEMA</button>
-        <button class="btn btn-secondary" onclick="normalizarTemaPremium()" style="font-size:11px;">✨ Auto premium</button>
+        <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR ESTILO</button>
+        <button class="btn btn-secondary" onclick="normalizarTemaPremium()" style="font-size:11px;">🪄 Ajustar premium</button>
         <button class="btn btn-secondary" onclick="resetearTema()" style="font-size:11px;">↺ Reset</button>
       </div>
       <div id="wlAlert" class="alert" style="margin-top:10px;"></div>
+
+      <details style="margin-top:10px;opacity:.92;">
+        <summary style="cursor:pointer;font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);">Avanzado (temas antiguos)</summary>
+        <div style="margin-top:12px;">
+          <div id="temaFiltros" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+            <button class="tema-f-btn active" onclick="filtrarTemas('todos',this)">Todos</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('dark',this)">🌑 Dark</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('light',this)">☀️ Claro</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('neon',this)">⚡ Neón</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('food',this)">🍔 Comida</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('luxury',this)">💎 Lujo</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('nature',this)">🌿 Natural</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('fun',this)">🎉 Fun</button>
+            <button class="tema-f-btn" onclick="filtrarTemas('minimal',this)">▣ Minimal</button>
+          </div>
+          <div id="temaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:360px;overflow-y:auto;padding-right:4px;"></div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -1986,6 +2026,54 @@ function normalizarTemaPremium(){
   if(!document.getElementById('wl_border_radius')?.value) setHidden('wl_border_radius', '14px');
   if(!document.getElementById('wl_fuente')?.value) setHidden('wl_fuente', 'Inter');
   mostrarNotificacion('✨ Tema normalizado a versión premium. Ahora guarda para aplicar');
+}
+
+// ── NUEVO: Estilo de Marca (simple + premium) ──
+const MARCA_PRESETS = {
+  premium_dark: { pri:'#7c3aed', fondo:'#070814', vibe:0.55, round:16, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  clean_light:  { pri:'#0ea5e9', fondo:'#f4f7fb', vibe:0.55, round:14, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  fastfood:     { pri:'#c8102e', fondo:'#f2f2f2', vibe:0.70, round:16, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  boutique:     { pri:'#0f172a', fondo:'#fbf6ec', vibe:0.50, round:12, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+};
+
+function aplicarPresetMarca(id){
+  const p = MARCA_PRESETS[id];
+  if(!p) return;
+  const priEl = document.getElementById('wl_pri_picker');
+  const bgEl = document.getElementById('wl_bg_picker');
+  const vibeEl = document.getElementById('wl_vibe');
+  const roundEl = document.getElementById('wl_round');
+  if(priEl) priEl.value = p.pri;
+  if(bgEl) bgEl.value = p.fondo;
+  if(vibeEl) vibeEl.value = String(p.vibe);
+  if(roundEl) roundEl.value = String(p.round);
+  const vv = document.getElementById('wl_vibe_val'); if(vv) vv.textContent = Math.round(p.vibe*100)+'%';
+  const rv = document.getElementById('wl_round_val'); if(rv) rv.textContent = p.round+'px';
+  setHidden('wl_fuente', p.fuente);
+  setHidden('wl_layout', p.layout);
+  setHidden('wl_efecto', p.efecto);
+  syncMarcaFromPickers();
+  mostrarNotificacion('✨ Estilo aplicado. Presiona GUARDAR para publicar');
+}
+
+function syncMarcaFromPickers(){
+  const pri = document.getElementById('wl_pri_picker')?.value || document.getElementById('wl_color_primario')?.value || '#00c8ff';
+  const fondo = document.getElementById('wl_bg_picker')?.value || document.getElementById('wl_color_fondo')?.value || '#020509';
+  const vibe = parseFloat(document.getElementById('wl_vibe')?.value || '0.6');
+  const round = parseInt(document.getElementById('wl_round')?.value || '14', 10);
+
+  setHidden('wl_color_primario', pri);
+  setHidden('wl_color_fondo', fondo);
+  setHidden('wl_border_radius', `${round}px`);
+
+  // Ajuste premium (contraste + derivados)
+  normalizarTemaPremium();
+
+  // Vibrancia: empuja secundarios/precio hacia el primario o hacia neutros
+  const secBase = document.getElementById('wl_color_secundario')?.value || pri;
+  setHidden('wl_color_secundario', _mix(secBase, pri, Math.max(0, Math.min(1, vibe))));
+  const prBase = document.getElementById('wl_color_precio')?.value || pri;
+  setHidden('wl_color_precio', _mix(prBase, pri, Math.max(0, Math.min(1, vibe))));
 }
 
 async function guardarTema() {

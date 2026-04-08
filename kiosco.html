@@ -90,6 +90,10 @@
 
     .scroll{flex:1;overflow:auto;padding:12px 14px 20px;-webkit-overflow-scrolling:touch;}
 
+    .cat-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:18px 0 10px;}
+    .cat-head h2{font-size:16px;font-weight:900;letter-spacing:.01em;}
+    .cat-head small{color:var(--muted);font-weight:800;}
+
     .combo-card{
       margin-bottom:12px;padding:14px 16px;border-radius:16px;
       background:linear-gradient(135deg,#fff7e6,#fff);border:2px solid #ffd23f;
@@ -437,7 +441,8 @@
         b.addEventListener('click', () => {
           catAct = b.dataset.cat;
           wrap.querySelectorAll('.cat-pill').forEach(x => x.classList.toggle('on', x.dataset.cat === catAct));
-          renderProducts();
+          if(catAct==='todas') document.querySelector('.scroll')?.scrollTo({top:0,behavior:'smooth'});
+          else document.getElementById('cat-'+String(catAct).toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]/g,''))?.scrollIntoView({behavior:'smooth',block:'start'});
         });
       });
     }
@@ -482,7 +487,7 @@
         setTimeout(renderProducts, 120);
         return;
       }
-      const list = catalogo.filter(p => catAct === 'todas' ? true : (p.categoria || 'General') === catAct);
+      const list = catalogo;
 
       const comboWrap = document.getElementById('comboWrap');
       if(comboDef.length && (catAct === 'todas' || comboDef.some(s => s.categoria === catAct))){
@@ -499,21 +504,37 @@
       } else comboWrap.innerHTML = '';
 
       const grid = document.getElementById('gridWrap');
-      grid.innerHTML = `<div class="grid-2">${list.map(p => `
-        <div class="p-card ${p.stock === 0 ? 'off' : ''}" data-id="${p.id}">
-          <div class="p-img-wrap">
-            ${p.imagen ? `<img class="p-img" src="${p.imagen}" alt="" loading="lazy">` : `<div class="p-emoji">${p.emoji || '📦'}</div>`}
-          </div>
-          <div class="p-body">
-            <div class="p-name">${p.nombre}</div>
-            <div class="p-desc">${p.descripcion || ''}</div>
-            <div class="p-foot">
-              <div class="p-price">${money(p.precio)}</div>
-              ${p.stock === 0 ? '' : '<button type="button" class="btn-add-mini" data-stop="1">+</button>'}
+      const cats = [...new Set(list.map(p=>p.categoria||'General'))];
+      const sections = (catAct==='todas'?cats:[catAct]).map(cat=>{
+        const items = list.filter(p=>(p.categoria||'General')===cat);
+        const secId = 'cat-'+String(cat).toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]/g,'');
+        return `
+          <section id="${secId}">
+            <div class="cat-head">
+              <h2>${cat}</h2>
+              <small>${items.length} item${items.length===1?'':'s'}</small>
             </div>
-          </div>
-        </div>
-      `).join('')}</div>`;
+            <div class="grid-2">
+              ${items.map(p=>`
+                <div class="p-card ${p.stock === 0 ? 'off' : ''}" data-id="${p.id}">
+                  <div class="p-img-wrap">
+                    ${p.imagen ? `<img class="p-img" src="${p.imagen}" alt="" loading="lazy">` : `<div class="p-emoji">${p.emoji || '📦'}</div>`}
+                  </div>
+                  <div class="p-body">
+                    <div class="p-name">${p.nombre}</div>
+                    <div class="p-desc">${p.descripcion || ''}</div>
+                    <div class="p-foot">
+                      <div class="p-price">${money(p.precio)}</div>
+                      ${p.stock === 0 ? '' : '<button type="button" class="btn-add-mini" data-stop="1">+</button>'}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      }).join('');
+      grid.innerHTML = sections || `<div class="empty">Sin productos</div>`;
 
       grid.querySelectorAll('.p-card').forEach(el => {
         el.addEventListener('click', (ev) => {
