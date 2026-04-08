@@ -1,271 +1,212 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kiosco</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@450;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
     :root{
-      --bg:#070a10;
-      --surface:rgba(255,255,255,.06);
-      --surface2:rgba(255,255,255,.10);
-      --stroke:rgba(255,255,255,.12);
-      --stroke2:rgba(255,255,255,.18);
-      --text:#f5f7ff;
-      --muted:rgba(245,247,255,.62);
-      --muted2:rgba(245,247,255,.34);
-      --accent:#25D366;
-      --accent2:#1da851;
-      --danger:#ef4444;
-      --warn:#f59e0b;
-      --shadow:0 18px 50px rgba(0,0,0,.38);
-      --shadow2:0 10px 28px rgba(0,0,0,.28);
-      --radius:20px;
-      --glow:rgba(37,211,102,.22);
+      --brand:#c8102e;
+      --brand-ink:#fff;
+      --page:#f2f2f2;
+      --card:#fff;
+      --ink:#1a1a1a;
+      --muted:#5c5c5c;
+      --line:#e8e8e8;
+      --ok:#0a7d3e;
+      --danger:#dc2626;
+      --warn:#d97706;
+      --safe:env(safe-area-inset-bottom,0px);
     }
-    html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);user-select:none;}
-    body::before{content:'';position:fixed;inset:0;pointer-events:none;background:
-      radial-gradient(1100px 600px at 20% -10%, var(--glow), transparent 60%),
-      radial-gradient(900px 500px at 90% 0%, rgba(255,255,255,.08), transparent 58%);opacity:.9;z-index:0;}
-    body::after{content:'';position:fixed;inset:0;pointer-events:none;background-image:
-      linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
-      background-size:42px 42px;mask-image:radial-gradient(circle at 50% 25%,black 20%,transparent 80%);opacity:.28;z-index:0;}
+    html,body{width:100%;height:100%;overflow:hidden;}
+    body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--page);color:var(--ink);user-select:none;}
 
-    .screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(10px) scale(.995);transition:opacity .32s ease,transform .32s ease;z-index:1;}
+    .screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .28s ease,transform .28s ease;z-index:1;}
     .screen.on{opacity:1;pointer-events:all;transform:none;}
 
-    /* IDLE */
-    #idle{align-items:center;justify-content:center;text-align:center;padding:26px;}
+    /* Idle */
+    #idle{align-items:center;justify-content:center;padding:24px;text-align:center;}
     .idleCard{
-      width:min(720px,94vw);
-      border:1px solid var(--stroke);
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
-      border-radius:26px;
-      padding:26px 22px 22px;
-      box-shadow:var(--shadow);
-      position:relative;
-      overflow:hidden;
+      width:min(520px,94vw);
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:28px 22px 24px;
+      box-shadow:0 12px 40px rgba(0,0,0,.08);
     }
-    .idleCard::after{content:'';position:absolute;inset:-120% -45%;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%);animation:sweep 5.2s linear infinite;pointer-events:none;}
-    @keyframes sweep{0%{transform:translateX(-50%);}100%{transform:translateX(50%);}}
-    .idleLogo{width:130px;height:130px;border-radius:28px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 16px;box-shadow:var(--shadow2);}
+    .idleLogo{width:120px;height:120px;border-radius:22px;border:2px solid var(--line);background:#fafafa;display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 14px;}
     .idleLogo img{width:100%;height:100%;object-fit:cover;}
-    .idleEmoji{font-size:60px;}
-    .idleTitle{font-weight:950;font-size:clamp(28px,4.5vw,46px);line-height:1.05;margin-bottom:10px;}
-    .idleSub{color:var(--muted);font-size:clamp(14px,2.2vw,20px);margin-bottom:22px;}
+    .idleEmoji{font-size:56px;}
+    .idleTitle{font-weight:900;font-size:clamp(22px,4vw,34px);line-height:1.1;margin-bottom:8px;}
+    .idleSub{color:var(--muted);font-size:15px;margin-bottom:20px;line-height:1.4;}
     .startBtn{
-      border:none;cursor:pointer;
-      padding:18px 26px;border-radius:999px;
-      background:linear-gradient(180deg,var(--accent),var(--accent2));
-      color:#07120b;
-      font-weight:950;
-      font-size:clamp(16px,2.4vw,22px);
-      box-shadow:0 24px 50px var(--glow);
-      transition:transform .15s ease,opacity .15s ease;
+      width:100%;max-width:340px;border:none;cursor:pointer;padding:16px 22px;border-radius:999px;
+      background:var(--brand);color:#fff;font-weight:900;font-size:17px;box-shadow:0 8px 24px color-mix(in srgb,var(--brand) 35%, transparent);
     }
     .startBtn:active{transform:scale(.99);opacity:.92;}
-    .idleFoot{margin-top:18px;color:var(--muted2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;}
+    .idleFoot{margin-top:16px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
 
-    /* MENU */
-    #menu{padding:0;}
-    .top{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      padding:14px 16px;
-      background:linear-gradient(180deg,rgba(7,10,16,.92),rgba(7,10,16,.68));
-      backdrop-filter:blur(16px);
-      border-bottom:1px solid rgba(255,255,255,.10);
-      flex-shrink:0;
+    /* Menú — cabecera como catálogo */
+    #menu{padding:0;background:var(--page);}
+    .hdr{
+      flex-shrink:0;background:var(--brand);color:var(--brand-ink);
+      box-shadow:0 4px 16px rgba(0,0,0,.1);
     }
-    .biz{display:flex;align-items:center;gap:10px;min-width:0;}
-    .bizLogo{width:44px;height:44px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--shadow2);}
-    .bizLogo img{width:100%;height:100%;object-fit:cover;}
-    .bizName{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .bizTag{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .cartBtn{
-      position:relative;
-      border:1px solid color-mix(in srgb,var(--accent) 35%, var(--stroke));
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
-      color:var(--text);
-      border-radius:18px;
-      padding:12px 14px;
-      font-weight:900;
-      cursor:pointer;
-      box-shadow:var(--shadow2);
-      display:flex;align-items:center;gap:10px;
+    .hdr-row{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+    .hdr-logo{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.35);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+    .hdr-logo img{width:100%;height:100%;object-fit:cover;}
+    .hdr-txt{flex:1;min-width:0;}
+    .hdr-name{font-weight:900;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .hdr-sub{font-size:12px;opacity:.92;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .cartWrap{position:relative;}
+    .cartHdrBtn{
+      width:44px;height:44px;border-radius:12px;border:none;background:rgba(255,255,255,.22);color:#fff;
+      display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;
     }
-    .cartBtn.hide{opacity:0;pointer-events:none;}
-    .cartCount{
-      position:absolute;top:-8px;right:-8px;
-      width:24px;height:24px;border-radius:12px;
-      background:var(--danger);
-      color:#fff;
-      display:flex;align-items:center;justify-content:center;
-      font-size:12px;font-weight:950;
-      border:2px solid rgba(7,10,16,.9);
+    .cartHdrBtn.hide{opacity:0;pointer-events:none;}
+    .cartHdrBadge{
+      position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffd23f;color:#1a1a1a;
+      font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid var(--brand);
     }
 
-    .cats{
-      padding:12px 16px;
-      display:flex;gap:8px;overflow:auto;scrollbar-width:none;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      flex-shrink:0;
-    }
+    .cats-wrap{flex-shrink:0;background:var(--page);border-bottom:1px solid var(--line);box-shadow:0 2px 8px rgba(0,0,0,.04);}
+    .cats{padding:10px 14px;display:flex;gap:8px;overflow:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
     .cats::-webkit-scrollbar{display:none;}
-    .pill{
-      border:1px solid var(--stroke);
-      background:rgba(255,255,255,.05);
-      color:var(--muted);
-      padding:10px 14px;
-      border-radius:999px;
-      font-weight:800;
-      cursor:pointer;
-      white-space:nowrap;
-      transition:all .15s ease;
+    .cat-pill{
+      flex-shrink:0;padding:10px 18px;border-radius:999px;border:2px solid var(--line);
+      background:var(--card);font-weight:800;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;
     }
-    .pill.on{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 22%, rgba(255,255,255,.04)), rgba(255,255,255,.03));border-color:color-mix(in srgb,var(--accent) 40%, var(--stroke));color:var(--text);box-shadow:0 16px 30px rgba(0,0,0,.22);}
+    .cat-pill.on{border-color:var(--brand);background:var(--brand);color:#fff;}
 
-    .scroll{flex:1;overflow:auto;padding:14px 16px 20px;scrollbar-width:thin;}
-    .scroll::-webkit-scrollbar{width:4px;}
-    .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:999px;}
+    .scroll{flex:1;overflow:auto;padding:12px 14px 20px;-webkit-overflow-scrolling:touch;}
 
-    .combo{
-      border:1px solid color-mix(in srgb,var(--accent) 30%, var(--stroke));
-      background:linear-gradient(135deg, color-mix(in srgb,var(--accent) 16%, rgba(255,255,255,.04)), rgba(255,255,255,.03));
-      border-radius:22px;
-      padding:16px 16px;
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      cursor:pointer;
-      box-shadow:var(--shadow2);
-      margin-bottom:14px;
-      transition:transform .15s ease;
+    .combo-card{
+      margin-bottom:12px;padding:14px 16px;border-radius:16px;
+      background:linear-gradient(135deg,#fff7e6,#fff);border:2px solid #ffd23f;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;
+      box-shadow:0 6px 18px rgba(0,0,0,.06);
     }
-    .combo:active{transform:scale(.995);}
-    .comboT{font-weight:950;color:var(--accent);margin-bottom:4px;}
-    .comboS{color:var(--muted);font-size:12px;}
-    .comboP{font-weight:950;font-size:20px;}
+    .combo-card:active{transform:scale(.995);}
+    .combo-t{font-weight:900;color:var(--brand);font-size:15px;}
+    .combo-s{font-size:12px;color:var(--muted);margin-top:2px;}
+    .combo-p{font-weight:900;font-size:18px;}
 
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(170px,22vw,260px),1fr));gap:14px;}
-    .skGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(170px,22vw,260px),1fr));gap:14px;}
-    .sk{height:250px;border-radius:22px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(90deg,rgba(255,255,255,.05) 20%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 80%);background-size:220% 100%;animation:sh 1.2s linear infinite;}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+    @media(min-width:640px){.grid-2{grid-template-columns:repeat(3,1fr);}}
+
+    .skGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+    @media(min-width:640px){.skGrid{grid-template-columns:repeat(3,1fr);}}
+    .sk{height:220px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(90deg,#f5f5f5 20%,#ececec 50%,#f5f5f5 80%);background-size:220% 100%;animation:sh 1s linear infinite;}
     @keyframes sh{to{background-position:-120% 0;}}
 
-    .p{
-      border:1px solid var(--stroke);
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
-      border-radius:22px;
-      overflow:hidden;
-      cursor:pointer;
-      box-shadow:var(--shadow2);
-      transition:transform .15s ease,border-color .15s ease;
-      position:relative;
+    .p-card{
+      background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      display:flex;flex-direction:column;box-shadow:0 4px 14px rgba(0,0,0,.06);cursor:pointer;position:relative;
     }
-    .p:hover{border-color:var(--stroke2);transform:translateY(-1px);}
-    .p.off{opacity:.4;pointer-events:none;}
-    .pImg{width:100%;aspect-ratio:4/3;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:48px;position:relative;overflow:hidden;}
-    .pImg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.28) 100%);}
-    .pImg img{width:100%;height:100%;object-fit:cover;}
-    .pBody{padding:12px 12px 14px;}
-    .pName{font-weight:950;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .pDesc{color:var(--muted);font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px;margin-bottom:10px;}
-    .pFoot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
-    .pPrice{font-weight:950;color:var(--accent);}
-    .add{
-      width:38px;height:38px;border-radius:16px;
-      border:1px solid color-mix(in srgb,var(--accent) 38%, var(--stroke));
-      background:linear-gradient(180deg,var(--accent),var(--accent2));
-      color:#07120b;
-      font-weight:950;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 16px 26px var(--glow);
+    .p-card.off{opacity:.45;pointer-events:none;}
+    .p-img-wrap{position:relative;aspect-ratio:1/1;background:#fafafa;}
+    .p-img{width:100%;height:100%;object-fit:cover;}
+    .p-emoji{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;}
+    .p-body{padding:10px 12px 12px;display:flex;flex-direction:column;flex:1;}
+    .p-name{font-weight:900;font-size:14px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em;}
+    .p-desc{font-size:11px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.4em;}
+    .p-foot{margin-top:auto;padding-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .p-price{font-weight:900;font-size:15px;color:var(--brand);}
+    .btn-add-mini{
+      border:none;border-radius:999px;width:36px;height:36px;font-weight:900;font-size:18px;line-height:1;
+      background:var(--brand);color:#fff;cursor:pointer;box-shadow:0 4px 12px color-mix(in srgb,var(--brand) 35%, transparent);
     }
 
-    /* CART */
-    #cart{background:var(--bg);}
-    .cartTop{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.10);background:linear-gradient(180deg,rgba(7,10,16,.92),rgba(7,10,16,.68));backdrop-filter:blur(16px);flex-shrink:0;}
-    .back{border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);border-radius:16px;padding:10px 14px;font-weight:900;cursor:pointer;}
-    .cartT{font-weight:950;flex:1;}
-    .cartBody{flex:1;overflow:auto;padding:14px 16px;}
-    .line{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);border-radius:20px;padding:12px;display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
-    .lImg{width:58px;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+    /* Carrito */
+    #cart{background:var(--page);}
+    .cartTop{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--brand);color:#fff;flex-shrink:0;}
+    .back{border:none;background:rgba(255,255,255,.22);color:#fff;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer;}
+    .cartT{font-weight:900;flex:1;font-size:17px;}
+    .cartBody{flex:1;overflow:auto;padding:14px;}
+    .line{
+      background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;
+      display:flex;gap:12px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.04);
+    }
+    .lImg{width:56px;height:56px;border-radius:12px;background:#f5f5f5;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
     .lImg img{width:100%;height:100%;object-fit:cover;}
     .lMid{flex:1;min-width:0;}
-    .lName{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .lMods{color:var(--muted2);font-size:11px;line-height:1.4;margin-top:2px;}
-    .lPrice{color:var(--accent);font-weight:950;margin-top:8px;}
-    .lRight{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0;}
-    .qty{display:flex;align-items:center;gap:8px;}
-    .qbtn{width:34px;height:34px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-weight:950;}
-    .qbtn.rm{border-color:rgba(239,68,68,.35);color:var(--danger);background:rgba(239,68,68,.10);}
-    .qnum{font-weight:950;min-width:18px;text-align:center;}
-    .cartFoot{padding:14px 16px;border-top:1px solid rgba(255,255,255,.10);flex-shrink:0;background:linear-gradient(180deg,rgba(7,10,16,.72),rgba(7,10,16,.92));}
-    .sum{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:10px;}
-    .sum strong{color:var(--text);}
-    .confirm{
-      width:100%;
-      border:none;
-      border-radius:22px;
-      padding:16px 16px;
-      background:linear-gradient(180deg,var(--accent),var(--accent2));
-      color:#07120b;
-      font-weight:950;
-      cursor:pointer;
-      box-shadow:0 24px 50px var(--glow);
+    .lName{font-weight:900;font-size:14px;}
+    .lMods{color:var(--muted);font-size:11px;line-height:1.35;margin-top:4px;}
+    .lPrice{color:var(--brand);font-weight:900;margin-top:8px;}
+    .lRight{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+    .qty{display:flex;align-items:center;gap:6px;}
+    .qbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:900;cursor:pointer;}
+    .qbtn.rm{border-color:rgba(220,38,38,.4);color:var(--danger);}
+    .qnum{font-weight:900;min-width:20px;text-align:center;}
+    .cartFoot{
+      flex-shrink:0;padding:14px 16px calc(14px + var(--safe));
+      background:var(--card);border-top:1px solid var(--line);
+      box-shadow:0 -4px 20px rgba(0,0,0,.06);
     }
-    .confirm:disabled{opacity:.4;cursor:not-allowed;}
-    .empty{padding:50px 18px;text-align:center;color:var(--muted2);font-weight:800;}
+    .sum{display:flex;justify-content:space-between;font-weight:800;margin-bottom:12px;font-size:15px;}
+    .confirm{
+      width:100%;border:none;border-radius:16px;padding:16px;background:var(--ok);color:#fff;font-weight:900;font-size:16px;cursor:pointer;
+      box-shadow:0 8px 22px rgba(10,125,62,.35);
+    }
+    .confirm:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+    .empty{padding:40px 16px;text-align:center;color:var(--muted);font-weight:700;}
 
     /* Ticket */
-    #ticket{align-items:center;justify-content:center;text-align:center;padding:18px;}
+    #ticket{align-items:center;justify-content:center;text-align:center;padding:18px;background:var(--page);}
+    .tick-icon{font-size:52px;margin-bottom:8px;}
+    .tick-h{font-weight:900;font-size:20px;margin-bottom:10px;}
     .paper{
-      width:min(420px,92vw);
-      background:#fff;color:#111;
-      border-radius:20px;
-      padding:22px 18px;
-      box-shadow:0 22px 60px rgba(0,0,0,.35);
-      text-align:left;
+      width:min(400px,92vw);background:#fff;color:#111;border-radius:16px;padding:20px 16px;
+      box-shadow:0 12px 36px rgba(0,0,0,.12);text-align:left;border:1px solid var(--line);
     }
-    .tickNum{font-size:64px;font-weight:950;line-height:1;text-align:center;margin:10px 0 8px;}
-    .hr{border:none;border-top:2px dashed #cfcfcf;margin:12px 0;}
+    .tickNum{font-size:56px;font-weight:900;line-height:1;text-align:center;margin:10px 0 8px;color:var(--brand);}
+    .hr{border:none;border-top:2px dashed #ddd;margin:12px 0;}
     .row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0;}
     .row:last-child{border-bottom:none;}
-    .tTotal{display:flex;justify-content:space-between;font-weight:950;margin-top:10px;}
+    .tTotal{display:flex;justify-content:space-between;font-weight:900;margin-top:10px;font-size:15px;}
     .btnRow{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
-    .btn{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:var(--text);border-radius:18px;padding:12px 16px;font-weight:950;cursor:pointer;}
-    .btn.primary{border:none;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#07120b;box-shadow:0 18px 40px var(--glow);}
+    .btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;}
+    .btn.primary{border:none;background:var(--brand);color:#fff;box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 35%, transparent);}
 
-    /* Modal product (simple) */
-    .ov{position:fixed;inset:0;background:rgba(0,0,0,.78);visibility:hidden;opacity:0;transition:opacity .2s ease,visibility .2s ease;display:flex;justify-content:center;align-items:flex-end;z-index:100;}
+    /* Modal producto / combo */
+    .ov{position:fixed;inset:0;background:rgba(0,0,0,.45);visibility:hidden;opacity:0;transition:.22s;z-index:200;display:flex;align-items:flex-end;justify-content:center;}
     .ov.on{visibility:visible;opacity:1;}
-    .sheet{
-      width:min(760px,100%);
-      max-height:92vh;
-      border-top-left-radius:26px;border-top-right-radius:26px;
-      background:linear-gradient(180deg,rgba(10,12,18,.98),rgba(7,10,16,.98));
-      border:1px solid rgba(255,255,255,.12);
-      transform:translateY(100%);
-      transition:transform .32s cubic-bezier(.2,.9,.2,1);
-      overflow:auto;
-      box-shadow:var(--shadow);
-      padding-bottom:18px;
+    .k-sheet{
+      width:100%;max-width:560px;max-height:94vh;background:#fff;border-radius:22px 22px 0 0;
+      transform:translateY(100%);transition:transform .32s cubic-bezier(.2,.9,.2,1);
+      overflow:hidden;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.18);
     }
-    .ov.on .sheet{transform:translateY(0);}
-    .shImg{width:100%;aspect-ratio:16/8;object-fit:cover;background:rgba(255,255,255,.06);}
-    .shBody{padding:14px 16px;}
-    .shName{font-weight:950;font-size:20px;margin-bottom:6px;}
-    .shDesc{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:10px;}
-    .shPrice{color:var(--accent);font-weight:950;font-size:22px;margin-bottom:12px;}
-    .qtyRow{display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);border-radius:18px;padding:12px 12px;margin-bottom:12px;}
-    .qtyCtrl{display:flex;align-items:center;gap:10px;}
-    .qBig{width:44px;height:44px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--text);font-weight:950;font-size:22px;cursor:pointer;}
-    .qVal{min-width:24px;text-align:center;font-weight:950;font-size:18px;}
-    .addCart{width:100%;border:none;border-radius:22px;padding:16px;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#07120b;font-weight:950;cursor:pointer;box-shadow:0 24px 50px var(--glow);}
-    .closeX{position:absolute;top:10px;right:10px;width:40px;height:40px;border-radius:16px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.38);color:#fff;font-weight:950;cursor:pointer;}
+    .ov.on .k-sheet{transform:translateY(0);}
+    .sheet-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;background:#fff;}
+    .sheet-x{width:44px;height:44px;border:none;background:#f0f0f0;border-radius:12px;font-size:18px;font-weight:900;cursor:pointer;}
+    .sheet-h span.mid{flex:1;font-weight:900;font-size:15px;}
+    .sheet-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+    .pd-hero{position:relative;aspect-ratio:16/10;background:#f5f5f5;}
+    #shImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+    .pd-hero-ph{width:100%;min-height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;background:#f5f5f5;}
 
-    @media (prefers-reduced-motion: reduce){
-      *{transition:none!important;animation:none!important;}
+    .pd-sheet-body{padding:16px 16px 24px;}
+    .shName{font-size:22px;font-weight:900;line-height:1.15;}
+    .shDesc{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.45;}
+    .shPrice{font-size:22px;font-weight:900;color:var(--brand);margin-top:12px;}
+    .qtyRow{display:flex;align-items:center;justify-content:space-between;margin-top:18px;padding:14px;border:2px solid var(--line);border-radius:16px;}
+    .qtyRow span{font-weight:900;}
+    .qtyCtrl{display:flex;align-items:center;gap:12px;}
+    .qBig{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:22px;font-weight:900;cursor:pointer;}
+    .qVal{min-width:28px;text-align:center;font-weight:900;font-size:18px;}
+
+    .stick-add{
+      flex-shrink:0;padding:12px 16px calc(12px + var(--safe));
+      background:linear-gradient(180deg,transparent,rgba(255,255,255,.97) 20%,#fff);
+      border-top:1px solid var(--line);
     }
+    .btn-big{width:100%;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:900;cursor:pointer;
+      background:var(--ok);color:#fff;box-shadow:0 8px 22px rgba(10,125,62,.35);}
+    .btn-big:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+
+    @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
     @media print{
       body>*:not(#printArea){display:none!important;}
       #printArea{display:block!important;position:fixed;inset:0;background:#fff;padding:20px;}
@@ -280,23 +221,28 @@
       <div class="idleLogo" id="idleLogo"></div>
       <div class="idleTitle" id="idleTitle">Bienvenido</div>
       <div class="idleSub">Toca para comenzar tu pedido</div>
-      <button class="startBtn" id="startBtn">🛒 Hacer mi pedido</button>
+      <button type="button" class="startBtn" id="startBtn">Hacer mi pedido</button>
       <div class="idleFoot">VendeBot · Kiosco</div>
     </div>
   </div>
 
   <div class="screen" id="menu">
-    <div class="top">
-      <div class="biz">
-        <div class="bizLogo" id="bizLogo"></div>
-        <div style="min-width:0">
-          <div class="bizName" id="bizName">Cargando…</div>
-          <div class="bizTag" id="bizTag">// pedidos en ventanilla</div>
+    <header class="hdr">
+      <div class="hdr-row">
+        <div class="hdr-logo" id="bizLogo"></div>
+        <div class="hdr-txt">
+          <div class="hdr-name" id="bizName">Cargando…</div>
+          <div class="hdr-sub" id="bizTag">Pedidos en ventanilla</div>
+        </div>
+        <div class="cartWrap">
+          <button type="button" class="cartHdrBtn hide" id="cartBtn" aria-label="Carrito">🛒</button>
+          <span class="cartHdrBadge" id="cartCount" style="display:none">0</span>
         </div>
       </div>
-      <button class="cartBtn hide" id="cartBtn">🛒 Pedido <span class="cartCount" id="cartCount">0</span></button>
+    </header>
+    <div class="cats-wrap">
+      <div class="cats" id="cats"></div>
     </div>
-    <div class="cats" id="cats"></div>
     <div class="scroll">
       <div id="comboWrap"></div>
       <div id="gridWrap"></div>
@@ -305,46 +251,54 @@
 
   <div class="screen" id="cart">
     <div class="cartTop">
-      <button class="back" id="backBtn">←</button>
-      <div class="cartT">Mi pedido</div>
+      <button type="button" class="back" id="backBtn">←</button>
+      <div class="cartT">Tu pedido</div>
     </div>
     <div class="cartBody" id="cartBody"></div>
     <div class="cartFoot">
       <div class="sum"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
-      <button class="confirm" id="confirmBtn" disabled>✅ Confirmar e imprimir</button>
+      <button type="button" class="confirm" id="confirmBtn" disabled>Confirmar e imprimir</button>
     </div>
   </div>
 
   <div class="screen" id="ticket">
-    <div style="font-size:60px;margin-bottom:10px;">✅</div>
-    <div style="font-weight:950;font-size:22px;margin-bottom:10px;">Pedido registrado</div>
+    <div class="tick-icon">✅</div>
+    <div class="tick-h">Pedido registrado</div>
     <div class="paper" id="paper"></div>
     <div class="btnRow">
-      <button class="btn primary" id="printBtn">🖨️ Imprimir</button>
-      <button class="btn" id="newBtn">Nuevo pedido</button>
+      <button type="button" class="btn primary" id="printBtn">🖨️ Imprimir</button>
+      <button type="button" class="btn" id="newBtn">Nuevo pedido</button>
     </div>
   </div>
 
   <div class="ov" id="ov">
-    <div class="sheet" id="sheet">
-      <div style="position:relative">
-        <img id="shImg" class="shImg" alt="" style="display:none">
-        <div id="shImgPh" class="shImg" style="display:flex;align-items:center;justify-content:center;font-size:66px;">📦</div>
-        <button class="closeX" id="closeX">✕</button>
+    <div class="k-sheet" id="sheet">
+      <div class="sheet-h">
+        <button type="button" class="sheet-x" id="closeX">✕</button>
+        <span class="mid" id="sheetTitle">Personalizar</span>
+        <span style="width:44px"></span>
       </div>
-      <div class="shBody">
-        <div class="shName" id="shName">—</div>
-        <div class="shDesc" id="shDesc"></div>
-        <div class="shPrice" id="shPrice">$0.00</div>
-        <div class="qtyRow">
-          <div style="font-weight:900">Cantidad</div>
-          <div class="qtyCtrl">
-            <button class="qBig" id="qDec">−</button>
-            <div class="qVal" id="qVal">1</div>
-            <button class="qBig" id="qInc">+</button>
+      <div class="sheet-scroll">
+        <div class="pd-hero">
+          <img id="shImg" alt="">
+          <div id="shImgPh" class="pd-hero-ph">📦</div>
+        </div>
+        <div class="pd-sheet-body" id="shBodyMain">
+          <div class="shName" id="shName">—</div>
+          <div class="shDesc" id="shDesc"></div>
+          <div class="shPrice" id="shPrice">$0.00</div>
+          <div class="qtyRow">
+            <span>Cantidad</span>
+            <div class="qtyCtrl">
+              <button type="button" class="qBig" id="qDec">−</button>
+              <div class="qVal" id="qVal">1</div>
+              <button type="button" class="qBig" id="qInc">+</button>
+            </div>
           </div>
         </div>
-        <button class="addCart" id="addCart">Agregar al pedido</button>
+      </div>
+      <div class="stick-add" id="modalStick">
+        <button type="button" class="btn-big" id="addCart">Agregar al pedido</button>
       </div>
     </div>
   </div>
@@ -359,64 +313,56 @@
     let catAct = 'todas';
     let firstPaint = true;
 
-    // Modal producto (completo)
     let modalProd = null;
     let modalQty = 1;
-    let modalSelUnico = {};    // {gi: oi|null}
-    let modalSelMulti = {};    // {gi: Set<oi>}
-    let modalSin = new Set();  // ingredientes a quitar (por índice)
+    let modalSelUnico = {};
+    let modalSelMulti = {};
+    let modalSin = new Set();
 
-    // Combo (completo)
     let comboDef = [];
     let comboStep = 0;
     let comboSels = [];
     let comboPrecioBase = 0;
 
-    function money(n){return '$' + (Number(n)||0).toFixed(2);}
+    function money(n){ return '$' + (Number(n) || 0).toFixed(2); }
     function show(id){
-      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
       document.getElementById(id)?.classList.add('on');
     }
+
+    function shBody(){ return document.getElementById('shBodyMain'); }
 
     function aplicarTemaKiosco(tema){
       if(!tema) return;
       const root = document.documentElement;
-      if(typeof tema.banner_opacity === 'number'){}
       const hex = (h) => typeof h === 'string' && /^#[0-9a-fA-F]{6}$/.test(h) ? h : null;
-      if(hex(tema.color_fondo)) root.style.setProperty('--bg', tema.color_fondo);
-      if(hex(tema.color_texto)) root.style.setProperty('--text', tema.color_texto);
-      if(hex(tema.color_primario)){
-        root.style.setProperty('--accent', tema.color_primario);
-        root.style.setProperty('--accent2', tema.color_primario);
-        const r=parseInt(tema.color_primario.slice(1,3),16),g=parseInt(tema.color_primario.slice(3,5),16),b=parseInt(tema.color_primario.slice(5,7),16);
-        root.style.setProperty('--glow',`rgba(${r},${g},${b},.22)`);
-        root.style.setProperty('--stroke2',`rgba(${r},${g},${b},.24)`);
-      }
+      if(hex(tema.color_primario)) root.style.setProperty('--brand', tema.color_primario);
+      if(hex(tema.color_fondo)) root.style.setProperty('--page', tema.color_fondo);
+      if(hex(tema.color_texto)) root.style.setProperty('--ink', tema.color_texto);
+      if(typeof tema.banner_opacity === 'number'){}
     }
 
     async function init(){
       try{
-        const r = await fetch(`/kiosco-data/${slug}`, { cache:'no-store' });
+        const r = await fetch(`/kiosco-data/${slug}`, { cache: 'no-store' });
         if(!r.ok) throw new Error('Kiosco no disponible');
         negocio = await r.json();
         if(negocio.pausado){
           document.getElementById('idleTitle').textContent = 'Kiosco pausado';
           document.querySelector('.idleSub').textContent = 'Vuelve en unos minutos';
-          document.getElementById('startBtn').style.display='none';
+          document.getElementById('startBtn').style.display = 'none';
           return;
         }
-        aplicarTemaKiosco(negocio.tema||null);
-        catalogo = (negocio.catalogo||[]).filter(p=>p.activo!==false);
+        aplicarTemaKiosco(negocio.tema || null);
+        catalogo = (negocio.catalogo || []).filter(p => p.activo !== false);
 
-        // idle visuals
         const idleLogo = document.getElementById('idleLogo');
-        idleLogo.innerHTML = negocio.logo ? `<img src="${negocio.logo}" alt="">` : `<div class="idleEmoji">${negocio.emoji||'🏪'}</div>`;
+        idleLogo.innerHTML = negocio.logo ? `<img src="${negocio.logo}" alt="">` : `<div class="idleEmoji">${negocio.emoji || '🏪'}</div>`;
         document.getElementById('idleTitle').textContent = `Bienvenido a ${negocio.nombre}`;
 
-        // header
         document.getElementById('bizName').textContent = negocio.nombre || 'Kiosco';
         const bizLogo = document.getElementById('bizLogo');
-        bizLogo.innerHTML = negocio.logo ? `<img src="${negocio.logo}" alt="">` : `<div style="font-size:22px">${negocio.emoji||'🏪'}</div>`;
+        bizLogo.innerHTML = negocio.logo ? `<img src="${negocio.logo}" alt="">` : `<div style="font-size:22px">${negocio.emoji || '🏪'}</div>`;
 
         renderCats();
         construirCombos();
@@ -425,162 +371,190 @@
       }catch(e){
         document.getElementById('idleTitle').textContent = 'Error';
         document.querySelector('.idleSub').textContent = e.message || 'No se pudo cargar';
-        document.getElementById('startBtn').style.display='none';
+        document.getElementById('startBtn').style.display = 'none';
       }
     }
 
     function renderCats(){
       const cats = ['todas', ...new Set(catalogo.map(p => p.categoria || 'General'))];
       const wrap = document.getElementById('cats');
-      wrap.innerHTML = cats.map(c => `<button class="pill ${c===catAct?'on':''}" data-cat="${c}">${c==='todas'?'📋 Todo':c}</button>`).join('');
-      wrap.querySelectorAll('.pill').forEach(b=>{
-        b.addEventListener('click', ()=>{
+      wrap.innerHTML = cats.map(c =>
+        `<button type="button" class="cat-pill ${c === catAct ? 'on' : ''}" data-cat="${c}">${c === 'todas' ? 'Todo' : c}</button>`
+      ).join('');
+      wrap.querySelectorAll('.cat-pill').forEach(b => {
+        b.addEventListener('click', () => {
           catAct = b.dataset.cat;
-          wrap.querySelectorAll('.pill').forEach(x=>x.classList.toggle('on', x.dataset.cat===catAct));
+          wrap.querySelectorAll('.cat-pill').forEach(x => x.classList.toggle('on', x.dataset.cat === catAct));
           renderProducts();
         });
       });
     }
 
     function construirCombos(){
-      // Soporta combos predefinidos desde negocio.combos, o auto-detección por categorías
       if(Array.isArray(negocio?.combos) && negocio.combos.length){
         comboDef = negocio.combos;
-        comboPrecioBase = Number(negocio.precio_combo)||0;
+        comboPrecioBase = Number(negocio.precio_combo) || 0;
         return;
       }
-      const catMap={principal:['Principal','Principales','Burger','Burgers','Hamburguesas','Comida','Platos'],acomp:['Acompañante','Acompañantes','Sides','Papas','Snacks'],bebida:['Bebida','Bebidas','Drinks','Jugos','Gaseosas']};
-      const emojis={principal:'🍔',acomp:'🍟',bebida:'🥤'};
-      const labels={principal:'Principal',acomp:'Acompañante',bebida:'Bebida'};
-      const cats=[...new Set(catalogo.map(p=>p.categoria||'General'))];
-      comboDef=[];
-      Object.entries(catMap).forEach(([key,nombres])=>{
-        const match=cats.find(c=>nombres.some(n=>String(c).toLowerCase().includes(String(n).toLowerCase())));
+      const catMap = {
+        principal: ['Principal', 'Principales', 'Burger', 'Burgers', 'Hamburguesas', 'Comida', 'Platos'],
+        acomp: ['Acompañante', 'Acompañantes', 'Sides', 'Papas', 'Snacks'],
+        bebida: ['Bebida', 'Bebidas', 'Drinks', 'Jugos', 'Gaseosas']
+      };
+      const emojis = { principal: '🍔', acomp: '🍟', bebida: '🥤' };
+      const labels = { principal: 'Principal', acomp: 'Acompañante', bebida: 'Bebida' };
+      const cats = [...new Set(catalogo.map(p => p.categoria || 'General'))];
+      comboDef = [];
+      Object.entries(catMap).forEach(([key, nombres]) => {
+        const match = cats.find(c => nombres.some(n => String(c).toLowerCase().includes(String(n).toLowerCase())));
         if(match){
-          comboDef.push({ label: labels[key], emoji: emojis[key], categoria: match, items: catalogo.filter(p => (p.categoria||'General')===match) });
+          comboDef.push({
+            label: labels[key],
+            emoji: emojis[key],
+            categoria: match,
+            items: catalogo.filter(p => (p.categoria || 'General') === match)
+          });
         }
       });
-      comboPrecioBase = Number(negocio?.precio_combo)||0;
+      comboPrecioBase = Number(negocio?.precio_combo) || 0;
     }
 
     function renderSkeleton(){
-      document.getElementById('gridWrap').innerHTML = `<div class="skGrid">${Array.from({length:10}).map(()=>'<div class="sk"></div>').join('')}</div>`;
+      document.getElementById('gridWrap').innerHTML = `<div class="skGrid">${Array.from({ length: 8 }).map(() => '<div class="sk"></div>').join('')}</div>`;
     }
 
     function renderProducts(){
       if(firstPaint){
-        firstPaint=false;
+        firstPaint = false;
         renderSkeleton();
         setTimeout(renderProducts, 120);
         return;
       }
-      const list = catalogo.filter(p => catAct==='todas' ? true : (p.categoria||'General')===catAct);
+      const list = catalogo.filter(p => catAct === 'todas' ? true : (p.categoria || 'General') === catAct);
 
-      // Combo banner
       const comboWrap = document.getElementById('comboWrap');
-      if(comboDef.length && (catAct==='todas' || comboDef.some(s=>s.categoria===catAct))){
+      if(comboDef.length && (catAct === 'todas' || comboDef.some(s => s.categoria === catAct))){
         const pc = comboPrecioBase;
         comboWrap.innerHTML = `
-          <div class="combo" id="comboBtn">
+          <div class="combo-card" id="comboBtn">
             <div>
-              <div class="comboT">🎯 Arma tu combo</div>
-              <div class="comboS">${comboDef.map(s=>s.label).join(' + ')}</div>
+              <div class="combo-t">🎯 Arma tu combo</div>
+              <div class="combo-s">${comboDef.map(s => s.label).join(' + ')}</div>
             </div>
-            <div class="comboP">${pc>0?money(pc):'→'}</div>
-          </div>
-        `;
+            <div class="combo-p">${pc > 0 ? money(pc) : '→'}</div>
+          </div>`;
         document.getElementById('comboBtn').onclick = abrirCombo;
-      } else {
-        comboWrap.innerHTML = '';
-      }
+      } else comboWrap.innerHTML = '';
 
       const grid = document.getElementById('gridWrap');
-      grid.innerHTML = `<div class="grid">${list.map(p => `
-        <div class="p ${p.stock===0?'off':''}" data-id="${p.id}">
-          <div class="pImg">${p.imagen?`<img src="${p.imagen}" alt="${p.nombre}" loading="lazy">`:`<div>${p.emoji||'📦'}</div>`}</div>
-          <div class="pBody">
-            <div class="pName">${p.nombre}</div>
-            <div class="pDesc">${p.descripcion||'// sin descripción'}</div>
-            <div class="pFoot">
-              <div class="pPrice">${money(p.precio)}</div>
-              ${p.stock===0?'':`<div class="add">+</div>`}
+      grid.innerHTML = `<div class="grid-2">${list.map(p => `
+        <div class="p-card ${p.stock === 0 ? 'off' : ''}" data-id="${p.id}">
+          <div class="p-img-wrap">
+            ${p.imagen ? `<img class="p-img" src="${p.imagen}" alt="" loading="lazy">` : `<div class="p-emoji">${p.emoji || '📦'}</div>`}
+          </div>
+          <div class="p-body">
+            <div class="p-name">${p.nombre}</div>
+            <div class="p-desc">${p.descripcion || ''}</div>
+            <div class="p-foot">
+              <div class="p-price">${money(p.precio)}</div>
+              ${p.stock === 0 ? '' : '<button type="button" class="btn-add-mini" data-stop="1">+</button>'}
             </div>
           </div>
         </div>
       `).join('')}</div>`;
 
-      grid.querySelectorAll('.p').forEach(el=>{
-        el.addEventListener('click', ()=>{
+      grid.querySelectorAll('.p-card').forEach(el => {
+        el.addEventListener('click', (ev) => {
+          if(ev.target.closest('[data-stop]')) return;
           const id = el.getAttribute('data-id');
-          const p = catalogo.find(x => String(x.id)===String(id));
-          if(!p || p.stock===0) return;
+          const p = catalogo.find(x => String(x.id) === String(id));
+          if(!p || p.stock === 0) return;
           abrirModal(p);
+        });
+      });
+      grid.querySelectorAll('.btn-add-mini').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const card = btn.closest('.p-card');
+          const p = catalogo.find(x => String(x.id) === String(card.dataset.id));
+          if(p) abrirModal(p);
         });
       });
     }
 
     function abrirModal(p){
+      document.getElementById('sheetTitle').textContent = 'Personalizar';
       modalProd = p;
       modalQty = 1;
       modalSelUnico = {};
       modalSelMulti = {};
       modalSin = new Set();
-      (p.modificadores||[]).forEach((g,gi)=>{
+      (p.modificadores || []).forEach((g, gi) => {
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
         if(tipo === 'unico') modalSelUnico[gi] = null;
         else modalSelMulti[gi] = new Set();
       });
       document.getElementById('qVal').textContent = '1';
-      // Restaurar qty + botón agregar en caso de venir de combo
-      const body = document.querySelector('.shBody');
-      const qtyRow = body.querySelector('.qtyRow');
-      qtyRow.style.display = '';
-      const addBtn = document.getElementById('addCart');
-      addBtn.style.display = '';
+      const body = shBody();
+      body.querySelector('.qtyRow').style.display = '';
+      document.getElementById('modalStick').style.display = '';
+      document.getElementById('addCart').style.display = '';
       renderModalFull();
       const img = document.getElementById('shImg');
       const ph = document.getElementById('shImgPh');
       if(p.imagen){
-        img.src = p.imagen; img.style.display='block'; ph.style.display='none';
+        img.src = p.imagen;
+        img.style.display = 'block';
+        ph.style.display = 'none';
       }else{
-        img.style.display='none'; ph.style.display='flex'; ph.textContent = p.emoji || '📦';
+        img.style.display = 'none';
+        ph.style.display = 'flex';
+        ph.textContent = p.emoji || '📦';
       }
       document.getElementById('ov').classList.add('on');
     }
+
     function cerrarModal(){
       document.getElementById('ov').classList.remove('on');
-      modalProd=null;
+      modalProd = null;
+      document.getElementById('sheetTitle').textContent = 'Personalizar';
     }
 
     function calcExtra(){
       let extra = 0;
-      (modalProd?.modificadores||[]).forEach((g,gi)=>{
+      (modalProd?.modificadores || []).forEach((g, gi) => {
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
         if(tipo === 'unico'){
           const oi = modalSelUnico[gi];
-          if(oi != null) extra += Number(g.opciones?.[oi]?.precio||0);
-        } else {
-          (modalSelMulti[gi]||new Set()).forEach(oi=>{ extra += Number(g.opciones?.[oi]?.precio||0); });
-        }
+          if(oi != null) extra += Number(g.opciones?.[oi]?.precio || 0);
+        } else (modalSelMulti[gi] || new Set()).forEach(oi => { extra += Number(g.opciones?.[oi]?.precio || 0); });
       });
       return extra;
     }
 
     function verificarObligatorios(){
       let ok = true;
-      (modalProd?.modificadores||[]).forEach((g,gi)=>{
+      (modalProd?.modificadores || []).forEach((g, gi) => {
         if(!g.obligatorio) return;
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
-        if(tipo === 'unico' && (modalSelUnico[gi] == null)) ok = false;
+        if(tipo === 'unico' && modalSelUnico[gi] == null) ok = false;
         if(tipo !== 'unico' && (!modalSelMulti[gi] || modalSelMulti[gi].size === 0)) ok = false;
       });
       return ok;
     }
 
+    function optBtnStyle(selected){
+      const b = '2px solid ' + (selected ? 'var(--brand)' : 'var(--line)');
+      const bg = selected ? '#fff8f8' : '#fff';
+      const cl = selected ? 'var(--ink)' : 'var(--muted)';
+      return `border:${b};background:${bg};color:${cl};padding:10px 14px;border-radius:14px;cursor:pointer;font-weight:800;font-size:13px;`;
+    }
+
     function renderModalFull(){
+      if(!modalProd) document.getElementById('sheetTitle').textContent = 'Personalizar';
       if(!modalProd) return;
       const p = modalProd;
-      const base = Number(p.precio)||0;
+      const base = Number(p.precio) || 0;
       const extra = calcExtra();
       const unit = base + extra;
       const total = unit * modalQty;
@@ -589,44 +563,40 @@
       document.getElementById('shDesc').textContent = p.descripcion || '';
       document.getElementById('shPrice').textContent = money(unit);
 
-      // Insertar secciones dinámicas debajo del precio
-      const body = document.querySelector('.shBody');
+      const body = shBody();
       const old = body.querySelector('[data-dyn="1"]');
       if(old) old.remove();
       const wrap = document.createElement('div');
-      wrap.setAttribute('data-dyn','1');
+      wrap.setAttribute('data-dyn', '1');
 
-      const mods = p.modificadores||[];
+      const mods = p.modificadores || [];
       if(mods.length){
-        mods.forEach((g,gi)=>{
+        mods.forEach((g, gi) => {
           const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
           const hint = tipo === 'unico' ? 'Elige 1' : 'Elige varias';
-          const req = g.obligatorio ? '<span style="color:var(--danger);font-weight:950;font-size:11px;margin-left:8px;">REQ</span>' : '';
+          const req = g.obligatorio ? '<span style="color:var(--danger);font-weight:900;font-size:11px;margin-left:6px;">*</span>' : '';
           const sec = document.createElement('div');
-          sec.style.margin = '12px 0 0';
+          sec.style.margin = '16px 0 0';
           sec.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-              <div style="font-weight:950">${g.nombre}${req}</div>
-              <div style="margin-left:auto;color:var(--muted2);font-size:11px;font-weight:800">${hint}</div>
+              <div style="font-weight:900;font-size:15px">${g.nombre}${req}</div>
+              <div style="margin-left:auto;color:var(--muted);font-size:12px;font-weight:700">${hint}</div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;" data-gi="${gi}"></div>
-          `;
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" data-gi="${gi}"></div>`;
           const optWrap = sec.querySelector('[data-gi]');
-          (g.opciones||[]).forEach((op,oi)=>{
-            const selected = (tipo==='unico') ? (modalSelUnico[gi]===oi) : (modalSelMulti[gi]?.has(oi));
-            const ext = Number(op.precio||0);
-            const label = `${op.nombre}${ext!==0?` <span style="opacity:.7">(${ext>0?'+':''}${money(Math.abs(ext))})</span>`:''}`;
+          (g.opciones || []).forEach((op, oi) => {
+            const selected = tipo === 'unico' ? modalSelUnico[gi] === oi : modalSelMulti[gi]?.has(oi);
+            const ext = Number(op.precio || 0);
+            const label = `${op.nombre}${ext !== 0 ? ` <span style="opacity:.75;font-weight:700">(${ext > 0 ? '+' : ''}${money(Math.abs(ext))})</span>` : ''}`;
             const btn = document.createElement('button');
-            btn.type='button';
-            btn.style.cssText = `border:1px solid ${selected?'color-mix(in srgb,var(--accent) 45%, var(--stroke))':'rgba(255,255,255,.12)'};background:${selected?'linear-gradient(180deg,color-mix(in srgb,var(--accent) 18%, rgba(255,255,255,.05)),rgba(255,255,255,.03))':'rgba(255,255,255,.04)'};color:${selected?'var(--text)':'var(--muted)'};padding:10px 14px;border-radius:16px;cursor:pointer;font-weight:900;font-size:13px;`;
+            btn.type = 'button';
+            btn.style.cssText = optBtnStyle(selected);
             btn.innerHTML = label;
             btn.onclick = () => {
-              if(tipo==='unico'){
-                modalSelUnico[gi] = (modalSelUnico[gi]===oi) ? null : oi;
-              } else {
-                if(!modalSelMulti[gi]) modalSelMulti[gi]=new Set();
-                if(modalSelMulti[gi].has(oi)) modalSelMulti[gi].delete(oi);
-                else modalSelMulti[gi].add(oi);
+              if(tipo === 'unico') modalSelUnico[gi] = modalSelUnico[gi] === oi ? null : oi;
+              else{
+                if(!modalSelMulti[gi]) modalSelMulti[gi] = new Set();
+                modalSelMulti[gi].has(oi) ? modalSelMulti[gi].delete(oi) : modalSelMulti[gi].add(oi);
               }
               renderModalFull();
             };
@@ -636,23 +606,22 @@
         });
       }
 
-      const ings = p.ingredientes||[];
+      const ings = p.ingredientes || [];
       if(ings.length){
         const sec = document.createElement('div');
-        sec.style.margin = '14px 0 0';
+        sec.style.margin = '16px 0 0';
         sec.innerHTML = `
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <div style="font-weight:950">Sin ingredientes</div>
-            <div style="margin-left:auto;color:var(--muted2);font-size:11px;font-weight:800">Toca para quitar</div>
+            <div style="font-weight:900;font-size:15px">Sin ingredientes</div>
+            <div style="margin-left:auto;color:var(--muted);font-size:12px;font-weight:700">Opcional</div>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sinWrap"></div>
-        `;
+          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="sinWrap"></div>`;
         const w = sec.querySelector('#sinWrap');
-        ings.forEach((ing,ii)=>{
+        ings.forEach((ing, ii) => {
           const selected = modalSin.has(ii);
           const btn = document.createElement('button');
-          btn.type='button';
-          btn.style.cssText = `border:1px solid ${selected?'rgba(239,68,68,.4)':'rgba(255,255,255,.12)'};background:${selected?'rgba(239,68,68,.12)':'rgba(255,255,255,.04)'};color:${selected?'rgba(255,255,255,.55)':'var(--muted)'};padding:10px 14px;border-radius:16px;cursor:pointer;font-weight:900;font-size:13px;${selected?'text-decoration:line-through':''}`;
+          btn.type = 'button';
+          btn.style.cssText = `border:2px solid ${selected ? 'var(--danger)' : 'var(--line)'};background:${selected ? 'rgba(220,38,38,.08)' : '#fff'};color:${selected ? 'var(--danger)' : 'var(--muted)'};padding:10px 14px;border-radius:14px;cursor:pointer;font-weight:800;font-size:13px;${selected ? 'text-decoration:line-through' : ''}`;
           btn.textContent = ing;
           btn.onclick = () => { selected ? modalSin.delete(ii) : modalSin.add(ii); renderModalFull(); };
           w.appendChild(btn);
@@ -662,30 +631,29 @@
 
       body.insertBefore(wrap, body.querySelector('.qtyRow'));
 
-      // Actualizar botón agregar
       const addBtn = document.getElementById('addCart');
-      addBtn.textContent = `Agregar — ${money(total)}`;
+      addBtn.textContent = `Agregar al pedido · ${money(total)}`;
       addBtn.disabled = !verificarObligatorios();
     }
 
     function buildModsTexto(p){
       const parts = [];
-      (p.modificadores||[]).forEach((g,gi)=>{
+      (p.modificadores || []).forEach((g, gi) => {
         const tipo = g.tipo === 'unico' ? 'unico' : (g.tipo === 'multiple' ? 'multiple' : (g.tipo ? g.tipo : 'unico'));
-        if(tipo==='unico'){
+        if(tipo === 'unico'){
           const oi = modalSelUnico[gi];
-          if(oi!=null) parts.push(`${g.nombre}: ${g.opciones?.[oi]?.nombre||''}`.trim());
-        } else {
-          const set = modalSelMulti[gi]||new Set();
+          if(oi != null) parts.push(`${g.nombre}: ${g.opciones?.[oi]?.nombre || ''}`.trim());
+        } else{
+          const set = modalSelMulti[gi] || new Set();
           if(set.size){
-            const names = [...set].map(oi=>g.opciones?.[oi]?.nombre).filter(Boolean);
+            const names = [...set].map(oi => g.opciones?.[oi]?.nombre).filter(Boolean);
             if(names.length) parts.push(`${g.nombre}: ${names.join(', ')}`);
           }
         }
       });
-      const ings = p.ingredientes||[];
+      const ings = p.ingredientes || [];
       if(modalSin.size){
-        const names = [...modalSin].map(ii=>ings[ii]).filter(Boolean);
+        const names = [...modalSin].map(ii => ings[ii]).filter(Boolean);
         if(names.length) parts.push(`Sin: ${names.join(', ')}`);
       }
       return parts.join(' · ');
@@ -693,60 +661,60 @@
 
     function addToCart(p, qty){
       cart.push({
-        uid: Date.now()+Math.random(),
+        uid: Date.now() + Math.random(),
         id: p.id,
         nombre: p.nombre,
-        precio: (Number(p.precio)||0) + (modalProd && String(modalProd.id)===String(p.id) ? calcExtra() : 0),
+        precio: (Number(p.precio) || 0) + (modalProd && String(modalProd.id) === String(p.id) ? calcExtra() : 0),
         cantidad: qty || 1,
         emoji: p.emoji || '🍽️',
         imagen: p.imagen || '',
-        mods: (modalProd && String(modalProd.id)===String(p.id)) ? buildModsTexto(p) : ''
+        mods: (modalProd && String(modalProd.id) === String(p.id)) ? buildModsTexto(p) : ''
       });
       updateCartUI();
     }
 
     function updateCartUI(){
-      const count = cart.reduce((s,i)=>s+(i.cantidad||0),0);
-      const total = cart.reduce((s,i)=>s+(i.precio*i.cantidad),0);
-      document.getElementById('cartCount').textContent = count;
-      document.getElementById('cartBtn').classList.toggle('hide', count===0);
+      const count = cart.reduce((s, i) => s + (i.cantidad || 0), 0);
+      const total = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+      const badge = document.getElementById('cartCount');
+      badge.textContent = count;
+      badge.style.display = count ? 'flex' : 'none';
+      document.getElementById('cartBtn').classList.toggle('hide', count === 0);
       document.getElementById('cartTotal').textContent = money(total);
-      document.getElementById('confirmBtn').disabled = count===0;
+      document.getElementById('confirmBtn').disabled = count === 0;
       renderCart();
     }
 
     function renderCart(){
-      const body = document.getElementById('cartBody');
+      const el = document.getElementById('cartBody');
       if(!cart.length){
-        body.innerHTML = `<div class="empty">Tu carrito está vacío</div>`;
+        el.innerHTML = '<div class="empty">Tu carrito está vacío</div>';
         return;
       }
-      body.innerHTML = cart.map((it,idx)=>`
+      el.innerHTML = cart.map((it, idx) => `
         <div class="line">
-          <div class="lImg">${it.imagen?`<img src="${it.imagen}" alt="">`:`${it.emoji||'🍽️'}`}</div>
+          <div class="lImg">${it.imagen ? `<img src="${it.imagen}" alt="">` : (it.emoji || '🍽️')}</div>
           <div class="lMid">
             <div class="lName">${it.nombre}</div>
-            ${it.mods?`<div class="lMods">${it.mods}</div>`:''}
-            <div class="lPrice">${money(it.precio*it.cantidad)}</div>
+            ${it.mods ? `<div class="lMods">${it.mods}</div>` : ''}
+            <div class="lPrice">${money(it.precio * it.cantidad)}</div>
           </div>
           <div class="lRight">
             <div class="qty">
-              <button class="qbtn rm" data-i="${idx}" data-act="dec">${it.cantidad===1?'🗑':'−'}</button>
+              <button type="button" class="qbtn rm" data-i="${idx}" data-act="dec">${it.cantidad === 1 ? '🗑' : '−'}</button>
               <div class="qnum">${it.cantidad}</div>
-              <button class="qbtn" data-i="${idx}" data-act="inc">+</button>
+              <button type="button" class="qbtn" data-i="${idx}" data-act="inc">+</button>
             </div>
           </div>
         </div>
       `).join('');
-      body.querySelectorAll('.qbtn').forEach(b=>{
-        b.addEventListener('click', ()=>{
+      el.querySelectorAll('.qbtn').forEach(b => {
+        b.addEventListener('click', () => {
           const i = Number(b.dataset.i);
           const act = b.dataset.act;
-          if(act==='inc') cart[i].cantidad++;
-          else{
-            if(cart[i].cantidad===1) cart.splice(i,1);
-            else cart[i].cantidad--;
-          }
+          if(act === 'inc') cart[i].cantidad++;
+          else if(cart[i].cantidad === 1) cart.splice(i, 1);
+          else cart[i].cantidad--;
           updateCartUI();
         });
       });
@@ -754,29 +722,27 @@
 
     async function confirmar(){
       if(!cart.length) return;
-      const total = cart.reduce((s,i)=>s+(i.precio*i.cantidad),0);
-      const items = cart.map(i=>({id:i.id,nombre:i.nombre,precio:i.precio,cantidad:i.cantidad,mods:i.mods||''}));
-      const r = await fetch(`/kiosco/${slug}/pedido`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items,total})});
+      const total = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+      const items = cart.map(i => ({ id: i.id, nombre: i.nombre, precio: i.precio, cantidad: i.cantidad, mods: i.mods || '' }));
+      const r = await fetch(`/kiosco/${slug}/pedido`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, total }) });
       const d = await r.json();
-      if(!d.ok) { alert(d.error||'Error'); return; }
+      if(!d.ok){ alert(d.error || 'Error'); return; }
       renderTicket(d.numero, items, total);
       show('ticket');
     }
 
     function renderTicket(numero, items, total){
       const now = new Date();
-      const fecha = now.toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'});
-      const hora = now.toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'});
+      const fecha = now.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const hora = now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
       document.getElementById('paper').innerHTML = `
-        <div style="text-align:center;font-weight:950;font-size:16px;margin-bottom:2px;">${negocio?.nombre||'Kiosco'}</div>
+        <div style="text-align:center;font-weight:900;font-size:16px;margin-bottom:2px;">${negocio?.nombre || 'Kiosco'}</div>
         <div style="text-align:center;color:#666;font-size:11px;margin-bottom:10px;">${fecha} · ${hora}</div>
         <hr class="hr">
-        <div style="text-align:center;color:#666;font-size:11px;letter-spacing:.14em;text-transform:uppercase;">Número de pedido</div>
+        <div style="text-align:center;color:#666;font-size:11px;letter-spacing:.12em;text-transform:uppercase;">Número de pedido</div>
         <div class="tickNum">#${numero}</div>
         <hr class="hr">
-        <div>${items.map(i=>`
-          <div class="row"><span>${i.nombre} x${i.cantidad}</span><span>${money(i.precio*i.cantidad)}</span></div>
-        `).join('')}</div>
+        <div>${items.map(i => `<div class="row"><span>${i.nombre} x${i.cantidad}</span><span>${money(i.precio * i.cantidad)}</span></div>`).join('')}</div>
         <div class="tTotal"><span>Total</span><span>${money(total)}</span></div>
         <hr class="hr">
         <div style="text-align:center;color:#777;font-size:11px;">Paga en ventanilla y espera tu número</div>
@@ -784,84 +750,60 @@
       document.getElementById('printArea').innerHTML = document.getElementById('paper').outerHTML;
     }
 
-    // Events
-    document.getElementById('startBtn').addEventListener('click', ()=> show('menu'));
-    document.getElementById('cartBtn').addEventListener('click', ()=> show('cart'));
-    document.getElementById('backBtn').addEventListener('click', ()=> show('menu'));
-    document.getElementById('confirmBtn').addEventListener('click', confirmar);
-    document.getElementById('printBtn').addEventListener('click', ()=> window.print());
-    document.getElementById('newBtn').addEventListener('click', ()=>{
-      cart=[]; updateCartUI(); show('idle');
-    });
-
-    document.getElementById('closeX').addEventListener('click', cerrarModal);
-    document.getElementById('ov').addEventListener('click', (e)=>{ if(e.target.id==='ov') cerrarModal(); });
-    document.getElementById('qDec').addEventListener('click', ()=>{ modalQty=Math.max(1,modalQty-1); document.getElementById('qVal').textContent=String(modalQty); });
-    document.getElementById('qInc').addEventListener('click', ()=>{ modalQty++; document.getElementById('qVal').textContent=String(modalQty); });
-    document.getElementById('addCart').addEventListener('click', ()=>{
-      if(!modalProd) return;
-      if(!verificarObligatorios()) return;
-      addToCart(modalProd, modalQty);
-      cerrarModal();
-    });
-
-    // Combo (modal simple usando el mismo sheet)
     function abrirCombo(){
       if(!comboDef.length) return;
       comboStep = 0;
       comboSels = new Array(comboDef.length).fill(null);
+      document.getElementById('sheetTitle').textContent = 'Arma tu combo';
       renderComboSheet();
       document.getElementById('ov').classList.add('on');
     }
 
     function calcComboTotal(){
       let t = comboPrecioBase;
-      if(t === 0){
-        comboSels.forEach(p=>{ if(p) t += Number(p.precio)||0; });
-      }
+      if(t === 0) comboSels.forEach(p => { if(p) t += Number(p.precio) || 0; });
       return t;
     }
 
     function renderComboSheet(){
-      // Reutiliza el sheet del modal producto, dibujando un selector por pasos dentro del dyn wrapper
       modalProd = null;
       modalQty = 1;
       document.getElementById('qVal').textContent = '1';
       document.getElementById('shName').textContent = '🎯 Arma tu combo';
-      document.getElementById('shDesc').textContent = `Paso ${comboStep+1} de ${comboDef.length} — elige ${comboDef[comboStep].label.toLowerCase()}`;
+      document.getElementById('shDesc').textContent = `Paso ${comboStep + 1} de ${comboDef.length} — elige ${comboDef[comboStep].label.toLowerCase()}`;
       document.getElementById('shPrice').textContent = money(calcComboTotal());
       document.getElementById('shImg').style.display = 'none';
       const ph = document.getElementById('shImgPh');
       ph.style.display = 'flex';
       ph.textContent = '🎯';
 
-      const body = document.querySelector('.shBody');
+      const body = shBody();
       const old = body.querySelector('[data-dyn="1"]');
       if(old) old.remove();
       const wrap = document.createElement('div');
-      wrap.setAttribute('data-dyn','1');
+      wrap.setAttribute('data-dyn', '1');
 
       const steps = document.createElement('div');
-      steps.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px;';
-      steps.innerHTML = comboDef.map((s,i)=>`
-        <div style="padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:${i===comboStep?'rgba(255,255,255,.10)':'rgba(255,255,255,.04)'};color:${i<comboStep?'var(--accent)':'var(--muted)'};font-weight:950;font-size:12px;">
-          ${i<comboStep?'✓ ':''}${s.emoji||''} ${s.label}
+      steps.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;';
+      steps.innerHTML = comboDef.map((s, i) => `
+        <div style="padding:6px 12px;border-radius:999px;border:2px solid var(--line);background:${i === comboStep ? '#fff8f8' : '#fff'};color:${i < comboStep ? 'var(--brand)' : 'var(--muted)'};font-weight:800;font-size:12px;">
+          ${i < comboStep ? '✓ ' : ''}${s.emoji || ''} ${s.label}
         </div>
       `).join('');
       wrap.appendChild(steps);
 
       const grid = document.createElement('div');
-      grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;';
+      grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;';
       const step = comboDef[comboStep];
-      step.items.forEach((p,pi)=>{
-        const sel = comboSels[comboStep] && String(comboSels[comboStep].id)===String(p.id);
+      step.items.forEach(p => {
+        const sel = comboSels[comboStep] && String(comboSels[comboStep].id) === String(p.id);
         const card = document.createElement('button');
-        card.type='button';
-        card.style.cssText = `text-align:center;border:1px solid ${sel?'color-mix(in srgb,var(--accent) 45%, rgba(255,255,255,.12))':'rgba(255,255,255,.12)'};background:${sel?'rgba(255,255,255,.10)':'rgba(255,255,255,.04)'};border-radius:18px;padding:10px;cursor:pointer;color:var(--text);`;
+        card.type = 'button';
+        card.style.cssText = `text-align:left;border:2px solid ${sel ? 'var(--brand)' : 'var(--line)'};background:${sel ? '#fff8f8' : '#fff'};border-radius:14px;padding:10px;cursor:pointer;color:var(--ink);`;
         card.innerHTML = `
-          ${p.imagen?`<img src="${p.imagen}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;margin-bottom:8px;">`:`<div style="font-size:34px;margin-bottom:6px;">${p.emoji||'📦'}</div>`}
-          <div style="font-weight:950;font-size:12px;line-height:1.2;margin-bottom:4px;">${p.nombre}</div>
-          <div style="font-weight:950;color:var(--accent);font-size:12px;">${money(p.precio)}</div>
+          ${p.imagen ? `<img src="${p.imagen}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;margin-bottom:8px;">` : `<div style="font-size:32px;text-align:center;margin-bottom:6px;">${p.emoji || '📦'}</div>`}
+          <div style="font-weight:800;font-size:12px;line-height:1.2;margin-bottom:4px;">${p.nombre}</div>
+          <div style="font-weight:800;color:var(--brand);font-size:12px;">${money(p.precio)}</div>
         `;
         card.onclick = () => {
           comboSels[comboStep] = p;
@@ -873,25 +815,34 @@
       wrap.appendChild(grid);
 
       const nav = document.createElement('div');
-      nav.style.cssText = 'display:flex;gap:10px;margin-top:12px;';
+      nav.style.cssText = 'display:flex;gap:10px;margin-top:14px;';
       const back = document.createElement('button');
-      back.type='button';
-      back.style.cssText = 'flex:1;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:var(--muted);border-radius:18px;padding:14px;font-weight:950;cursor:pointer;';
-      back.textContent = comboStep===0 ? 'Cancelar' : '← Atrás';
+      back.type = 'button';
+      back.style.cssText = 'flex:1;border:2px solid var(--line);background:#fff;color:var(--muted);border-radius:14px;padding:14px;font-weight:800;cursor:pointer;';
+      back.textContent = comboStep === 0 ? 'Cancelar' : '← Atrás';
       back.onclick = () => {
-        if(comboStep===0) cerrarModal();
+        if(comboStep === 0) cerrarModal();
         else { comboStep--; renderComboSheet(); }
       };
       const next = document.createElement('button');
-      next.type='button';
-      next.style.cssText = 'flex:1;border:none;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#07120b;border-radius:18px;padding:14px;font-weight:950;cursor:pointer;box-shadow:0 18px 40px var(--glow);';
-      next.textContent = comboStep===comboDef.length-1 ? '✅ Agregar combo' : 'Siguiente →';
+      next.type = 'button';
+      next.style.cssText = 'flex:1;border:none;background:var(--brand);color:#fff;border-radius:14px;padding:14px;font-weight:900;cursor:pointer;box-shadow:0 6px 18px color-mix(in srgb,var(--brand) 35%, transparent);';
+      next.textContent = comboStep === comboDef.length - 1 ? 'Agregar combo' : 'Siguiente →';
       next.onclick = () => {
         if(!comboSels[comboStep]) return;
-        if(comboStep < comboDef.length-1){ comboStep++; renderComboSheet(); }
+        if(comboStep < comboDef.length - 1){ comboStep++; renderComboSheet(); }
         else{
           const total = calcComboTotal();
-          cart.push({uid:Date.now()+Math.random(),id:'combo_'+Date.now(),nombre:'🎯 Combo',precio:total,cantidad:1,emoji:'🎯',imagen:'',mods:comboSels.filter(Boolean).map(p=>p.nombre).join(' + ')});
+          cart.push({
+            uid: Date.now() + Math.random(),
+            id: 'combo_' + Date.now(),
+            nombre: '🎯 Combo',
+            precio: total,
+            cantidad: 1,
+            emoji: '🎯',
+            imagen: '',
+            mods: comboSels.filter(Boolean).map(p => p.nombre).join(' + ')
+          });
           updateCartUI();
           cerrarModal();
         }
@@ -900,14 +851,41 @@
       nav.appendChild(next);
       wrap.appendChild(nav);
 
-      // Ocultar qtyRow cuando es combo
-      const qtyRow = body.querySelector('.qtyRow');
-      qtyRow.style.display = 'none';
-      body.insertBefore(wrap, qtyRow);
-
-      const addBtn = document.getElementById('addCart');
-      addBtn.style.display = 'none';
+      body.querySelector('.qtyRow').style.display = 'none';
+      document.getElementById('modalStick').style.display = 'none';
+      body.insertBefore(wrap, body.querySelector('.qtyRow'));
     }
+
+    document.getElementById('startBtn').addEventListener('click', () => show('menu'));
+    document.getElementById('cartBtn').addEventListener('click', () => show('cart'));
+    document.getElementById('backBtn').addEventListener('click', () => show('menu'));
+    document.getElementById('confirmBtn').addEventListener('click', confirmar);
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
+    document.getElementById('newBtn').addEventListener('click', () => {
+      cart = [];
+      updateCartUI();
+      show('idle');
+    });
+
+    document.getElementById('closeX').addEventListener('click', cerrarModal);
+    document.getElementById('ov').addEventListener('click', (e) => { if(e.target.id === 'ov') cerrarModal(); });
+
+    document.getElementById('qDec').addEventListener('click', () => {
+      modalQty = Math.max(1, modalQty - 1);
+      document.getElementById('qVal').textContent = String(modalQty);
+      if(modalProd) renderModalFull();
+    });
+    document.getElementById('qInc').addEventListener('click', () => {
+      modalQty++;
+      document.getElementById('qVal').textContent = String(modalQty);
+      if(modalProd) renderModalFull();
+    });
+    document.getElementById('addCart').addEventListener('click', () => {
+      if(!modalProd) return;
+      if(!verificarObligatorios()) return;
+      addToCart(modalProd, modalQty);
+      cerrarModal();
+    });
 
     init();
   </script>
