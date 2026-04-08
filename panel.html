@@ -901,23 +901,9 @@ textarea{resize:vertical;border-radius:8px;}
       </div>
       <div id="wlAlert" class="alert" style="margin-top:10px;"></div>
 
-      <details style="margin-top:10px;opacity:.92;">
-        <summary style="cursor:pointer;font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);">Avanzado (temas antiguos)</summary>
-        <div style="margin-top:12px;">
-          <div id="temaFiltros" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
-            <button class="tema-f-btn active" onclick="filtrarTemas('todos',this)">Todos</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('dark',this)">🌑 Dark</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('light',this)">☀️ Claro</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('neon',this)">⚡ Neón</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('food',this)">🍔 Comida</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('luxury',this)">💎 Lujo</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('nature',this)">🌿 Natural</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('fun',this)">🎉 Fun</button>
-            <button class="tema-f-btn" onclick="filtrarTemas('minimal',this)">▣ Minimal</button>
-          </div>
-          <div id="temaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;max-height:360px;overflow-y:auto;padding-right:4px;"></div>
-        </div>
-      </details>
+      <div style="margin-top:10px;padding:10px;border:1px dashed var(--b);border-radius:8px;font-family:var(--fm);font-size:10px;color:var(--t2);">
+        Modo simplificado activo: eliminados temas antiguos para evitar desorden visual.
+      </div>
     </div>
   </div>
 
@@ -1551,6 +1537,34 @@ function actualizarPreviewCatalogo(){
   else{if(pbi)pbi.style.display='none';if(pbp)pbp.style.display='block';}
   const pn=document.getElementById('prevNombre');const pt=document.getElementById('prevTipo');
   if(pn)pn.textContent=nombre;if(pt)pt.textContent=tipo;
+  actualizarPreviewEstiloMarca();
+}
+
+function actualizarPreviewEstiloMarca(){
+  const pri = document.getElementById('wl_color_primario')?.value || '#00c8ff';
+  const bg = document.getElementById('wl_color_fondo')?.value || '#020509';
+  const txt = document.getElementById('wl_color_texto')?.value || '#ffffff';
+  const br = document.getElementById('wl_border_radius')?.value || '14px';
+  const box = document.getElementById('catalogoPreviewBox');
+  const banner = document.getElementById('prevBannerBox');
+  const logo = document.getElementById('prevLogoBox');
+  if(box){
+    box.style.background = bg;
+    box.style.borderColor = `${pri}55`;
+    box.style.borderRadius = br;
+    box.style.boxShadow = `0 12px 32px ${pri}22`;
+  }
+  if(banner){
+    banner.style.background = `linear-gradient(135deg, ${bg}, ${_mix(bg, pri, .24)})`;
+  }
+  if(logo){
+    logo.style.borderColor = `${pri}66`;
+    logo.style.borderRadius = br;
+    logo.style.background = `${_mix(bg, '#ffffff', .08)}`;
+  }
+  const pn=document.getElementById('prevNombre'); const pt=document.getElementById('prevTipo');
+  if(pn){ pn.style.color = txt; }
+  if(pt){ pt.style.color = _mix(txt, bg, .55); }
 }
 
 async function subirLogo(input){
@@ -1868,119 +1882,8 @@ function renderListaBlanca(lista){
 async function agregarListaBlanca(){const num=document.getElementById('lb-numero').value.trim();if(!num)return;await api(`/panel/${SLUG}/lista-blanca`,{method:'POST',body:JSON.stringify({numero:num,etiqueta:document.getElementById('lb-etiqueta').value.trim()})});document.getElementById('lb-numero').value='';document.getElementById('lb-etiqueta').value='';cargarListaBlanca();}
 async function eliminarListaBlanca(num){await api(`/panel/${SLUG}/lista-blanca/${num}`,{method:'DELETE'});cargarListaBlanca();}
 
-// ─── WHITE-LABEL: TEMA DEL CATÁLOGO ──────────────────────────────────────────
-const TEMAS_50 = [
-  {id:'obsidian_noir',  name:'Obsidian Noir',     cat:'dark minimal luxury',  emoji:'⬛', bg:'#080808', pri:'#ffffff', sec:'#888888', txt:'#cccccc', btn:'#ffffff', precio:'#aaaaaa', fuente:'Oswald',              br:'4px',  layout:'2', efecto:'none',   fondo:'#080808'},
-  {id:'sakura',         name:'Sakura',             cat:'light fun nature',     emoji:'🌸', bg:'#fdf6f8', pri:'#ff4081', sec:'#ff6b9d', txt:'#880e4f', btn:'#e91e8c', precio:'#c62366', fuente:'Quicksand',           br:'20px', layout:'2', efecto:'shadow', fondo:'#fdf6f8'},
-  {id:'cyberpunk',      name:'Cyberpunk',          cat:'dark neon',            emoji:'⚡', bg:'#050010', pri:'#00ffff', sec:'#ff00ff', txt:'#e0c0ff', btn:'#00ffff', precio:'#ff00ff', fuente:'Bebas Neue',          br:'0px',  layout:'2', efecto:'neon',   fondo:'#050010'},
-  {id:'dorado_lujo',    name:'Dorado Lujo',        cat:'dark luxury',          emoji:'💎', bg:'#0d0900', pri:'#d4af37', sec:'#ff8c00', txt:'#f5e6c8', btn:'#d4af37', precio:'#ff8c00', fuente:'Cormorant Garamond',  br:'3px',  layout:'2', efecto:'none',   fondo:'#0d0900'},
-  {id:'jungle',         name:'Jungle',             cat:'dark nature',          emoji:'🌿', bg:'#071309', pri:'#22c55e', sec:'#00c896', txt:'#dcfce7', btn:'#22c55e', precio:'#00c896', fuente:'Josefin Sans',        br:'8px',  layout:'2', efecto:'none',   fondo:'#071309'},
-  {id:'cafe_artesanal', name:'Café Artesanal',     cat:'dark food',            emoji:'☕', bg:'#120a04', pri:'#b47c3c', sec:'#d4a96a', txt:'#f5deb3', btn:'#b47c3c', precio:'#d4a96a', fuente:'Playfair Display',    br:'8px',  layout:'2', efecto:'none',   fondo:'#120a04'},
-  {id:'miami_vice',     name:'Miami Vice',         cat:'dark neon food',       emoji:'🌴', bg:'#08001a', pri:'#ff5e00', sec:'#ff00aa', txt:'#ffddcc', btn:'#ff5e00', precio:'#ff00aa', fuente:'Oswald',              br:'8px',  layout:'2', efecto:'neon',   fondo:'#08001a'},
-  {id:'minimalista',    name:'Minimalista',        cat:'light minimal',        emoji:'▣', bg:'#f8f8f8', pri:'#111111', sec:'#444444', txt:'#111111', btn:'#111111', precio:'#111111', fuente:'DM Sans',             br:'8px',  layout:'2', efecto:'flat',   fondo:'#f8f8f8'},
-  {id:'neon_tropical',  name:'Noche Tropical',     cat:'dark nature',          emoji:'🌴', bg:'#001a18', pri:'#00ffc8', sec:'#00c896', txt:'#e0fff8', btn:'#00ffc8', precio:'#00c896', fuente:'Quicksand',           br:'12px', layout:'2', efecto:'none',   fondo:'#001a18'},
-  {id:'sunset_food',    name:'Sunset Foodie',      cat:'dark food',            emoji:'🍔', bg:'#0f0400', pri:'#ff7020', sec:'#ff9040', txt:'#ffe0c0', btn:'#ff7020', precio:'#ff9040', fuente:'Syne',                br:'10px', layout:'2', efecto:'none',   fondo:'#0f0400'},
-  {id:'aurora',         name:'Aurora',             cat:'dark neon',            emoji:'✦', bg:'#04001a', pri:'#00ff96', sec:'#0064ff', txt:'#e0f0ff', btn:'#00ff96', precio:'#0064ff', fuente:'Raleway',             br:'10px', layout:'2', efecto:'glass',  fondo:'#04001a'},
-  {id:'dragon_ramen',   name:'Dragon Ramen',       cat:'dark food luxury',     emoji:'🐉', bg:'#0a0005', pri:'#dc2828', sec:'#ff6060', txt:'#ffe0e0', btn:'#cc0000', precio:'#ff4444', fuente:'Cinzel',              br:'4px',  layout:'2', efecto:'none',   fondo:'#0a0005'},
-  {id:'pastel_kids',    name:'Pastel Kids',        cat:'light fun',            emoji:'🌈', bg:'#fff8f0', pri:'#ff69b4', sec:'#ffd700', txt:'#880e4f', btn:'#ff69b4', precio:'#ffaa00', fuente:'Fredoka One',         br:'14px', layout:'2', efecto:'shadow', fondo:'#fff8f0'},
-  {id:'galaxy',         name:'Galaxy',             cat:'dark neon',            emoji:'🪐', bg:'#000a1a', pri:'#a040ff', sec:'#0064ff', txt:'#d0b0ff', btn:'#6400c8', precio:'#a040ff', fuente:'Orbitron',            br:'8px',  layout:'2', efecto:'neon',   fondo:'#000a1a'},
-  {id:'madera_viva',    name:'Madera Viva',        cat:'dark food',            emoji:'🪵', bg:'#1a1008', pri:'#d2691e', sec:'#c89060', txt:'#ffdeb3', btn:'#d2691e', precio:'#c89060', fuente:'Lobster',             br:'6px',  layout:'2', efecto:'none',   fondo:'#1a1008'},
-  {id:'ice_cream',      name:'Ice Cream',          cat:'light fun food',       emoji:'🍦', bg:'#e8f4ff', pri:'#d63384', sec:'#ff8fab', txt:'#880e4f', btn:'#d63384', precio:'#9c274b', fuente:'Pacifico',            br:'20px', layout:'2', efecto:'glass',  fondo:'#e8f4ff'},
-  {id:'neon_sports',    name:'Neon Sports',        cat:'dark neon',            emoji:'⚽', bg:'#000800', pri:'#00ff00', sec:'#00cc00', txt:'#ccffcc', btn:'#00ff00', precio:'#00cc00', fuente:'Anton',               br:'4px',  layout:'2', efecto:'neon',   fondo:'#000800'},
-  {id:'sunset_playa',   name:'Sunset Playa',       cat:'dark fun',             emoji:'🏄', bg:'#050020', pri:'#ff6400', sec:'#ff0064', txt:'#ffcca0', btn:'#ff6400', precio:'#ff0064', fuente:'Righteous',           br:'10px', layout:'2', efecto:'none',   fondo:'#050020'},
-  {id:'dark_tech',      name:'Dark Tech',          cat:'dark minimal',         emoji:'⬡', bg:'#030508', pri:'#0096ff', sec:'#60c0ff', txt:'#c0e0ff', btn:'#0064c8', precio:'#0096ff', fuente:'Exo 2',               br:'6px',  layout:'2', efecto:'none',   fondo:'#030508'},
-  {id:'vintage_press',  name:'Vintage Press',      cat:'light minimal luxury', emoji:'📰', bg:'#f5f0e8', pri:'#1a1a1a', sec:'#555555', txt:'#1a1a1a', btn:'#1a1a1a', precio:'#444444', fuente:'Abril Fatface',       br:'2px',  layout:'2', efecto:'flat',   fondo:'#f5f0e8'},
-  {id:'lavanda_spa',    name:'Lavanda Spa',        cat:'light luxury',         emoji:'🪷', bg:'#f8f4ff', pri:'#8b00ff', sec:'#b464ff', txt:'#4a0080', btn:'#8b00ff', precio:'#6400c8', fuente:'Raleway',             br:'14px', layout:'2', efecto:'glass',  fondo:'#f8f4ff'},
-  {id:'anime_kawaii',   name:'Anime Kawaii',       cat:'light fun',            emoji:'⭐', bg:'#fff0f8', pri:'#ff4488', sec:'#ff8800', txt:'#cc0066', btn:'#ff4488', precio:'#cc0066', fuente:'Fredoka One',         br:'10px', layout:'2', efecto:'shadow', fondo:'#fff0f8'},
-  {id:'marmol_negro',   name:'Mármol Negro',       cat:'dark luxury minimal',  emoji:'◈', bg:'#0a0a0a', pri:'#cccccc', sec:'#888888', txt:'#cccccc', btn:'#aaaaaa', precio:'#888888', fuente:'Cinzel',              br:'2px',  layout:'2', efecto:'none',   fondo:'#0a0a0a'},
-  {id:'verano_tropical',name:'Verano Tropical',    cat:'light fun food',       emoji:'☀️', bg:'#fff9e6', pri:'#e65100', sec:'#ffb300', txt:'#bf360c', btn:'#e65100', precio:'#bf360c', fuente:'Pacifico',            br:'12px', layout:'2', efecto:'shadow', fondo:'#fff9e6'},
-  {id:'blood_moon',     name:'Blood Moon',         cat:'dark',                 emoji:'🌑', bg:'#0a0000', pri:'#cc0000', sec:'#800000', txt:'#ffcccc', btn:'#aa0000', precio:'#cc0000', fuente:'Cinzel',              br:'4px',  layout:'2', efecto:'neon',   fondo:'#0a0000'},
-  {id:'sushi_bar',      name:'Sushi Bar',          cat:'light food',           emoji:'🍣', bg:'#f5f0eb', pri:'#c82828', sec:'#888888', txt:'#1a0a0a', btn:'#c82828', precio:'#c82828', fuente:'Josefin Sans',        br:'4px',  layout:'2', efecto:'flat',   fondo:'#f5f0eb'},
-  {id:'deep_sea',       name:'Deep Sea',           cat:'dark nature',          emoji:'🐚', bg:'#000d1a', pri:'#00c8ff', sec:'#0096c0', txt:'#b0e8ff', btn:'#006494', precio:'#00c8ff', fuente:'Raleway',             br:'10px', layout:'2', efecto:'glass',  fondo:'#000d1a'},
-  {id:'botanica',       name:'Botánica',           cat:'light nature',         emoji:'🌱', bg:'#f0f4ee', pri:'#2e7d32', sec:'#4caf50', txt:'#1b5e20', btn:'#2e7d32', precio:'#2e7d32', fuente:'Merriweather',        br:'12px', layout:'2', efecto:'shadow', fondo:'#f0f4ee'},
-  {id:'retro_80s',      name:'Retro 80s',          cat:'dark neon fun',        emoji:'📼', bg:'#1a0a2e', pri:'#ff0080', sec:'#00c8ff', txt:'#fff0ff', btn:'#ff0080', precio:'#00c8ff', fuente:'Righteous',           br:'0px',  layout:'2', efecto:'neon',   fondo:'#1a0a2e'},
-  {id:'farmacia',       name:'Farmacia',           cat:'light minimal',        emoji:'✚', bg:'#f0f8ff', pri:'#0064c8', sec:'#0096ff', txt:'#003c8f', btn:'#0064c8', precio:'#0096ff', fuente:'Montserrat',          br:'8px',  layout:'2', efecto:'flat',   fondo:'#f0f8ff'},
-  {id:'noche_arabe',    name:'Noche Árabe',        cat:'dark luxury',          emoji:'🌙', bg:'#0d0800', pri:'#d4af37', sec:'#ff8c00', txt:'#fff8e0', btn:'#d4af37', precio:'#ff8c00', fuente:'Cinzel',              br:'6px',  layout:'2', efecto:'none',   fondo:'#0d0800'},
-  {id:'pasteleria_fr',  name:'Pastelería Francesa',cat:'light luxury food',    emoji:'🥐', bg:'#fef9f0', pri:'#e91e63', sec:'#f48fb1', txt:'#880e4f', btn:'#e91e63', precio:'#c2185b', fuente:'Cormorant Garamond',  br:'12px', layout:'2', efecto:'glass',  fondo:'#fef9f0'},
-  {id:'steampunk',      name:'Steampunk',          cat:'dark',                 emoji:'⚙️', bg:'#150e00', pri:'#cd853f', sec:'#8b4513', txt:'#ffe0a0', btn:'#8b4513', precio:'#ffe0a0', fuente:'Abril Fatface',       br:'4px',  layout:'2', efecto:'none',   fondo:'#150e00'},
-  {id:'glassmorphism',  name:'Glassmorphism',      cat:'dark',                 emoji:'◎', bg:'#1a2040', pri:'#ffffff', sec:'#cc80ff', txt:'#ffffff', btn:'#ffffff', precio:'#cc80ff', fuente:'Raleway',             br:'14px', layout:'2', efecto:'glass',  fondo:'#1a2040'},
-  {id:'navideno',       name:'Navideño',           cat:'dark fun',             emoji:'🎄', bg:'#0a1a0a', pri:'#ff4444', sec:'#22c55e', txt:'#ccffcc', btn:'#cc0000', precio:'#ff4444', fuente:'Fredoka One',         br:'10px', layout:'2', efecto:'neon',   fondo:'#0a1a0a'},
-  {id:'editorial_bw',   name:'Editorial B&W',      cat:'light minimal',        emoji:'📋', bg:'#ffffff', pri:'#111111', sec:'#333333', txt:'#111111', btn:'#111111', precio:'#ff0000', fuente:'Anton',               br:'2px',  layout:'2', efecto:'flat',   fondo:'#ffffff'},
-  {id:'coral_reef',     name:'Coral Reef',         cat:'dark nature',          emoji:'🐠', bg:'#001825', pri:'#00b4d8', sec:'#ff7850', txt:'#cff4ff', btn:'#00b4d8', precio:'#ff7850', fuente:'Josefin Sans',        br:'10px', layout:'2', efecto:'none',   fondo:'#001825'},
-  {id:'pastel_macaron', name:'Pastel Macaron',     cat:'light fun luxury',     emoji:'🎀', bg:'#fdf4ff', pri:'#9b59b6', sec:'#a8d4ff', txt:'#7d3c98', btn:'#9b59b6', precio:'#7d3c98', fuente:'Quicksand',           br:'16px', layout:'2', efecto:'glass',  fondo:'#fdf4ff'},
-  {id:'dark_academia',  name:'Dark Academia',      cat:'dark luxury',          emoji:'📚', bg:'#1a1508', pri:'#d4af50', sec:'#c8a878', txt:'#f5deb3', btn:'#8b7355', precio:'#d4af50', fuente:'Merriweather',        br:'4px',  layout:'2', efecto:'none',   fondo:'#1a1508'},
-  {id:'matrix',         name:'Matrix',             cat:'dark neon',            emoji:'💻', bg:'#000500', pri:'#00ff00', sec:'#006600', txt:'#00ff00', btn:'#00aa00', precio:'#00ff00', fuente:'Space Grotesk',        br:'0px',  layout:'2', efecto:'neon',   fondo:'#000500'},
-  {id:'wedding',        name:'Wedding',            cat:'light luxury',         emoji:'💍', bg:'#fefefe', pri:'#8b6914', sec:'#c8b48c', txt:'#5c4010', btn:'#8b6914', precio:'#8b6914', fuente:'Cormorant Garamond',  br:'8px',  layout:'2', efecto:'shadow', fondo:'#fefefe'},
-  {id:'neon_underground',name:'Neon Underground',  cat:'dark neon',            emoji:'🎛️', bg:'#000008', pri:'#ffff00', sec:'#ff00c8', txt:'#ffffaa', btn:'#ffff00', precio:'#ff00c8', fuente:'Bebas Neue',          br:'0px',  layout:'2', efecto:'neon',   fondo:'#000008'},
-  {id:'bauhaus',        name:'Bauhaus',            cat:'light minimal',        emoji:'🔴', bg:'#f5f5f5', pri:'#ff0000', sec:'#0000ff', txt:'#000000', btn:'#000000', precio:'#ff0000', fuente:'Montserrat',          br:'0px',  layout:'2', efecto:'flat',   fondo:'#f5f5f5'},
-  {id:'polar_winter',   name:'Polar Winter',       cat:'light',                emoji:'❄️', bg:'#f0f8ff', pri:'#0288d1', sec:'#4fc3f7', txt:'#01579b', btn:'#0288d1', precio:'#0277bd', fuente:'Raleway',             br:'12px', layout:'2', efecto:'glass',  fondo:'#f0f8ff'},
-  {id:'vintage_diner',  name:'Vintage Diner',      cat:'light food fun',       emoji:'🍟', bg:'#fef3e0', pri:'#c82000', sec:'#ff6b00', txt:'#c82000', btn:'#c82000', precio:'#ff6b00', fuente:'Righteous',           br:'20px', layout:'2', efecto:'shadow', fondo:'#fef3e0'},
-  {id:'crypto_web3',    name:'Crypto/Web3',        cat:'dark',                 emoji:'₿', bg:'#060c18', pri:'#50c878', sec:'#ffa000', txt:'#e0ffe8', btn:'#50c878', precio:'#ffa000', fuente:'Exo 2',               br:'8px',  layout:'2', efecto:'none',   fondo:'#060c18'},
-  {id:'terra_cotta',    name:'Terra Cotta',        cat:'light nature minimal', emoji:'🏺', bg:'#f5ede4', pri:'#8b4513', sec:'#c07850', txt:'#5c2a0a', btn:'#8b4513', precio:'#c07850', fuente:'Josefin Sans',        br:'10px', layout:'2', efecto:'flat',   fondo:'#f5ede4'},
-  {id:'electric_violet',name:'Electric Violet',    cat:'dark neon',            emoji:'⚡', bg:'#080010', pri:'#b040ff', sec:'#7800ff', txt:'#e0b0ff', btn:'#7800ff', precio:'#b040ff', fuente:'Orbitron',            br:'8px',  layout:'2', efecto:'neon',   fondo:'#080010'},
-  {id:'street_food',    name:'Street Food',        cat:'dark food fun',        emoji:'🌮', bg:'#1a0f00', pri:'#ff8c00', sec:'#ff4400', txt:'#ffedcc', btn:'#ff8c00', precio:'#ff6600', fuente:'Syne',                br:'4px',  layout:'2', efecto:'none',   fondo:'#1a0f00'},
-  {id:'cosmos',         name:'Cosmos',             cat:'dark neon luxury',     emoji:'🌌', bg:'#000005', pri:'#ff64c8', sec:'#6464ff', txt:'#f0e8ff', btn:'#6400c8', precio:'#ff64c8', fuente:'Raleway',             br:'12px', layout:'2', efecto:'glass',  fondo:'#000005'},
-];
-
-let _temaSeleccionado = 'obsidian_noir';
-
-function renderTemaGrid(filter) {
-  const grid = document.getElementById('temaGrid');
-  if(!grid) return;
-  const lista = filter === 'todos' ? TEMAS_50 : TEMAS_50.filter(t => t.cat.includes(filter));
-  grid.innerHTML = lista.map(t => `
-    <div class="tema-card ${_temaSeleccionado === t.id ? 'activo' : ''}" data-tema-id="${t.id}" onclick="elegirTema('${t.id}')" title="${t.name}">
-      <div class="tc-preview" style="background:${t.fondo};">
-        <div class="tc-bar" style="background:${t.fondo};border-bottom:1px solid ${t.pri}22;">
-          <div class="tc-dot" style="background:${t.pri};"></div>
-        </div>
-        <div class="tc-emoji">${t.emoji}</div>
-        <div class="tc-prices">
-          <div class="tc-price" style="background:${t.pri}15;border:1px solid ${t.pri}30;">
-            <span style="color:${t.precio};font-size:8px;font-weight:700;">$12</span>
-          </div>
-          <div class="tc-price" style="background:${t.pri}15;border:1px solid ${t.pri}30;">
-            <span style="color:${t.precio};font-size:8px;font-weight:700;">$25</span>
-          </div>
-        </div>
-        <div class="tc-btnp" style="background:${t.btn};border-radius:${t.br};"></div>
-        ${_temaSeleccionado === t.id ? '<div class="tc-check">✓</div>' : ''}
-      </div>
-      <div class="tc-label" style="background:${t.fondo};border-top:1px solid ${t.pri}20;">
-        <div class="tc-name-text" style="color:${t.txt};font-size:9px;font-weight:700;letter-spacing:.04em;line-height:1.2;">${t.name}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function filtrarTemas(tag, btn) {
-  document.querySelectorAll('.tema-f-btn').forEach(b => b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  renderTemaGrid(tag);
-}
-
-function elegirTema(id) {
-  const t = TEMAS_50.find(x => x.id === id);
-  if(!t) return;
-  _temaSeleccionado = id;
-  document.getElementById('wl_tema_seleccionado').value = id;
-  // Sync hidden fields for guardarTema
-  setHidden('wl_color_primario', t.pri);
-  setHidden('wl_color_fondo', t.fondo);
-  setHidden('wl_color_texto', t.txt);
-  setHidden('wl_color_secundario', t.sec);
-  setHidden('wl_color_boton', t.btn);
-  setHidden('wl_color_precio', t.precio);
-  setHidden('wl_fuente', t.fuente);
-  setHidden('wl_border_radius', t.br);
-  setHidden('wl_layout', t.layout);
-  setHidden('wl_efecto', t.efecto);
-  // Re-render grid to show checkmark
-  const current_filter = document.querySelector('.tema-f-btn.active')?.textContent || 'Todos';
-  const filterMap = {'Todos':'todos','🌑 Dark':'dark','☀️ Claro':'light','⚡ Neón':'neon','🍔 Comida':'food','💎 Lujo':'luxury','🌿 Natural':'nature','🎉 Fun':'fun','▣ Minimal':'minimal'};
-  renderTemaGrid(filterMap[current_filter] || 'todos');
-  mostrarNotificacion(`🎨 Tema: ${t.name} — presiona GUARDAR para aplicar`);
-}
+// ─── WHITE-LABEL: ESTILO DE MARCA (simplificado) ─────────────────────────────
+let _temaSeleccionado = 'brand_style_v2';
 
 function setHidden(id, val) {
   let el = document.getElementById(id);
@@ -2074,6 +1977,7 @@ function syncMarcaFromPickers(){
   setHidden('wl_color_secundario', _mix(secBase, pri, Math.max(0, Math.min(1, vibe))));
   const prBase = document.getElementById('wl_color_precio')?.value || pri;
   setHidden('wl_color_precio', _mix(prBase, pri, Math.max(0, Math.min(1, vibe))));
+  actualizarPreviewEstiloMarca();
 }
 
 async function guardarTema() {
@@ -2101,17 +2005,15 @@ async function guardarTema() {
 async function resetearTema() {
   if(!confirm('¿Resetear al tema por defecto?')) return;
   const r = await api(`/panel/${SLUG}/tema/reset`, {method:'POST'});
-  if(r?.ok) { elegirTema('obsidian_noir'); mostrarNotificacion('// Tema reseteado'); }
+  if(r?.ok) {
+    aplicarPresetMarca('premium_dark');
+    mostrarNotificacion('// Estilo reseteado');
+  }
 }
 
 async function cargarTema() {
   const tema = await api(`/panel/${SLUG}/tema`);
-  if(!tema) { renderTemaGrid('todos'); return; }
-  // Try to match saved theme to one of our 50
-  const match = TEMAS_50.find(t =>
-    t.pri === tema.color_primario || t.fondo === tema.color_fondo
-  );
-  if(match) { _temaSeleccionado = match.id; }
+  if(!tema) { aplicarPresetMarca('premium_dark'); return; }
   if(tema.banner_opacity !== undefined) {
     const sl = document.getElementById('wl_banner_opacity');
     const vl = document.getElementById('wl_banner_opacity_val');
@@ -2121,7 +2023,16 @@ async function cargarTema() {
   // Set hidden fields
   const fields = ['color_primario','color_fondo','color_texto','color_secundario','color_boton','color_precio','fuente','border_radius','layout','efecto'];
   fields.forEach(k => { if(tema[k]) setHidden('wl_'+k, tema[k]); });
-  renderTemaGrid('todos');
+  const priEl = document.getElementById('wl_pri_picker');
+  const bgEl = document.getElementById('wl_bg_picker');
+  if(priEl && tema.color_primario) priEl.value = tema.color_primario;
+  if(bgEl && tema.color_fondo) bgEl.value = tema.color_fondo;
+  const round = parseInt(String(tema.border_radius||'14').replace('px',''),10);
+  const roundEl = document.getElementById('wl_round');
+  if(roundEl && Number.isFinite(round)) roundEl.value = String(round);
+  const roundV = document.getElementById('wl_round_val');
+  if(roundV && Number.isFinite(round)) roundV.textContent = `${round}px`;
+  syncMarcaFromPickers();
 }
 
 // ── CONFIG SUB-TABS ──
