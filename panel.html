@@ -874,6 +874,7 @@ textarea{resize:vertical;border-radius:8px;}
       <input type="hidden" id="wl_tema_seleccionado" value="obsidian_noir">
       <div style="display:flex;gap:8px;margin-top:16px;">
         <button class="btn btn-success" onclick="guardarTema()" style="flex:1;font-family:var(--fh);font-size:11px;letter-spacing:.1em;">💾 GUARDAR TEMA</button>
+        <button class="btn btn-secondary" onclick="normalizarTemaPremium()" style="font-size:11px;">✨ Auto premium</button>
         <button class="btn btn-secondary" onclick="resetearTema()" style="font-size:11px;">↺ Reset</button>
       </div>
       <div id="wlAlert" class="alert" style="margin-top:10px;"></div>
@@ -1950,6 +1951,41 @@ function setHidden(id, val) {
     document.body.appendChild(el);
   }
   el.value = val;
+}
+
+function _hexOk(h){ return typeof h === 'string' && /^#[0-9a-fA-F]{6}$/.test(h); }
+function _hexToRgb(h){ if(!_hexOk(h)) return null; return {r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)}; }
+function _rgbToHex(r,g,b){
+  const c = n => Math.max(0,Math.min(255,Math.round(n))).toString(16).padStart(2,'0');
+  return `#${c(r)}${c(g)}${c(b)}`;
+}
+function _mix(a,b,t){
+  const ra=_hexToRgb(a), rb=_hexToRgb(b);
+  if(!ra||!rb) return a||b||'#000000';
+  return _rgbToHex(ra.r+(rb.r-ra.r)*t,ra.g+(rb.g-ra.g)*t,ra.b+(rb.b-ra.b)*t);
+}
+function _lum(h){
+  const c=_hexToRgb(h); if(!c) return 0;
+  const f=x=>{x/=255; return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4);};
+  return 0.2126*f(c.r)+0.7152*f(c.g)+0.0722*f(c.b);
+}
+function _contrast(h){ return _lum(h) > .6 ? '#101214' : '#ffffff'; }
+function normalizarTemaPremium(){
+  const pri = document.getElementById('wl_color_primario')?.value || '#00c8ff';
+  const fondo = document.getElementById('wl_color_fondo')?.value || '#020509';
+  const safePri = _hexOk(pri) ? pri : '#00c8ff';
+  const safeFondo = _hexOk(fondo) ? fondo : '#020509';
+  const dark = _lum(safeFondo) < .42;
+  const txt = _contrast(safeFondo);
+  setHidden('wl_color_primario', safePri);
+  setHidden('wl_color_fondo', safeFondo);
+  setHidden('wl_color_texto', txt);
+  setHidden('wl_color_secundario', _mix(safePri, dark ? '#ffffff' : '#000000', dark ? .30 : .16));
+  setHidden('wl_color_boton', safePri);
+  setHidden('wl_color_precio', _mix(safePri, dark ? '#7dffb3' : '#0a7d3e', .45));
+  if(!document.getElementById('wl_border_radius')?.value) setHidden('wl_border_radius', '14px');
+  if(!document.getElementById('wl_fuente')?.value) setHidden('wl_fuente', 'Inter');
+  mostrarNotificacion('✨ Tema normalizado a versión premium. Ahora guarda para aplicar');
 }
 
 async function guardarTema() {

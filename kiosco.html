@@ -11,6 +11,7 @@
       --brand:#c8102e;
       --brand-ink:#fff;
       --page:#f2f2f2;
+      --page-soft:#e8ebef;
       --card:#fff;
       --ink:#1a1a1a;
       --muted:#5c5c5c;
@@ -21,7 +22,14 @@
       --safe:env(safe-area-inset-bottom,0px);
     }
     html,body{width:100%;height:100%;overflow:hidden;}
-    body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--page);color:var(--ink);user-select:none;}
+    body{
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      background:
+        radial-gradient(1100px 520px at -10% -10%, color-mix(in srgb,var(--brand) 10%, transparent), transparent 60%),
+        radial-gradient(1000px 480px at 110% -10%, color-mix(in srgb,var(--brand) 8%, transparent), transparent 62%),
+        linear-gradient(180deg,var(--page-soft),var(--page));
+      color:var(--ink);user-select:none;
+    }
 
     .screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .28s ease,transform .28s ease;z-index:1;}
     .screen.on{opacity:1;pointer-events:all;transform:none;}
@@ -332,13 +340,57 @@
 
     function shBody(){ return document.getElementById('shBodyMain'); }
 
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+    function hexToRgb(h){
+      if(typeof h !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(h)) return null;
+      return {r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};
+    }
+    function rgbToHex(r,g,b){
+      const to = (n)=>clamp(Math.round(n),0,255).toString(16).padStart(2,'0');
+      return `#${to(r)}${to(g)}${to(b)}`;
+    }
+    function mix(a,b,t){
+      const ra=hexToRgb(a), rb=hexToRgb(b);
+      if(!ra||!rb) return a || b || '#000000';
+      return rgbToHex(ra.r+(rb.r-ra.r)*t, ra.g+(rb.g-ra.g)*t, ra.b+(rb.b-ra.b)*t);
+    }
+    function luminance(hex){
+      const c = hexToRgb(hex); if(!c) return 0;
+      const f = (x)=>{ x/=255; return x<=0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055,2.4); };
+      return 0.2126*f(c.r)+0.7152*f(c.g)+0.0722*f(c.b);
+    }
+    function contrastText(bg){
+      const l = luminance(bg);
+      return l > 0.6 ? '#101214' : '#ffffff';
+    }
+    function smartTheme(t){
+      const pri = /^#[0-9a-fA-F]{6}$/.test(t?.color_primario||'') ? t.color_primario : '#c8102e';
+      const fondo = /^#[0-9a-fA-F]{6}$/.test(t?.color_fondo||'') ? t.color_fondo : '#f2f2f2';
+      const txt = /^#[0-9a-fA-F]{6}$/.test(t?.color_texto||'') ? t.color_texto : contrastText(fondo);
+      const isDark = luminance(fondo) < 0.42;
+      return {
+        brand: pri,
+        brandInk: contrastText(pri),
+        page: fondo,
+        pageSoft: mix(fondo, isDark ? '#111827' : '#ffffff', isDark ? .22 : .35),
+        card: mix(fondo, isDark ? '#1b2230' : '#ffffff', isDark ? .24 : .92),
+        line: mix(fondo, isDark ? '#ffffff' : '#0f172a', isDark ? .22 : .16),
+        ink: txt,
+        muted: mix(txt, fondo, .46)
+      };
+    }
     function aplicarTemaKiosco(tema){
       if(!tema) return;
       const root = document.documentElement;
-      const hex = (h) => typeof h === 'string' && /^#[0-9a-fA-F]{6}$/.test(h) ? h : null;
-      if(hex(tema.color_primario)) root.style.setProperty('--brand', tema.color_primario);
-      if(hex(tema.color_fondo)) root.style.setProperty('--page', tema.color_fondo);
-      if(hex(tema.color_texto)) root.style.setProperty('--ink', tema.color_texto);
+      const st = smartTheme(tema);
+      root.style.setProperty('--brand', st.brand);
+      root.style.setProperty('--brand-ink', st.brandInk);
+      root.style.setProperty('--page', st.page);
+      root.style.setProperty('--page-soft', st.pageSoft);
+      root.style.setProperty('--card', st.card);
+      root.style.setProperty('--line', st.line);
+      root.style.setProperty('--ink', st.ink);
+      root.style.setProperty('--muted', st.muted);
       if(typeof tema.banner_opacity === 'number'){}
     }
 
