@@ -477,6 +477,16 @@
 
   function allProducts(){ return (neg.catalogo||[]).filter(p=>p.activo!==false); }
 
+  function buildCats(products){
+    const byCat = new Map();
+    for(const p of products){
+      const c = p.categoria || 'Menú';
+      if(!byCat.has(c)) byCat.set(c, []);
+      byCat.get(c).push(p);
+    }
+    return byCat;
+  }
+
   function filteredList(){
     let list = allProducts();
     if(catAct !== 'todas') list = list.filter(p=>(p.categoria||'Menú')===catAct);
