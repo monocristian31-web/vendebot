@@ -1908,7 +1908,11 @@ if (!ADMIN_PASSWORD) {
 
 function generarToken() { return crypto.randomBytes(32).toString('hex'); }
 function verificarToken(token) { return tokens.has(token) && Date.now() - tokens.get(token).tiempo < 24 * 60 * 60 * 1000; }
-function verificarTokenPanel(token, slug) { const t = tokens.get(token); return t && t.slug === slug && Date.now() - t.tiempo < 7 * 24 * 60 * 60 * 1000; }
+function normalizarSlug(v) { return String(v || '').trim().toLowerCase(); }
+function verificarTokenPanel(token, slug) {
+  const t = tokens.get(token);
+  return !!(t && normalizarSlug(t.slug) === normalizarSlug(slug) && Date.now() - t.tiempo < 7 * 24 * 60 * 60 * 1000);
+}
 
 app.post('/auth/admin', (req, res) => {
   if (!ADMIN_PASSWORD) {
@@ -1923,7 +1927,8 @@ app.post('/auth/admin', (req, res) => {
 
 app.post('/auth/panel/:slug', (req, res) => {
   const negocios = cargarNegocios();
-  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug && n.activo);
+  const slugReq = normalizarSlug(req.params.slug);
+  const idx = negocios.findIndex(n => normalizarSlug(n.slug || n.id) === slugReq && n.activo);
   const negocio = idx >= 0 ? negocios[idx] : null;
   if (negocio && verifyPassword(req.body.password, negocio.password)) {
     // Migración transparente: si aún estaba en texto plano, se guarda hasheada.
@@ -1933,9 +1938,9 @@ app.post('/auth/panel/:slug', (req, res) => {
       guardarDB('negocios', negocios).catch(e => console.error('[DB]', e.message));
     }
     const token = generarToken();
-    tokens.set(token, { tipo: 'panel', slug: req.params.slug, tiempo: Date.now() });
+    tokens.set(token, { tipo: 'panel', slug: (negocio.slug || negocio.id), tiempo: Date.now() });
     res.json({ ok: true, token });
-  } else res.json({ ok: false });
+  } else res.json({ ok: false, error: 'Credenciales inválidas' });
 });
 
 app.get('/auth/verify', (req, res) => {

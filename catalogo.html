@@ -14,6 +14,10 @@
       --page:#f2f2f2;
       --page-soft:#e8ebef;
       --card:#fff;
+      --surface:#ffffff;
+      --surface-2:#f7f8fa;
+      --accent-soft:#fff3f6;
+      --accent-line:#ffd23f;
       --ink:#1a1a1a;
       --muted:#5c5c5c;
       --line:#e8e8e8;
@@ -96,8 +100,8 @@
     /* Combo banner */
     .combo-card{
       margin:12px 14px;padding:14px 16px;border-radius:16px;
-      background:linear-gradient(135deg,#fff7e6,#fff);
-      border:2px solid #ffd23f;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;
+      background:linear-gradient(135deg,var(--accent-soft),var(--surface));
+      border:2px solid var(--accent-line);display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;
       box-shadow:0 6px 20px rgba(0,0,0,.06);
     }
     .combo-card:active{transform:scale(.995);}
@@ -143,7 +147,7 @@
     .p-from{font-size:10px;color:var(--muted);font-weight:700;}
     .btn-add{
       border:none;border-radius:999px;padding:8px 14px;font-weight:900;font-size:12px;cursor:pointer;
-      background:var(--brand);color:#fff;white-space:nowrap;box-shadow:0 4px 12px rgba(200,16,46,.35);
+      background:var(--brand);color:#fff;white-space:nowrap;box-shadow:0 4px 12px color-mix(in srgb,var(--brand) 35%, transparent);
     }
     .btn-add:active{transform:scale(.97);}
 
@@ -179,8 +183,8 @@
     .req{color:var(--brand);font-size:11px;font-weight:900;margin-left:6px;}
 
     /* Opciones tipo radio / check grande */
-    .opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer;background:#fff;}
-    .opt.sel{border-color:var(--brand);background:#fff8f8;}
+    .opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer;background:var(--surface);}
+    .opt.sel{border-color:var(--brand);background:var(--accent-soft);}
     .opt-ctrl{width:22px;height:22px;border-radius:50%;border:2px solid #ccc;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .opt.sel .opt-ctrl{border-color:var(--brand);background:var(--brand);box-shadow:inset 0 0 0 3px #fff;}
     .opt.sel .opt-ctrl.sq{border-radius:6px;}
@@ -342,6 +346,7 @@
   let comboBase = 0;
 
   function money(n){ return '$' + (Number(n)||0).toFixed(2); }
+  function slugify(s){ return String(s||'').toLowerCase().replace(/\s+/g,'-').replace(/[^\w-]/g,''); }
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
   function hexToRgb(h){
     if(typeof h !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(h)) return null;
@@ -377,6 +382,10 @@
       page: fondo,
       pageSoft: mix(fondo, isDark ? '#111827' : '#ffffff', isDark ? .22 : .35),
       card: mix(fondo, isDark ? '#1b2230' : '#ffffff', isDark ? .24 : .92),
+      surface: mix(fondo, isDark ? '#ffffff' : '#ffffff', isDark ? .05 : .98),
+      surface2: mix(fondo, isDark ? '#ffffff' : '#0f172a', isDark ? .09 : .04),
+      accentSoft: mix(pri, isDark ? '#0b111f' : '#ffffff', isDark ? .78 : .88),
+      accentLine: mix(pri, isDark ? '#ffffff' : '#f59e0b', isDark ? .2 : .35),
       line: mix(fondo, isDark ? '#ffffff' : '#0f172a', isDark ? .22 : .16),
       ink: txt,
       muted: mix(txt, fondo, .46)
@@ -400,6 +409,10 @@
     root.style.setProperty('--page', st.page);
     root.style.setProperty('--page-soft', st.pageSoft);
     root.style.setProperty('--card', st.card);
+    root.style.setProperty('--surface', st.surface);
+    root.style.setProperty('--surface-2', st.surface2);
+    root.style.setProperty('--accent-soft', st.accentSoft);
+    root.style.setProperty('--accent-line', st.accentLine);
     root.style.setProperty('--line', st.line);
     root.style.setProperty('--ink', st.ink);
     root.style.setProperty('--muted', st.muted);

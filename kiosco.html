@@ -13,6 +13,10 @@
       --page:#f2f2f2;
       --page-soft:#e8ebef;
       --card:#fff;
+      --surface:#ffffff;
+      --surface-2:#f7f8fa;
+      --accent-soft:#fff3f6;
+      --accent-line:#ffd23f;
       --ink:#1a1a1a;
       --muted:#5c5c5c;
       --line:#e8e8e8;
@@ -106,7 +110,7 @@
 
     .combo-card{
       margin-bottom:12px;padding:14px 16px;border-radius:16px;
-      background:linear-gradient(135deg,#fff7e6,#fff);border:2px solid #ffd23f;
+      background:linear-gradient(135deg,var(--accent-soft),var(--surface));border:2px solid var(--accent-line);
       display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;
       box-shadow:0 6px 18px rgba(0,0,0,.06);
     }
@@ -389,6 +393,10 @@
         page: fondo,
         pageSoft: mix(fondo, isDark ? '#111827' : '#ffffff', isDark ? .22 : .35),
         card: mix(fondo, isDark ? '#1b2230' : '#ffffff', isDark ? .24 : .92),
+        surface: mix(fondo, isDark ? '#ffffff' : '#ffffff', isDark ? .05 : .98),
+        surface2: mix(fondo, isDark ? '#ffffff' : '#0f172a', isDark ? .09 : .04),
+        accentSoft: mix(pri, isDark ? '#0b111f' : '#ffffff', isDark ? .78 : .88),
+        accentLine: mix(pri, isDark ? '#ffffff' : '#f59e0b', isDark ? .2 : .35),
         line: mix(fondo, isDark ? '#ffffff' : '#0f172a', isDark ? .22 : .16),
         ink: txt,
         muted: mix(txt, fondo, .46)
@@ -403,6 +411,10 @@
       root.style.setProperty('--page', st.page);
       root.style.setProperty('--page-soft', st.pageSoft);
       root.style.setProperty('--card', st.card);
+      root.style.setProperty('--surface', st.surface);
+      root.style.setProperty('--surface-2', st.surface2);
+      root.style.setProperty('--accent-soft', st.accentSoft);
+      root.style.setProperty('--accent-line', st.accentLine);
       root.style.setProperty('--line', st.line);
       root.style.setProperty('--ink', st.ink);
       root.style.setProperty('--muted', st.muted);
@@ -662,7 +674,7 @@
 
     function optBtnStyle(selected){
       const b = '2px solid ' + (selected ? 'var(--brand)' : 'var(--line)');
-      const bg = selected ? '#fff8f8' : '#fff';
+      const bg = selected ? 'var(--accent-soft)' : 'var(--surface)';
       const cl = selected ? 'var(--ink)' : 'var(--muted)';
       return `border:${b};background:${bg};color:${cl};padding:10px 14px;border-radius:14px;cursor:pointer;font-weight:800;font-size:13px;`;
     }
@@ -929,7 +941,7 @@
       const steps = document.createElement('div');
       steps.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;';
       steps.innerHTML = comboDef.map((s, i) => `
-        <div style="padding:6px 12px;border-radius:999px;border:2px solid var(--line);background:${i === comboStep ? '#fff8f8' : '#fff'};color:${i < comboStep ? 'var(--brand)' : 'var(--muted)'};font-weight:800;font-size:12px;">
+        <div style="padding:6px 12px;border-radius:999px;border:2px solid var(--line);background:${i === comboStep ? 'var(--accent-soft)' : 'var(--surface)'};color:${i < comboStep ? 'var(--brand)' : 'var(--muted)'};font-weight:800;font-size:12px;">
           ${i < comboStep ? '✓ ' : ''}${s.emoji || ''} ${s.label}
         </div>
       `).join('');
@@ -942,7 +954,7 @@
         const sel = comboSels[comboStep] && String(comboSels[comboStep].id) === String(p.id);
         const card = document.createElement('button');
         card.type = 'button';
-        card.style.cssText = `text-align:left;border:2px solid ${sel ? 'var(--brand)' : 'var(--line)'};background:${sel ? '#fff8f8' : '#fff'};border-radius:14px;padding:10px;cursor:pointer;color:var(--ink);`;
+        card.style.cssText = `text-align:left;border:2px solid ${sel ? 'var(--brand)' : 'var(--line)'};background:${sel ? 'var(--accent-soft)' : 'var(--surface)'};border-radius:14px;padding:10px;cursor:pointer;color:var(--ink);`;
         card.innerHTML = `
           ${p.imagen ? `<img src="${p.imagen}" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;margin-bottom:8px;">` : `<div style="font-size:32px;text-align:center;margin-bottom:6px;">${p.emoji || '📦'}</div>`}
           <div style="font-weight:800;font-size:12px;line-height:1.2;margin-bottom:4px;">${p.nombre}</div>

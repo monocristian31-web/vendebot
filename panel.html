@@ -822,34 +822,53 @@ textarea{resize:vertical;border-radius:8px;}
       </div>
     </div>
 
-    <!-- PREVIEW DEL CATÁLOGO -->
+    <!-- PREVIEW EN TIEMPO REAL -->
     <div class="card">
-      <div class="card-title">👁️ Preview del catálogo</div>
-      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Así verán tus clientes la tienda con el logo y banner actuales.</div>
-      <div id="catalogoPreviewBox" style="border:1px solid var(--b);border-radius:10px;overflow:hidden;max-width:380px;margin:0 auto;">
-        <!-- Banner -->
-        <div id="prevBannerBox" style="height:90px;background:var(--s1);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
-          <img id="prevBannerImg" style="width:100%;height:100%;object-fit:cover;display:none;">
-          <span id="prevBannerPlaceholder" style="font-family:var(--fm);font-size:10px;color:var(--t3);">Sin banner</span>
-        </div>
-        <!-- Logo + nombre -->
-        <div style="padding:12px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--b);">
-          <div id="prevLogoBox" style="width:48px;height:48px;border-radius:8px;background:var(--s1);border:1px solid var(--b);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
-            <img id="prevLogoImg" style="width:100%;height:100%;object-fit:cover;display:none;">
-            <span id="prevLogoPlaceholder" style="font-size:20px;">🏪</span>
+      <div class="card-title">👁️ Preview en tiempo real</div>
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:14px;">Mueve colores o estilo y mira el cambio instantáneo en Catálogo + Kiosco.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;">
+        <div id="catalogoPreviewBox" style="border:1px solid var(--b);border-radius:12px;overflow:hidden;">
+          <div style="padding:8px 10px;border-bottom:1px solid var(--b);font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);">CATÁLOGO</div>
+          <div id="prevBannerBox" style="height:90px;background:var(--s1);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+            <img id="prevBannerImg" style="width:100%;height:100%;object-fit:cover;display:none;">
+            <span id="prevBannerPlaceholder" style="font-family:var(--fm);font-size:10px;color:var(--t3);">Sin banner</span>
           </div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--tx);" id="prevNombre">Tu negocio</div>
-            <div style="font-family:var(--fm);font-size:10px;color:var(--t2);" id="prevTipo">Tipo de negocio</div>
+          <div style="padding:12px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--b);">
+            <div id="prevLogoBox" style="width:48px;height:48px;border-radius:8px;background:var(--s1);border:1px solid var(--b);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+              <img id="prevLogoImg" style="width:100%;height:100%;object-fit:cover;display:none;">
+              <span id="prevLogoPlaceholder" style="font-size:20px;">🏪</span>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--tx);" id="prevNombre">Tu negocio</div>
+              <div style="font-family:var(--fm);font-size:10px;color:var(--t2);" id="prevTipo">Tipo de negocio</div>
+            </div>
+          </div>
+          <div style="padding:10px 14px;display:flex;gap:10px;align-items:center;">
+            <div style="width:52px;height:52px;border-radius:8px;background:var(--s1);border:1px solid var(--b);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div>
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:var(--tx);">Producto de ejemplo</div>
+              <div style="font-family:var(--fm);font-size:10px;color:var(--t2);">Descripción breve</div>
+              <div style="font-size:13px;font-weight:700;color:var(--c);margin-top:2px;">$0.00</div>
+            </div>
           </div>
         </div>
-        <!-- Producto de ejemplo -->
-        <div style="padding:10px 14px;display:flex;gap:10px;align-items:center;">
-          <div style="width:52px;height:52px;border-radius:8px;background:var(--s1);border:1px solid var(--b);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div>
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:600;color:var(--tx);">Producto de ejemplo</div>
-            <div style="font-family:var(--fm);font-size:10px;color:var(--t2);">Descripción breve del producto</div>
-            <div style="font-size:13px;font-weight:700;color:var(--c);margin-top:2px;">$0.00</div>
+        <div id="kioscoPreviewBox" style="border:1px solid var(--b);border-radius:12px;overflow:hidden;">
+          <div style="padding:8px 10px;border-bottom:1px solid var(--b);font-family:var(--fm);font-size:10px;letter-spacing:.12em;color:var(--t2);">KIOSCO</div>
+          <div style="padding:10px 12px;background:var(--s1);border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;">
+            <strong id="kPrevName" style="font-size:12px;color:var(--tx);">Tu negocio</strong>
+            <span style="font-size:11px;color:var(--c);font-weight:800;">🛒 2</span>
+          </div>
+          <div style="padding:10px 12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="border:1px solid var(--b);border-radius:10px;overflow:hidden;background:var(--s1);">
+                <div style="height:54px;background:var(--s2);display:flex;align-items:center;justify-content:center;">🍔</div>
+                <div style="padding:8px;"><div style="font-size:11px;font-weight:700;color:var(--tx);">Burger Pro</div><div style="font-size:10px;color:var(--c);font-weight:800;">$5.99</div></div>
+              </div>
+              <div style="border:1px solid var(--b);border-radius:10px;overflow:hidden;background:var(--s1);">
+                <div style="height:54px;background:var(--s2);display:flex;align-items:center;justify-content:center;">🌮</div>
+                <div style="padding:8px;"><div style="font-size:11px;font-weight:700;color:var(--tx);">Combo Plus</div><div style="font-size:10px;color:var(--c);font-weight:800;">$8.49</div></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -862,11 +881,13 @@ textarea{resize:vertical;border-radius:8px;}
         Elige una base de diseño (estructura + sensación) y solo ajusta 2 cosas. El sistema se encarga del contraste para que siempre se vea premium.
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px;">
-        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('premium_dark')" style="justify-content:flex-start;">🌑 Premium oscuro</button>
-        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('clean_light')" style="justify-content:flex-start;">☀️ Limpio claro</button>
-        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('fastfood')" style="justify-content:flex-start;">🍔 Comida rápida</button>
-        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('boutique')" style="justify-content:flex-start;">💎 Boutique elegante</button>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:14px;">
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('burgers')" style="justify-content:flex-start;">🍔 Hamburguesería Pro</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('floristeria')" style="justify-content:flex-start;">🌸 Floristería Elegante</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('cafeteria')" style="justify-content:flex-start;">☕ Cafetería Premium</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('pizzeria')" style="justify-content:flex-start;">🍕 Pizzería Moderna</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('premium_dark')" style="justify-content:flex-start;">🌑 Corporativo Dark</button>
+        <button class="btn btn-secondary" type="button" onclick="aplicarPresetMarca('clean_light')" style="justify-content:flex-start;">☀️ Corporativo Light</button>
       </div>
 
       <div class="form-row">
@@ -1144,7 +1165,7 @@ textarea{resize:vertical;border-radius:8px;}
 <div id="notif"></div>
 
 <script>
-const BASE='https://vendebot-production.up.railway.app';
+const BASE=window.location.origin;
 const SLUG=window.location.pathname.split('/').pop();
 let TOKEN=sessionStorage.getItem('vb_panel_token_'+SLUG)||'';
 let negocioData=null;
@@ -1153,7 +1174,12 @@ function openSidebar(){document.getElementById('sidebar').classList.add('open');
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');}
 
 async function loginPanel(){
-  const pass=document.getElementById('panelPass').value;
+  const pass=(document.getElementById('panelPass').value||'').trim();
+  if(!pass){
+    const al=document.getElementById('loginAlert');
+    al.textContent='// INGRESA TU CONTRASEÑA';
+    return;
+  }
   const r=await fetch(`${BASE}/auth/panel/${SLUG}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass})});
   const data=await r.json();
   if(data.token){
@@ -1163,7 +1189,7 @@ async function loginPanel(){
     cargarTodo();
   } else {
     const al=document.getElementById('loginAlert');
-    al.textContent='// ACCESO DENEGADO';
+    al.textContent='// '+(data?.error || 'ACCESO DENEGADO');
     document.getElementById('panelPass').value='';
   }
 }
@@ -1546,6 +1572,7 @@ function actualizarPreviewEstiloMarca(){
   const txt = document.getElementById('wl_color_texto')?.value || '#ffffff';
   const br = document.getElementById('wl_border_radius')?.value || '14px';
   const box = document.getElementById('catalogoPreviewBox');
+  const kbox = document.getElementById('kioscoPreviewBox');
   const banner = document.getElementById('prevBannerBox');
   const logo = document.getElementById('prevLogoBox');
   if(box){
@@ -1553,6 +1580,12 @@ function actualizarPreviewEstiloMarca(){
     box.style.borderColor = `${pri}55`;
     box.style.borderRadius = br;
     box.style.boxShadow = `0 12px 32px ${pri}22`;
+  }
+  if(kbox){
+    kbox.style.background = bg;
+    kbox.style.borderColor = `${pri}55`;
+    kbox.style.borderRadius = br;
+    kbox.style.boxShadow = `0 12px 32px ${pri}22`;
   }
   if(banner){
     banner.style.background = `linear-gradient(135deg, ${bg}, ${_mix(bg, pri, .24)})`;
@@ -1563,8 +1596,10 @@ function actualizarPreviewEstiloMarca(){
     logo.style.background = `${_mix(bg, '#ffffff', .08)}`;
   }
   const pn=document.getElementById('prevNombre'); const pt=document.getElementById('prevTipo');
+  const kn=document.getElementById('kPrevName');
   if(pn){ pn.style.color = txt; }
   if(pt){ pt.style.color = _mix(txt, bg, .55); }
+  if(kn){ kn.style.color = txt; kn.textContent = pn?.textContent || 'Tu negocio'; }
 }
 
 async function subirLogo(input){
@@ -1913,7 +1948,7 @@ function _lum(h){
   return 0.2126*f(c.r)+0.7152*f(c.g)+0.0722*f(c.b);
 }
 function _contrast(h){ return _lum(h) > .6 ? '#101214' : '#ffffff'; }
-function normalizarTemaPremium(){
+function normalizarTemaPremium(silent=false){
   const pri = document.getElementById('wl_color_primario')?.value || '#00c8ff';
   const fondo = document.getElementById('wl_color_fondo')?.value || '#020509';
   const safePri = _hexOk(pri) ? pri : '#00c8ff';
@@ -1928,11 +1963,15 @@ function normalizarTemaPremium(){
   setHidden('wl_color_precio', _mix(safePri, dark ? '#7dffb3' : '#0a7d3e', .45));
   if(!document.getElementById('wl_border_radius')?.value) setHidden('wl_border_radius', '14px');
   if(!document.getElementById('wl_fuente')?.value) setHidden('wl_fuente', 'Inter');
-  mostrarNotificacion('✨ Tema normalizado a versión premium. Ahora guarda para aplicar');
+  if(!silent) mostrarNotificacion('✨ Tema normalizado a versión premium. Ahora guarda para aplicar');
 }
 
 // ── NUEVO: Estilo de Marca (simple + premium) ──
 const MARCA_PRESETS = {
+  burgers:      { pri:'#c8102e', fondo:'#f3f3f3', vibe:0.78, round:16, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  floristeria:  { pri:'#b83280', fondo:'#fdf6fb', vibe:0.58, round:18, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  cafeteria:    { pri:'#7a4e2d', fondo:'#f6efe9', vibe:0.62, round:14, fuente:'Space Grotesk', layout:'2', efecto:'none' },
+  pizzeria:     { pri:'#d9480f', fondo:'#fff4e6', vibe:0.68, round:14, fuente:'Space Grotesk', layout:'2', efecto:'none' },
   premium_dark: { pri:'#7c3aed', fondo:'#070814', vibe:0.55, round:16, fuente:'Space Grotesk', layout:'2', efecto:'none' },
   clean_light:  { pri:'#0ea5e9', fondo:'#f4f7fb', vibe:0.55, round:14, fuente:'Space Grotesk', layout:'2', efecto:'none' },
   fastfood:     { pri:'#c8102e', fondo:'#f2f2f2', vibe:0.70, round:16, fuente:'Space Grotesk', layout:'2', efecto:'none' },
@@ -1970,7 +2009,7 @@ function syncMarcaFromPickers(){
   setHidden('wl_border_radius', `${round}px`);
 
   // Ajuste premium (contraste + derivados)
-  normalizarTemaPremium();
+  normalizarTemaPremium(true);
 
   // Vibrancia: empuja secundarios/precio hacia el primario o hacia neutros
   const secBase = document.getElementById('wl_color_secundario')?.value || pri;
