@@ -395,6 +395,7 @@ textarea{resize:vertical;border-radius:8px;}
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-secondary btn-sm" onclick="verCatalogoPublico()">🌐 Ver</button>
       <button class="btn btn-secondary btn-sm" onclick="copiarLinkCatalogo()">📋 Copiar link</button>
+      <button class="btn btn-secondary btn-sm" onclick="abrirImportarCatalogo()">📥 Importar</button>
       <button class="btn btn-primary btn-sm" onclick="mostrarFormProducto()">+ Nuevo</button>
     </div>
   </div>
@@ -2567,6 +2568,157 @@ async function desconectarProveedor(provId){
   if(!confirm('¿Desconectar este proveedor?'))return;
   const r=await api(`/panel/${SLUG}/red/proveedores/${provId}`,{method:'DELETE'});
   if(r?.ok){mostrarNotificacion('// Proveedor desconectado');cargarListaChats();}
+}
+
+// ═══════════════════════════════════════════
+// IMPORTAR CATÁLOGO CON IA
+// ═══════════════════════════════════════════
+function abrirImportarCatalogo(){
+  document.getElementById('modalImportar').style.display='flex';
+  resetImportModal();
+}
+function cerrarImportarCatalogo(){
+  document.getElementById('modalImportar').style.display='none';
+  resetImportModal();
+}
+function resetImportModal(){
+  document.getElementById('imp_file').value='';
+  document.getElementById('imp_texto').value='';
+  document.getElementById('imp_status').textContent='';
+  document.getElementById('imp_status').style.color='';
+  document.getElementById('imp_preview').innerHTML='';
+  document.getElementById('imp_preview').style.display='none';
+  document.getElementById('imp_btn_importar').style.display='none';
+  document.getElementById('imp_tab_archivo').classList.add('active');
+  document.getElementById('imp_tab_texto').classList.remove('active');
+  document.getElementById('imp_section_archivo').style.display='block';
+  document.getElementById('imp_section_texto').style.display='none';
+  window._impProductos=[];
+}
+function switchImpTab(tab){
+  document.getElementById('imp_tab_archivo').classList.toggle('active',tab==='archivo');
+  document.getElementById('imp_tab_texto').classList.toggle('active',tab==='texto');
+  document.getElementById('imp_section_archivo').style.display=tab==='archivo'?'block':'none';
+  document.getElementById('imp_section_texto').style.display=tab==='texto'?'block':'none';
+}
+
+async function analizarCatalogo(){
+  const file=document.getElementById('imp_file').files[0];
+  const texto=document.getElementById('imp_texto').value.trim();
+  const status=document.getElementById('imp_status');
+  if(!file && !texto){status.style.color='var(--r)';status.textContent='// Sube un archivo o pega el texto del menú';return;}
+  status.style.color='var(--c)';
+  status.textContent='// Analizando con IA...';
+  document.getElementById('imp_btn_analizar').disabled=true;
+  try{
+    let body,headers={Authorization:'Bearer '+TOKEN};
+    if(file){
+      const fd=new FormData();
+      fd.append('archivo',file);
+      if(texto)fd.append('texto',texto);
+      body=fd;
+    } else {
+      headers['Content-Type']='application/json';
+      body=JSON.stringify({texto});
+    }
+    const r=await fetch(`${BASE}/panel/${SLUG}/catalogo/importar-ia`,{method:'POST',headers,body});
+    const data=await r.json();
+    if(!data.ok||!data.productos?.length){
+      status.style.color='var(--r)';
+      status.textContent='// '+(data.error||'No se detectaron productos. Intenta con otro formato.');
+      return;
+    }
+    window._impProductos=data.productos;
+    status.style.color='var(--g)';
+    status.textContent=`// IA detectó ${data.productos.length} producto(s). Revisa antes de importar.`;
+    renderImportPreview(data.productos);
+    document.getElementById('imp_preview').style.display='block';
+    document.getElementById('imp_btn_importar').style.display='inline-flex';
+    document.getElementById('imp_btn_importar').textContent=`✅ Importar ${data.productos.length} productos`;
+  }catch(e){
+    status.style.color='var(--r)';
+    status.textContent='// Error: '+e.message;
+  }finally{
+    document.getElementById('imp_btn_analizar').disabled=false;
+  }
+}
+
+function renderImportPreview(prods){
+  const el=document.getElementById('imp_preview');
+  el.innerHTML=`
+    <div style="font-family:var(--fm);font-size:10px;letter-spacing:.1em;color:var(--t3);margin-bottom:10px;">PRODUCTOS DETECTADOS — puedes editar antes de importar</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${prods.map((p,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--s1);border:1px solid var(--b);border-radius:6px;flex-wrap:wrap;">
+          <input type="text" value="${p.emoji||'📦'}" style="width:44px;text-align:center;font-size:18px;" onchange="window._impProductos[${i}].emoji=this.value">
+          <input type="text" value="${(p.nombre||'').replace(/"/g,'&quot;')}" placeholder="Nombre" style="flex:2;min-width:120px;font-size:13px;" onchange="window._impProductos[${i}].nombre=this.value">
+          <input type="number" value="${p.precio||0}" placeholder="Precio" step="0.01" style="width:80px;font-size:13px;" onchange="window._impProductos[${i}].precio=parseFloat(this.value)||0">
+          <input type="text" value="${(p.categoria||'').replace(/"/g,'&quot;')}" placeholder="Categoría" style="flex:1;min-width:100px;font-size:13px;" onchange="window._impProductos[${i}].categoria=this.value">
+          <button class="btn btn-danger btn-sm" onclick="window._impProductos.splice(${i},1);renderImportPreview(window._impProductos);document.getElementById('imp_btn_importar').textContent='✅ Importar '+window._impProductos.length+' productos';">✕</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function confirmarImportacion(){
+  const prods=window._impProductos||[];
+  if(!prods.length)return;
+  const status=document.getElementById('imp_status');
+  document.getElementById('imp_btn_importar').disabled=true;
+  status.style.color='var(--c)';
+  status.textContent='// Importando...';
+  try{
+    const r=await api(`/panel/${SLUG}/catalogo/importar-bulk`,{method:'POST',body:JSON.stringify({productos:prods})});
+    if(r?.ok){
+      status.style.color='var(--g)';
+      status.textContent=`// ✅ ${r.importados} producto(s) importados correctamente`;
+      setTimeout(()=>{cerrarImportarCatalogo();cargarCatalogo();},1500);
+    } else {
+      status.style.color='var(--r)';
+      status.textContent='// Error al importar: '+(r?.error||'desconocido');
+    }
+  }catch(e){
+    status.style.color='var(--r)';
+    status.textContent='// Error: '+e.message;
+  }finally{
+    document.getElementById('imp_btn_importar').disabled=false;
+  }
 }</script>
+
+<!-- MODAL IMPORTAR CATÁLOGO -->
+<div id="modalImportar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--s1);border:1px solid var(--b);border-radius:8px;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;padding:24px;position:relative;">
+    <button onclick="cerrarImportarCatalogo()" style="position:absolute;top:14px;right:14px;background:none;border:1px solid var(--b);color:var(--t2);padding:4px 10px;cursor:pointer;font-family:var(--fm);font-size:11px;border-radius:4px;">✕ Cerrar</button>
+    <div style="font-family:var(--fh);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--c);margin-bottom:4px;">📥 Importar catálogo con IA</div>
+    <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:18px;">Sube tu menú y la IA detecta los productos automáticamente</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--b);padding-bottom:0;">
+      <button id="imp_tab_archivo" class="btn btn-primary btn-sm active" onclick="switchImpTab('archivo')" style="border-radius:6px 6px 0 0;">📎 Archivo</button>
+      <button id="imp_tab_texto"   class="btn btn-secondary btn-sm"       onclick="switchImpTab('texto')"   style="border-radius:6px 6px 0 0;">📝 Texto</button>
+    </div>
+
+    <!-- Sección archivo -->
+    <div id="imp_section_archivo">
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:8px;">Acepta: foto del menú (.jpg .png), PDF, Excel (.xlsx), CSV</div>
+      <input type="file" id="imp_file" accept="image/*,.pdf,.xlsx,.xls,.csv" style="font-size:13px;margin-bottom:12px;width:100%;">
+    </div>
+
+    <!-- Sección texto -->
+    <div id="imp_section_texto" style="display:none;">
+      <div style="font-family:var(--fm);font-size:11px;color:var(--t3);margin-bottom:8px;">Pega el texto de tu menú, lista de precios, o descripción de productos</div>
+      <textarea id="imp_texto" rows="6" placeholder="Ejemplo:&#10;Hamburguesa clásica $5.50&#10;Hamburguesa doble $7.00&#10;Papas fritas $2.50&#10;Bebida $1.50" style="width:100%;font-size:13px;"></textarea>
+    </div>
+
+    <!-- Acciones -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px;">
+      <button id="imp_btn_analizar" class="btn btn-primary" onclick="analizarCatalogo()">🤖 Analizar con IA</button>
+      <button id="imp_btn_importar" class="btn btn-primary" onclick="confirmarImportacion()" style="display:none;background:rgba(0,255,136,.12);border-color:var(--g);color:var(--g);"></button>
+    </div>
+    <div id="imp_status" style="font-family:var(--fm);font-size:11px;margin-top:10px;min-height:16px;"></div>
+
+    <!-- Preview productos detectados -->
+    <div id="imp_preview" style="display:none;margin-top:16px;max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
 </body>
 </html>

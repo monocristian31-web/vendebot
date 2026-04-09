@@ -2301,6 +2301,155 @@ app.post('/panel/:slug/catalogo/:id/stock', authPanel, (req, res) => {
 });
 
 
+// ─── IMPORTAR CATÁLOGO CON IA ────────────────────────────────────────────────
+
+// Ruta 1: Analizar archivo/texto con Claude y extraer productos
+app.post('/panel/:slug/catalogo/importar-ia', authPanel, uploadMiddleware.single('archivo'), async (req, res) => {
+  const negocio = cargarNegocios().find(n => (n.slug || n.id) === req.params.slug);
+  if (!negocio) return res.status(404).json({ error: 'No encontrado' });
+
+  try {
+    let mensajeParaClaude = [];
+
+    // Si subió archivo
+    if (req.file) {
+      const mime = req.file.mimetype;
+
+      if (mime.startsWith('image/')) {
+        // Imagen del menú — Claude Vision
+        const b64 = req.file.buffer.toString('base64');
+        mensajeParaClaude.push({
+          type: 'image',
+          source: { type: 'base64', media_type: mime, data: b64 }
+        });
+        mensajeParaClaude.push({
+          type: 'text',
+          text: 'Esta es una foto del menú de un negocio. Extrae TODOS los productos que veas con su nombre, precio y categoría. Responde SOLO con JSON válido, sin texto extra, sin markdown:\n{"productos":[{"nombre":"...","precio":0.00,"categoria":"...","descripcion":"...","emoji":"..."}]}'
+        });
+
+      } else if (mime === 'application/pdf') {
+        // PDF — convertir a texto
+        let pdfText = '';
+        try {
+          const pdfParse = require('pdf-parse');
+          const pdfData = await pdfParse(req.file.buffer);
+          pdfText = pdfData.text;
+        } catch {
+          return res.json({ ok: false, error: 'Para PDFs instala pdf-parse en el servidor, o usa la opción de pegar texto.' });
+        }
+        mensajeParaClaude.push({
+          type: 'text',
+          text: `Texto extraído de un PDF de menú:\n\n${pdfText}\n\nExtrae TODOS los productos con nombre, precio y categoría. Responde SOLO con JSON válido, sin texto extra:\n{"productos":[{"nombre":"...","precio":0.00,"categoria":"...","descripcion":"...","emoji":"..."}]}`
+        });
+
+      } else if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('csv') || req.file.originalname.match(/\.(xlsx|xls|csv)$/i)) {
+        // Excel / CSV
+        let csvText = '';
+        try {
+          const xlsx = require('xlsx');
+          const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          csvText = xlsx.utils.sheet_to_csv(sheet);
+        } catch {
+          // Fallback: leer como texto plano (sirve para CSV)
+          csvText = req.file.buffer.toString('utf8');
+        }
+        mensajeParaClaude.push({
+          type: 'text',
+          text: `Datos de una hoja de Excel/CSV de catálogo:\n\n${csvText}\n\nExtrae TODOS los productos con nombre, precio y categoría. Responde SOLO con JSON válido, sin texto extra:\n{"productos":[{"nombre":"...","precio":0.00,"categoria":"...","descripcion":"...","emoji":"..."}]}`
+        });
+      }
+    }
+
+    // Si también pegó texto (o solo texto)
+    if (req.body?.texto) {
+      mensajeParaClaude.push({
+        type: 'text',
+        text: `Texto del menú:\n\n${req.body.texto}\n\nExtrae TODOS los productos con nombre, precio y categoría. Responde SOLO con JSON válido, sin texto extra, sin markdown:\n{"productos":[{"nombre":"...","precio":0.00,"categoria":"...","descripcion":"...","emoji":"..."}]}`
+      });
+    }
+
+    if (!mensajeParaClaude.length) {
+      return res.json({ ok: false, error: 'No se recibió contenido para analizar' });
+    }
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: mensajeParaClaude }]
+    });
+
+    // Extraer JSON de la respuesta
+    let texto = response.content[0]?.text || '';
+    // Limpiar posibles bloques de código markdown
+    texto = texto.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(texto);
+    } catch {
+      // Intentar extraer JSON con regex
+      const match = texto.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+      else return res.json({ ok: false, error: 'No se pudo parsear la respuesta de la IA' });
+    }
+
+    const productos = (parsed.productos || []).map(p => ({
+      nombre:      p.nombre     || 'Sin nombre',
+      precio:      parseFloat(p.precio) || 0,
+      categoria:   p.categoria  || 'General',
+      descripcion: p.descripcion|| '',
+      emoji:       p.emoji      || '📦',
+    }));
+
+    if (!productos.length) {
+      return res.json({ ok: false, error: 'La IA no detectó productos. Intenta con otro formato o pega el texto manualmente.' });
+    }
+
+    res.json({ ok: true, productos });
+
+  } catch (e) {
+    console.error('[ImportarIA]', e.message);
+    res.json({ ok: false, error: 'Error al analizar: ' + e.message });
+  }
+});
+
+// Ruta 2: Importar bulk — guardar los productos confirmados en el catálogo
+app.post('/panel/:slug/catalogo/importar-bulk', authPanel, (req, res) => {
+  const { productos } = req.body;
+  if (!productos?.length) return res.json({ ok: false, error: 'Sin productos' });
+
+  const negocios = cargarNegocios();
+  const idx = negocios.findIndex(n => (n.slug || n.id) === req.params.slug);
+  if (idx === -1) return res.status(404).json({ error: 'No encontrado' });
+
+  if (!negocios[idx].catalogo) negocios[idx].catalogo = [];
+
+  let maxId = negocios[idx].catalogo.reduce((m, p) => Math.max(m, p.id || 0), 0);
+  let importados = 0;
+
+  for (const p of productos) {
+    if (!p.nombre?.trim()) continue;
+    maxId++;
+    negocios[idx].catalogo.push({
+      id:          maxId,
+      nombre:      p.nombre.trim(),
+      precio:      parseFloat(p.precio) || 0,
+      categoria:   p.categoria?.trim() || 'General',
+      descripcion: p.descripcion?.trim() || '',
+      emoji:       p.emoji || '📦',
+      activo:      true,
+      imagen:      null,
+    });
+    importados++;
+  }
+
+  cache['negocios'] = negocios;
+  guardarDB('negocios', negocios).catch(e => console.error('[DB]', e.message));
+
+  res.json({ ok: true, importados });
+});
+
 // ─── CATÁLOGO — crear y eliminar ─────────────────────────────────────────────
 app.post('/panel/:slug/catalogo', authPanel, (req, res) => {
   const negocios = cargarNegocios();
